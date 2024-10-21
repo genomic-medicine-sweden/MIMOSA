@@ -20,22 +20,22 @@ MIMOSA can then be viewed in the browser at localhost:3000
 ## Uploading & Deleting Data
 
 ``` 
-$ scripts/upload_sample.py ./config.json test_data/test_samples.json #uploads test data to MIMOSA
-$ scripts/upload_similarity.py ./config.json test_data/test_samples.json #uploads test similarity data to MIMOSA
+ scripts/upload_sample.py ./config.json test_data/test_samples.json #uploads test data to MIMOSA
+ scripts/upload_similarity.py ./config.json test_data/test_samples.json #uploads test similarity data to MIMOSA
 
-$ scripts/delete_sample.py ./config.json test_data/test_samples.json #deletes test data from MIMOSA 
-$ scripts/delete_similarity.py ./config.json test_data/test_samples.json #deletes test similarity data from MIMOSA 
+ scripts/delete_sample.py ./config.json test_data/test_samples.json #deletes test data from MIMOSA 
+ scripts/delete_similarity.py ./config.json test_data/test_samples.json #deletes test similarity data from MIMOSA 
 
 ```
 
 #### conda environment
 
 ```
-$ conda create -n mimosa python=3.11
+ conda create -n mimosa python=3.11
 
-$ conda activate mimosa
+ conda activate mimosa
 
-$ pip install -r scripts/requirements.txt
+ pip install -r scripts/requirements.txt
 
 ``` 
 
