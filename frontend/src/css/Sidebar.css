@@ -1,0 +1,38 @@
+.custom-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.sidebar-header {
+  text-align: center;
+  padding: 2px;
+  margin-top: 0px;
+}
+
+.scrollable-content {
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.fixed-area {
+  background: rgb(255, 255, 255);
+  padding: 10px;
+  text-align: center;
+  flex-shrink: 0;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 50px;
+  font-weight: bold;
+}
+
+.fieldset-content {
+  text-align: left;
+}
+

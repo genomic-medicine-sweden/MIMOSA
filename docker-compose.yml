@@ -1,0 +1,33 @@
+version: '3.9'
+services:
+  mimosa-backend:
+    build:
+      context: .
+      dockerfile: "./backend/Dockerfile"
+    ports:
+      - "5000:5000"
+    volumes:
+      - "./config.json:/app/backend/config.json"
+    depends_on:
+      - mongo
+
+  mimosa-frontend:
+    build:
+      context: .
+      dockerfile: "./frontend/Dockerfile"
+    ports:
+      - "3000:3000"
+    volumes:
+      - "./config.json:/app/frontend/src/config.json"
+    environment:
+      - PORT=3000
+
+
+  #MongoDB container
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - "./volumes/mongodb:/data/db"
+

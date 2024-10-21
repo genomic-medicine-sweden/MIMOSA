@@ -1,0 +1,16 @@
+.custom-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.spacing {
+  width: 10px;
+}
+
+.clear-button {
+  margin-left: auto;
+}
+.custom-days-input-number .p-inputnumber-input {
+  width: 100px;
+}
+

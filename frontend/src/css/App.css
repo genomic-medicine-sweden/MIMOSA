@@ -1,0 +1,92 @@
+.container {
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "nav nav nav"
+    "left-side-content main-content right-side-content"
+    "footer footer footer";
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100vh;
+}
+
+.header {
+  grid-area: header;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.header > :first-child {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header > :last-child {
+  position: absolute;
+  right: 10px;
+}
+
+.nav {
+  grid-area: nav;
+  padding: 1rem;
+}
+
+.left-side-content {
+  grid-area: left-side-content;
+}
+
+.right-side-content {
+  grid-area: right-side-content;
+}
+
+.main-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.footer {
+  grid-area: footer;
+  padding: 1rem;
+}
+
+.filtering-logic-container {
+  z-index: 999;
+  position: sticky;
+  top: 0;
+}
+.info-content {
+  margin-left: 20px;
+  margin-top: 20px;
+}
+.custom-export-button {
+  margin-top: 20px;
+  margin-left: 20px;
+  padding: 10px;
+}
+.timeline-component .custom-export-button {
+  margin-top: 0;
+  padding: 10px;
+}
+
+.outbreak-message {
+  position: absolute;
+  margin-left: 150px;
+  margin-top: 5px;
+  padding: 2px;
+  max-width: 300px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  color: black;
+  background-color: white;
+  border-radius: 5px;
+}
+

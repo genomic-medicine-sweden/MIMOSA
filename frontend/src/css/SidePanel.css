@@ -1,0 +1,62 @@
+.side-panel-container {
+  display: flex;
+  height: 100%;
+}
+
+.side-panel {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: transparent;
+  z-index: 1000;
+  transition: width 0.3s ease;
+  width: 0;
+}
+
+.side-panel.open {
+  width: 100%;
+}
+
+.panel-content {
+  padding: 20px;
+  display: none;
+  margin: 120px 0 0 40px;
+}
+
+.side-panel.open .panel-content {
+  display: block;
+}
+
+.tab-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0;
+}
+
+.tab-buttons .p-button {
+  margin-bottom: 5px;
+  writing-mode: vertical-rl;
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.legend-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid black;
+  background-color: #000;
+  margin-right: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+

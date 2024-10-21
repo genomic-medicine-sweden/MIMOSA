@@ -1,0 +1,3 @@
+volumes/mongodb/*
+!volumes/mongodb/.gitkeep
+
