@@ -1,32 +1,36 @@
-import colorPalette from './ColorPalette'; 
+import colorPalette from "./ColorPalette";
 
-const DEFAULT_COLOR = "#D3D3D3"; 
-let STCountMap = new Map();
+const DEFAULT_COLOR = "#D3D3D3";
+let STProfileCountMap = new Map();
 
-const hashSTToColorIndex = (ST) => {
+const hashSTToColorIndex = (ST, analysis_profile) => {
   let hash = 0;
-  for (let i = 0; i < ST.length; i++) {
-    hash = ST.charCodeAt(i) + ((hash << 5) - hash); 
+  const combinedKey = `${ST}-${analysis_profile}`;
+  for (let i = 0; i < combinedKey.length; i++) {
+    hash = combinedKey.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return Math.abs(hash) % colorPalette.length; 
+  return Math.abs(hash) % colorPalette.length;
 };
 
 export const countOccurrences = (data) => {
-  STCountMap.clear();
-  data.forEach(item => {
-    const ST = item.properties.ST;
-    if (ST) {
-      let count = STCountMap.get(ST) || 0;
-      STCountMap.set(ST, count + 1);
+  STProfileCountMap.clear();
+  data.forEach((item) => {
+    const { ST, analysis_profile } = item.properties;
+
+    if (ST && analysis_profile) {
+      const key = `${ST}-${analysis_profile}`;
+      let count = STProfileCountMap.get(key) || 0;
+      STProfileCountMap.set(key, count + 1);
     }
   });
 };
 
-export const getColor = (ST) => {
-  const count = STCountMap.get(ST) || 0;
+export const getColor = (ST, analysis_profile) => {
+  const key = `${ST}-${analysis_profile}`;
+  const count = STProfileCountMap.get(key) || 0;
 
   if (count >= 2) {
-    const colorIndex = hashSTToColorIndex(ST.toString()); 
+    const colorIndex = hashSTToColorIndex(ST.toString());
     return colorPalette[colorIndex];
   }
 

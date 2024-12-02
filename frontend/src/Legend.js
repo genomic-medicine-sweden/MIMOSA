@@ -1,16 +1,17 @@
 import { getColor } from "./ColorAssignment";
 
-const DEFAULT_COLOR = "#D3D3D3"; 
+const DEFAULT_COLOR = "#D3D3D3";
 
 const generateLegendItems = (data) => {
   if (!Array.isArray(data) || data.length === 0) {
     return [];
   }
 
-  const uniqueST = [...new Set(data.map((item) => item.properties.ST))];
+  const uniqueSTProfiles = new Set(data.map(item => `${item.properties.ST}-${item.properties.analysis_profile}`));
 
-  const legendItems = uniqueST.map((ST) => {
-    const color = getColor(ST);
+  const legendItems = Array.from(uniqueSTProfiles).map((profile) => {
+    const [ST, analysis_profile] = profile.split("-");
+    const color = getColor(ST, analysis_profile);
     return {
       value: ST,
       label: `${ST}`,
@@ -22,4 +23,3 @@ const generateLegendItems = (data) => {
 };
 
 export default generateLegendItems;
-

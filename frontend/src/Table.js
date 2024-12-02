@@ -11,20 +11,21 @@ import "primeicons/primeicons.css";
 import calculateDistance from "./distance.js";
 import HospitalCoordinates from "./assets/hospital-coordinates";
 
-const Table = ({ filteredData,similarity }) => {
+const Table = ({ filteredData, similarity }) => {
   const [rows, setRows] = useState(5);
   const [first, setFirst] = useState(0);
   const [expandedRows, setExpandedRows] = useState([]);
   const dt = useRef(null);
+  const tooltipRef = useRef(null);
 
   useEffect(() => {
+    if (tooltipRef.current) tooltipRef.current.updateTargetEvents();
+  }, [filteredData, similarity, rows, first]);
 
-  }, [filteredData,similarity, rows, first]);
-
-   const rowExpansionTemplate = (rowData) => {
-    const similarData = Array.isArray(similarity) ?
-    similarity.find((item) => item.ID === rowData.properties.ID) :
-    null;
+  const rowExpansionTemplate = (rowData) => {
+    const similarData = Array.isArray(similarity)
+      ? similarity.find((item) => item.ID === rowData.properties.ID)
+      : null;
 
     const mainPostcode = rowData.properties.PostCode;
     const mainCoordinates = postcodeData[mainPostcode]?.coordinates || [];
@@ -90,17 +91,14 @@ const Table = ({ filteredData,similarity }) => {
               </thead>
               <tbody>
                 {similarData.similar.map((similarSample) => {
-              
                   const similarPostcode = findPostcodeById(similarSample.ID);
                   const similarCoordinates =
                     postcodeData[similarPostcode]?.coordinates || [];
 
-                  
                   const similarHospital = findHospitalById(similarSample.ID);
                   const similarHospitalCoordinates =
                     HospitalCoordinates[similarHospital]?.coordinates || [];
 
-            
                   const distance =
                     mainCoordinates.length === 2 &&
                     similarCoordinates.length === 2
@@ -133,7 +131,7 @@ const Table = ({ filteredData,similarity }) => {
                       </td>
                       <td style={{ textAlign: "center" }}>{distance}</td>
                       <td style={{ textAlign: "center" }}>
-                        {hospitalDistance} 
+                        {hospitalDistance}
                       </td>
                     </tr>
                   );
@@ -258,7 +256,6 @@ const Table = ({ filteredData,similarity }) => {
   const handlePageChange = (event) => {
     setFirst(event.first);
     setRows(event.rows);
-    console.log("Page changed:", event);
   };
 
   const header = (
@@ -313,12 +310,13 @@ const Table = ({ filteredData,similarity }) => {
         <Column header="Hospital" body={hospitalBodyTemplate} sortable />
         <Column header="" body={severityBodyTemplate} />
       </DataTable>
-      <Tooltip target=".tag-new" />
-      <Tooltip target=".tag-intra" />
-      <Tooltip target=".tag-inter" />
+      <Tooltip
+        ref={tooltipRef}
+        target=".tag-new, .tag-intra, .tag-inter"
+        position="bottom"
+      />
     </div>
   );
 };
 
 export default Table;
-

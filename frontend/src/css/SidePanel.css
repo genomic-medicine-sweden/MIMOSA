@@ -60,3 +60,12 @@
   margin-bottom: 8px;
 }
 
+.county-dropdown .p-dropdown-label {
+  font-size: 12px;
+}
+
+.county-dropdown .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+  font-size: 12px;
+}
+
+
