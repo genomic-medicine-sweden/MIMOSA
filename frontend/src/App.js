@@ -47,11 +47,11 @@ const App = ({ data, similarity }) => {
   const handleCountySelect = (county) => {
     setSelectedCounty(county);
 
-    const countyData = infoRef.current.countyCounts[county] || {
+
+    const countyData = infoRef.current?.countyCounts?.[county] || {
       total: 0,
       ST: {},
     };
-
     const content =
       county === "All" ? "" : generateInfoContent(county, countyData);
     setInfoContent(content);

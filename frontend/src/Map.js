@@ -358,7 +358,7 @@ const Map = ({
         const bounds = layer.getBounds();
         mapInstance.current.fitBounds(bounds);
 
-        const countyData = infoRef.current.countyCounts[countyName] || {
+        const countyData = infoRef.current?.countyCounts?.[countyName] || {
           total: 0,
           ST: {},
         };
