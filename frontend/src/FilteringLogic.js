@@ -16,6 +16,9 @@ const FilteringLogic = ({
   setFilteredData,
   hospitalView,
   toggleHospitalView,
+  selectedCounty,
+  countyFilter,
+  setCountyFilter,
 }) => {
   const [postcodeFilter, setPostcodeFilter] = useState([]);
   const [idFilter, setIdFilter] = useState([]);
@@ -30,15 +33,22 @@ const FilteringLogic = ({
   const [ids, setIds] = useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [postalTownFilter, setPostalTownFilter] = useState([]);
-  const [countyFilter, setCountyFilter] = useState([]);
   const [postalTowns, setPostalTowns] = useState([]);
   const [counties, setCounties] = useState([]);
   const [dateRange, setDateRange] = useState(null);
 
   useEffect(() => {
+    if (selectedCounty && selectedCounty !== "All") {
+      setCountyFilter([selectedCounty]);
+    } else {
+      setCountyFilter([]);
+    }
+  }, [selectedCounty,setCountyFilter]);
+
+  useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) {
       setFilteredData([]);
-      return; 
+      return;
     }
     const uniquePostcodes = [
       ...new Set(
@@ -49,6 +59,7 @@ const FilteringLogic = ({
           .map((item) => item.properties.PostCode)
       ),
     ];
+
     const uniqueIds = [
       ...new Set(
         data
@@ -73,9 +84,17 @@ const FilteringLogic = ({
       .filter(([postcode]) => uniquePostcodes.includes(postcode))
       .map(([, item]) => item);
 
-    const postalTowns = [
-      ...new Set(filteredCoordinates.map((item) => item.postaltown)),
-    ];
+    const postalTowns =
+      countyFilter.length > 0
+        ? [
+            ...new Set(
+              filteredCoordinates
+                .filter((coord) => countyFilter.includes(coord.County))
+                .map((coord) => coord.postaltown)
+            ),
+          ]
+        : [...new Set(filteredCoordinates.map((item) => item.postaltown))];
+
     const counties = [
       ...new Set(filteredCoordinates.map((item) => item.County)),
     ];
@@ -183,7 +202,9 @@ const FilteringLogic = ({
     setIdFilter([]);
     setHospitalFilter([]);
     setPostalTownFilter([]);
-    setCountyFilter([]);
+    if (!(selectedCounty && selectedCounty !== "All")) {
+      setCountyFilter([]);
+    }
     setSTFilter([]);
     setDateRange(null);
   };
@@ -298,6 +319,7 @@ const FilteringLogic = ({
                 filter={true}
                 filterPlaceholder="Search"
                 maxselectedlabels={2}
+                disabled={selectedCounty && selectedCounty !== "All"}
               />
               <label htmlFor="ms-countyFilter"> County</label>
             </FloatLabel>
@@ -343,4 +365,3 @@ const FilteringLogic = ({
 };
 
 export default FilteringLogic;
-

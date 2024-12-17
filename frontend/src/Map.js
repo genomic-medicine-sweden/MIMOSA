@@ -1,4 +1,3 @@
-// Map.js
 import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import L from "leaflet";
 import "leaflet.markercluster";
@@ -13,7 +12,7 @@ import * as turf from "@turf/turf";
 import createPieChartSVG from "./PieChart";
 import { colorMapping } from "./MapColor";
 import { generateInfoContent } from "./info";
-import { generateOutbreakMessage } from './OutBreakMessage'; 
+import { generateOutbreakMessage } from "./OutBreakMessage";
 
 const Map = ({
   filteredData,
@@ -22,11 +21,13 @@ const Map = ({
   markerSize,
   onInfoUpdate,
   onOutbreakUpdate,
+  selectedCounties,
+  infoRef,
+  countyFilter,
 }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef({});
-  const infoRef = useRef({ countyCounts: {} });
   const selectedMarkerRef = useRef(null);
   const geojsonLayerRef = useRef(null);
 
@@ -42,7 +43,7 @@ const Map = ({
 
   const highlightStyle = useMemo(
     () => ({
-      color: "black",
+      color: colorMapping[mapColor] || mapColor,
       fillColor: colorMapping[mapColor] || mapColor,
       opacity: 1,
       fillOpacity: 0.5,
@@ -50,43 +51,39 @@ const Map = ({
     [mapColor]
   );
 
-	  const createPieClusterIcon = useCallback(
-    (cluster, markerSize) => {
-      const childMarkers = cluster.getAllChildMarkers();
-      const count = cluster.getChildCount();
+  const createPieClusterIcon = useCallback((cluster, markerSize) => {
+    const childMarkers = cluster.getAllChildMarkers();
+    const count = cluster.getChildCount();
+    const filteredData = {};
 
-      const filteredData = {};
-      childMarkers.forEach((marker) => {
-        const category = marker.options.fillColor;
-        filteredData[category] = (filteredData[category] || 0) + 1;
-      });
+    childMarkers.forEach((marker) => {
+      const category = marker.options.fillColor;
+      filteredData[category] = (filteredData[category] || 0) + 1;
+    });
 
-      const chartData = Object.entries(filteredData).map(([color, value]) => [
-        value,
-        color,
-      ]);
+    const chartData = Object.entries(filteredData).map(([color, value]) => [
+      value,
+      color,
+    ]);
 
-      const pieChartSize = markerSize * 3.5;
-      const chartSVG = createPieChartSVG(chartData, pieChartSize);
+    const pieChartSize = markerSize * 3.5;
+    const chartSVG = createPieChartSVG(chartData, pieChartSize);
 
-      return L.divIcon({
-        html: `
-          <div style="width: ${pieChartSize}px; height: ${pieChartSize}px; position: relative; display: flex; align-items: center; justify-content: center;">
-            ${chartSVG}
-            <div style="position: absolute; width: ${pieChartSize}px; height: ${pieChartSize}px; display: flex; align-items: center; justify-content: center; font-size: ${
-          Math.log(count) * 3
-        }px; color: black;">
-              ${count}
-            </div>
+    return L.divIcon({
+      html: `
+        <div style="width: ${pieChartSize}px; height: ${pieChartSize}px; position: relative; display: flex; align-items: center; justify-content: center;">
+          ${chartSVG}
+          <div style="position: absolute; width: ${pieChartSize}px; height: ${pieChartSize}px; display: flex; align-items: center; justify-content: center; font-size: ${
+        Math.log(count) * 3
+      }px; color: black;">
+            ${count}
           </div>
-        `,
-        className: "pie-cluster-icon",
-        iconSize: [pieChartSize, pieChartSize],
-      });
-    },
-    []
-  );
-
+        </div>
+      `,
+      className: "pie-cluster-icon",
+      iconSize: [pieChartSize, pieChartSize],
+    });
+  }, []);
 
   const clearAndAddMarkers = useCallback(() => {
     Object.values(markersRef.current).forEach((markerCluster) => {
@@ -101,7 +98,8 @@ const Map = ({
     }
 
     filteredData.forEach((item) => {
-      const { PostCode, Date, ID, Hospital, ST } = item.properties;
+      const { PostCode, Date, ID, Hospital, ST, analysis_profile } =
+        item.properties;
       let coordinates;
       let County;
 
@@ -138,7 +136,7 @@ const Map = ({
         }
       });
 
-      const color = getColor(ST);
+      const color = getColor(ST, analysis_profile);
       const marker = L.circleMarker(coordinates, {
         color: "black",
         fillColor: color,
@@ -185,11 +183,16 @@ const Map = ({
       infoRef.current.countyCounts = countyCounts;
     }
 
-
     const outbreakMessage = generateOutbreakMessage(countyCounts);
-    onOutbreakUpdate(outbreakMessage); 
-
-  }, [filteredData, hospitalView, markerSize, createPieClusterIcon, onOutbreakUpdate]);
+    onOutbreakUpdate(outbreakMessage);
+  }, [
+    filteredData,
+    hospitalView,
+    markerSize,
+    createPieClusterIcon,
+    onOutbreakUpdate,
+    infoRef,
+  ]);
 
   useEffect(() => {
     const initializeMap = () => {
@@ -218,16 +221,22 @@ const Map = ({
 
       geojsonLayerRef.current = L.geoJSON(boundariesData, {
         style: defaultStyle,
+        filter: (feature) => {
+          if (selectedCounties.includes("All")) return true;
+          return selectedCounties.includes(feature.properties.name);
+        },
         onEachFeature: (feature, layer) => {
           layer.on("mouseover", function () {
-            layer.setStyle(highlightStyle);
-            const countyName = feature.properties.name;
-            const countyData = infoRef.current.countyCounts[countyName] || {
-              total: 0,
-              ST: {},
-            };
-            const content = generateInfoContent(countyName, countyData);
-            onInfoUpdate(content);
+            if (!selectedCounties || selectedCounties.includes("All")) {
+              layer.setStyle(highlightStyle);
+              const countyName = feature.properties.name;
+              const countyData = infoRef.current.countyCounts[countyName] || {
+                total: 0,
+                ST: {},
+              };
+              const content = generateInfoContent(countyName, countyData);
+              onInfoUpdate(content);
+            }
           });
           layer.on("mouseout", function () {
             geojsonLayerRef.current.resetStyle(layer);
@@ -238,7 +247,8 @@ const Map = ({
           });
         },
       }).addTo(map);
- const infoControl = L.control({ position: "topright" });
+
+      const infoControl = L.control({ position: "topright" });
 
       infoControl.onAdd = function () {
         const div = L.DomUtil.create("div", "info");
@@ -266,18 +276,31 @@ const Map = ({
       });
 
       geojsonLayerRef.current = L.geoJSON(boundariesData, {
-        style: defaultStyle,
+        style: (feature) => {
+          const countyName = feature.properties.name;
+          const shouldHighlight = !(
+            countyFilter.includes(countyName) ===
+            selectedCounties.includes(countyName)
+          );
+          return shouldHighlight ? highlightStyle : defaultStyle;
+        },
+        filter: (feature) => {
+          if (selectedCounties.includes("All")) return true;
+          return selectedCounties.includes(feature.properties.name);
+        },
         onEachFeature: (feature, layer) => {
           layer.on("mouseover", function () {
-            layer.setStyle(highlightStyle);
-            const countyName = feature.properties.name;
-	    const countyData = (infoRef.current.countyCounts &&
-              infoRef.current.countyCounts[countyName]) || {
-              total: 0,
-              ST: {},
-            };
-            const content = generateInfoContent(countyName, countyData);
-            onInfoUpdate(content);
+            if (!selectedCounties || selectedCounties.includes("All")) {
+              layer.setStyle(highlightStyle);
+              const countyName = feature.properties.name;
+              const countyData = (infoRef.current.countyCounts &&
+                infoRef.current.countyCounts[countyName]) || {
+                total: 0,
+                ST: {},
+              };
+              const content = generateInfoContent(countyName, countyData);
+              onInfoUpdate(content);
+            }
           });
           layer.on("mouseout", function () {
             geojsonLayerRef.current.resetStyle(layer);
@@ -297,7 +320,55 @@ const Map = ({
         markerCluster.clearLayers();
       });
     };
-  }, [clearAndAddMarkers, defaultStyle, highlightStyle, onInfoUpdate]);
+  }, [
+    clearAndAddMarkers,
+    defaultStyle,
+    highlightStyle,
+    onInfoUpdate,
+    selectedCounties,
+    infoRef,
+    countyFilter,
+  ]);
+
+  const prevSelectedCounties = useRef(selectedCounties);
+
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    if (
+      selectedCounties.length === 1 &&
+      selectedCounties[0] === "All" &&
+      prevSelectedCounties.current[0] !== "All"
+    ) {
+      const swedenBounds = [
+        [54.0, 10.0],
+        [70.0, 25.0],
+      ];
+      mapInstance.current.fitBounds(swedenBounds);
+    }
+
+    if (selectedCounties[0] !== "All") {
+      const countyName = selectedCounties[0];
+      const feature = boundariesData.features.find(
+        (f) => f.properties.name === countyName
+      );
+
+      if (feature) {
+        const layer = L.geoJSON(feature);
+        const bounds = layer.getBounds();
+        mapInstance.current.fitBounds(bounds);
+
+        const countyData = infoRef.current?.countyCounts?.[countyName] || {
+          total: 0,
+          ST: {},
+        };
+        const content = generateInfoContent(countyName, countyData);
+        onInfoUpdate(content);
+      }
+    }
+
+    prevSelectedCounties.current = selectedCounties;
+  }, [selectedCounties, infoRef, onInfoUpdate]);
 
   return (
     <div>
@@ -314,4 +385,3 @@ const Map = ({
 };
 
 export default Map;
-

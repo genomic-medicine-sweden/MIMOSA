@@ -5,6 +5,7 @@ import { Dropdown } from "primereact/dropdown";
 import generateLegendItems from "./Legend";
 import { Slider } from "primereact/slider";
 import { colorOptions } from "./MapColor";
+import boundariesData from "./assets/sweden-with-regions";
 
 const SidePanel = ({
   activeTab,
@@ -14,8 +15,11 @@ const SidePanel = ({
   handleColorChange,
   markerSize,
   setMarkerSize,
+  selectedCounty,
+  setSelectedCounty,
+  onCountySelect,
 }) => {
-  const [selectedColor, setSelectedColor] = useState("green");
+  const [selectedColor, setSelectedColor] = useState("Green");
 
   const options = [
     { label: "Legend", value: "legend" },
@@ -25,6 +29,14 @@ const SidePanel = ({
     width: isOpen ? "200px" : "0",
     transition: "width 0.3s ease",
   };
+
+  const counties = [
+    { label: "All", value: "All" },
+    ...boundariesData.features.map((feature) => ({
+      label: feature.properties.name,
+      value: feature.properties.name,
+    })),
+  ];
 
   const renderContent = () => {
     switch (activeTab) {
@@ -56,7 +68,7 @@ const SidePanel = ({
                 setSelectedColor(e.value);
                 handleColorChange(e.value);
               }}
-              placeholder={`Selected color: ${selectedColor}`}
+             placeholder={selectedColor}
             />
             <p>Marker Size</p>
             <Slider
@@ -64,6 +76,17 @@ const SidePanel = ({
               onChange={(e) => setMarkerSize(e.value)}
               min={3}
               max={8}
+            />
+            <p>County</p>
+            <Dropdown
+              value={selectedCounty}
+              options={counties}
+              onChange={(e) => {
+                setSelectedCounty(e.value);
+                onCountySelect(e.value);
+              }}
+              placeholder="Select a County"
+              className="county-dropdown"
             />
           </div>
         );

@@ -8,6 +8,7 @@ import SidebarComponent from "./Sidebar";
 import "./css/App.css";
 import SidePanel from "./SidePanel";
 import ImageExport from "./ImageExport";
+import { generateInfoContent } from "./info";
 
 const App = ({ data, similarity }) => {
   const [filteredData, setFilteredData] = useState(data);
@@ -16,8 +17,10 @@ const App = ({ data, similarity }) => {
   const [markerSize, setMarkerSize] = useState(6);
   const [activeTab, setActiveTab] = useState(null);
   const [infoContent, setInfoContent] = useState("");
+  const [selectedCounty, setSelectedCounty] = useState("All");
 
   const mainContentRef = useRef(null);
+  const infoRef = useRef({ countyCounts: {} });
 
   const toggleHospitalView = () => {
     setHospitalView((prev) => !prev);
@@ -41,6 +44,21 @@ const App = ({ data, similarity }) => {
     setOutbreakMessage(message);
   };
 
+  const handleCountySelect = (county) => {
+    setSelectedCounty(county);
+
+
+    const countyData = infoRef.current?.countyCounts?.[county] || {
+      total: 0,
+      ST: {},
+    };
+    const content =
+      county === "All" ? "" : generateInfoContent(county, countyData);
+    setInfoContent(content);
+  };
+
+  const [countyFilter, setCountyFilter] = useState([]);
+
   return (
     <div className="container">
       <header className="header">
@@ -55,6 +73,9 @@ const App = ({ data, similarity }) => {
             setFilteredData={setFilteredData}
             hospitalView={hospitalView}
             toggleHospitalView={toggleHospitalView}
+            selectedCounty={selectedCounty}
+            countyFilter={countyFilter}
+            setCountyFilter={setCountyFilter}
           />
         </div>
       </nav>
@@ -68,6 +89,9 @@ const App = ({ data, similarity }) => {
           handleColorChange={handleColorChange}
           markerSize={markerSize}
           setMarkerSize={setMarkerSize}
+          selectedCounty={selectedCounty}
+          setSelectedCounty={setSelectedCounty}
+          onCountySelect={handleCountySelect}
         />
       </aside>
 
@@ -79,8 +103,12 @@ const App = ({ data, similarity }) => {
           markerSize={markerSize}
           onInfoUpdate={handleInfoUpdate}
           onOutbreakUpdate={handleOutbreakUpdate}
+          selectedCounties={selectedCounty ? [selectedCounty] : []}
+          infoRef={infoRef}
+          countyFilter={countyFilter}
         />
       </main>
+
       <aside className="left-side-content">
         {outbreakMessage && (
           <div
@@ -89,6 +117,7 @@ const App = ({ data, similarity }) => {
           />
         )}
       </aside>
+
       <aside className="right-side-content">
         <ImageExport mainContentRef={mainContentRef} />
         <div
@@ -114,4 +143,3 @@ const App = ({ data, similarity }) => {
 };
 
 export default App;
-

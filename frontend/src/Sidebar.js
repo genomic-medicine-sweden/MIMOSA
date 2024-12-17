@@ -55,6 +55,7 @@ const SidebarComponent = () => {
       >
         <div className="sidebar-header">
           <h2 className="sidebar-title">MIMOSA</h2>
+	  <h3 className="sidebar-subtitle">Microbial Investigation,Monitoring,Outbreak Surveillance, and Analysis </h3>
         </div>
         <div className="scrollable-content">
           <Fieldset

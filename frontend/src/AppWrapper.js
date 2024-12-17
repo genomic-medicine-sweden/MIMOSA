@@ -21,7 +21,7 @@ const AppWrapper = () => {
  
         const processedData = loadedData.map(item => ({
           ...item,
-          color: getColor(item.properties.ST)
+          color: getColor(item.properties.ST, item.properties.analysis_profile), 
         }));
 
         setData(processedData); 

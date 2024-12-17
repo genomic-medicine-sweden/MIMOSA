@@ -31,6 +31,11 @@
   font-size: 50px;
   font-weight: bold;
 }
+.sidebar-subtitle {
+  margin-top: 5px; 
+  font-size: 12px;
+  font-weight: normal; 
+}
 
 .fieldset-content {
   text-align: left;
