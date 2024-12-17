@@ -55,7 +55,10 @@ const SidebarComponent = () => {
       >
         <div className="sidebar-header">
           <h2 className="sidebar-title">MIMOSA</h2>
-	  <h3 className="sidebar-subtitle">Microbial Investigation,Monitoring,Outbreak Surveillance, and Analysis </h3>
+          <h3 className="sidebar-subtitle">
+            Microbial Investigation,Monitoring,Outbreak Surveillance, and
+            Analysis{" "}
+          </h3>
         </div>
         <div className="scrollable-content">
           <Fieldset
@@ -69,13 +72,36 @@ const SidebarComponent = () => {
           </Fieldset>
           <div style={{ marginTop: "20px" }}></div>
           <Fieldset
-            legend="Some more information"
+            legend="Resource Links"
             toggleable
             collapsed={collapsedState[1]}
             onToggle={() => toggleCollapsed(1)}
             className="fieldset-content"
           >
-            <p>This is some additional information</p>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+            >
+              <div>
+                <a
+                  href="https://cartographyvectors.com/map/1521-sweden-with-regions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "none", color: "blue" }}
+                >
+                  Sweden Boundaries
+                </a>
+              </div>
+              <div>
+                <a
+                  href="https://www.geonames.org/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "none", color: "blue" }}
+                >
+                  Postcodes
+                </a>
+              </div>
+            </div>
           </Fieldset>
         </div>
         <div className="fixed-area">
@@ -94,4 +120,5 @@ const SidebarComponent = () => {
 };
 
 export default SidebarComponent;
+
 
