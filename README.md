@@ -17,15 +17,24 @@ MIMOSA can then be viewed in the browser at localhost:3000
 
 
 
-## Uploading & Deleting Data
+## Uploading data from BONSAI
+In order to retrive samples from [BONSAI](https://github.com/SMD-Bioinformatics-Lund/bonsai) the bonsai_credentials.json
+must be edited to include the required authentication details.
 
 ``` 
-scripts/upload_sample.py ./config.json test_data/test_samples.json #uploads test data to MIMOSA
-scripts/upload_similarity.py ./config.json test_data/test_similarity.json #uploads test similarity data to MIMOSA
+python scripts/main.py \
+    --config <path_to_config.json> \
+    --credentials <path_to_bonsai_credentials.json> \
+    --output <path_to_output_directory> \
+    --supplementary_metadata <path_to_supplementary_metadata.csv> \
+    --profile staphylococcus_aureus
+```
 
-scripts/delete_sample.py ./config.json test_data/test_samples.json #deletes test data from MIMOSA
-scripts/delete_similarity.py ./config.json test_data/test_similarity.json #deletes test similarity data from MIMOSA
-
+### supplementary-metadata
+Example of supplementary_metadata.csv
+```
+sample,lims_id,PostCode,Hospital,Date
+Sample_143,lims_143,71131,Örebro Universitetssjukhus,2025-03-05
 ```
 
 #### conda environment
@@ -45,3 +54,6 @@ scripts/delete_similarity.py ./config.json test_data/test_similarity.json #delet
 
 [Postcodes](https://www.geonames.org/)
 
+[ReporTree](https://github.com/insapathogenomics/ReporTree)
+
+[BONSAI](https://github.com/SMD-Bioinformatics-Lund/bonsai)

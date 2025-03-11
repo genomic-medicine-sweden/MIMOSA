@@ -1,3 +1,10 @@
 volumes/mongodb/*
 !volumes/mongodb/.gitkeep
+./config.json
+**/__pycache__/
+./bonsai_credentials.json
+backend/node_modules
+backend/package-lock.json
+frontend/node_modules
+frontend/package-lock.json
 

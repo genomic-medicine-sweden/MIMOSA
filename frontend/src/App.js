@@ -10,7 +10,7 @@ import SidePanel from "./SidePanel";
 import ImageExport from "./ImageExport";
 import { generateInfoContent } from "./info";
 
-const App = ({ data, similarity }) => {
+const App = ({ data, similarity, dateRange, setDateRange }) => {
   const [filteredData, setFilteredData] = useState(data);
   const [hospitalView, setHospitalView] = useState(false);
   const [mapColor, setMapColor] = useState("green");
@@ -46,14 +46,11 @@ const App = ({ data, similarity }) => {
 
   const handleCountySelect = (county) => {
     setSelectedCounty(county);
-
-
     const countyData = infoRef.current?.countyCounts?.[county] || {
       total: 0,
-      ST: {},
+      Cluster_ID: {},
     };
-    const content =
-      county === "All" ? "" : generateInfoContent(county, countyData);
+    const content = county === "All" ? "" : generateInfoContent(county, countyData);
     setInfoContent(content);
   };
 
@@ -76,6 +73,8 @@ const App = ({ data, similarity }) => {
             selectedCounty={selectedCounty}
             countyFilter={countyFilter}
             setCountyFilter={setCountyFilter}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
           />
         </div>
       </nav>
@@ -143,3 +142,4 @@ const App = ({ data, similarity }) => {
 };
 
 export default App;
+

@@ -50,6 +50,8 @@ const Table = ({ filteredData, similarity }) => {
     return (
       <div className="p-3">
         <h3>Additional Information</h3>
+	<p><strong>QC Status:</strong> {rowData.properties.QC_Status}</p>
+        <p><strong>ST:</strong> {rowData.properties.ST}</p> 
         <table style={{ margin: "left" }}>
           <thead>
             <tr>
@@ -166,19 +168,19 @@ const Table = ({ filteredData, similarity }) => {
     return postcode.substring(Math.max(postcode.length - 5, 0));
   };
 
-  const checkIntraInter = (ST, county) => {
+  const checkIntraInter = (Cluster_ID, county) => {
     let intra = false;
     let inter = false;
     const counties = new Set();
 
-    const sameSTData = filteredData.filter((item) => item.properties.ST === ST);
+    const sameCluster_IDData = filteredData.filter((item) => item.properties.Cluster_ID === Cluster_ID);
 
-    sameSTData.forEach((item) => {
+    sameCluster_IDData.forEach((item) => {
       const itemCounty = getCounty(item.properties.PostCode);
       if (itemCounty === county) {
         if (
           !intra &&
-          sameSTData.filter((i) => getCounty(i.properties.PostCode) === county)
+          sameCluster_IDData.filter((i) => getCounty(i.properties.PostCode) === county)
             .length > 1
         ) {
           intra = true;
@@ -196,9 +198,9 @@ const Table = ({ filteredData, similarity }) => {
     const date = new Date(rowData.properties.Date);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    const ST = rowData.properties.ST;
+    const Cluster_ID = rowData.properties.Cluster_ID;
     const county = getCounty(rowData.properties.PostCode);
-    const { intra, inter } = checkIntraInter(ST, county);
+    const { intra, inter } = checkIntraInter(Cluster_ID, county);
 
     return (
       <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -214,7 +216,7 @@ const Table = ({ filteredData, similarity }) => {
             value="Intra"
             style={{ backgroundColor: "orange", color: "white" }}
             className="tag-intra"
-            data-pr-tooltip="Within County - Same ST"
+            data-pr-tooltip="Within County - Same Cluster_ID"
           />
         )}
         {inter && (
@@ -222,7 +224,7 @@ const Table = ({ filteredData, similarity }) => {
             value="Inter"
             style={{ backgroundColor: "red", color: "white" }}
             className="tag-inter"
-            data-pr-tooltip="Across Counties - Same ST"
+            data-pr-tooltip="Across Counties - Same Cluster_ID"
           />
         )}
       </div>
@@ -296,7 +298,7 @@ const Table = ({ filteredData, similarity }) => {
           body={analysisProfileBodyTemplate}
           sortable
         />
-        <Column field="properties.ST" header="ST" sortable />
+        <Column field="properties.Cluster_ID" header="Cluster_ID" sortable />
         <Column
           field="properties.Date"
           header="Date"
@@ -320,3 +322,4 @@ const Table = ({ filteredData, similarity }) => {
 };
 
 export default Table;
+

@@ -19,15 +19,15 @@ const FilteringLogic = ({
   selectedCounty,
   countyFilter,
   setCountyFilter,
+  dateRange,  
+  setDateRange    
 }) => {
   const [postcodeFilter, setPostcodeFilter] = useState([]);
   const [idFilter, setIdFilter] = useState([]);
   const [hospitalFilter, setHospitalFilter] = useState([]);
-  const [STFilter, setSTFilter] = useState([]);
-  const [analysisProfileFilter, setAnalysisProfileFilter] = useState(
-    "staphylococcus_aureus"
-  );
-  const [ST, setST] = useState([]);
+  const [Cluster_IDFilter, setCluster_IDFilter] = useState([]);
+  const [analysisProfileFilter, setAnalysisProfileFilter] = useState("staphylococcus_aureus");
+  const [Cluster_ID, setCluster_ID] = useState([]);
   const [analysisProfiles, setAnalysisProfiles] = useState([]);
   const [postcodes, setPostcodes] = useState([]);
   const [ids, setIds] = useState([]);
@@ -35,7 +35,6 @@ const FilteringLogic = ({
   const [postalTownFilter, setPostalTownFilter] = useState([]);
   const [postalTowns, setPostalTowns] = useState([]);
   const [counties, setCounties] = useState([]);
-  const [dateRange, setDateRange] = useState(null);
 
   useEffect(() => {
     if (selectedCounty && selectedCounty !== "All") {
@@ -43,13 +42,14 @@ const FilteringLogic = ({
     } else {
       setCountyFilter([]);
     }
-  }, [selectedCounty,setCountyFilter]);
+  }, [selectedCounty, setCountyFilter]);
 
   useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) {
       setFilteredData([]);
       return;
     }
+
     const uniquePostcodes = [
       ...new Set(
         data
@@ -99,13 +99,13 @@ const FilteringLogic = ({
       ...new Set(filteredCoordinates.map((item) => item.County)),
     ];
 
-    const uniqueST = [
+    const uniqueCluster_ID = [
       ...new Set(
         data
           .filter(
             (item) => item.properties.analysis_profile === analysisProfileFilter
           )
-          .map((item) => item.properties.ST)
+          .map((item) => item.properties.Cluster_ID)
       ),
     ];
 
@@ -119,7 +119,7 @@ const FilteringLogic = ({
     setHospitals(uniqueHospitals);
     setPostalTowns(postalTowns);
     setCounties(counties);
-    setST(uniqueST);
+    setCluster_ID(uniqueCluster_ID);
     setAnalysisProfiles(uniqueAnalysisProfiles);
 
     const filtered = data.filter((item) => {
@@ -129,7 +129,7 @@ const FilteringLogic = ({
       let meetsCriteria = true;
       const postcode = item.properties.PostCode;
 
-      if (STFilter.length > 0 && !STFilter.includes(item.properties.ST)) {
+      if (Cluster_IDFilter.length > 0 && !Cluster_IDFilter.includes(item.properties.Cluster_ID)) {
         meetsCriteria = false;
       }
       if (
@@ -191,7 +191,7 @@ const FilteringLogic = ({
     hospitalFilter,
     postalTownFilter,
     countyFilter,
-    STFilter,
+    Cluster_IDFilter,
     analysisProfileFilter,
     dateRange,
     setFilteredData,
@@ -205,7 +205,7 @@ const FilteringLogic = ({
     if (!(selectedCounty && selectedCounty !== "All")) {
       setCountyFilter([]);
     }
-    setSTFilter([]);
+    setCluster_IDFilter([]);
     setDateRange(null);
   };
 
@@ -245,18 +245,18 @@ const FilteringLogic = ({
 
         <FloatLabel>
           <MultiSelect
-            value={STFilter}
-            options={ST.map((ST) => ({
-              label: ST,
-              value: ST,
+            value={Cluster_IDFilter}
+            options={Cluster_ID.map((Cluster_ID) => ({
+              label: Cluster_ID,
+              value: Cluster_ID,
             }))}
-            onChange={(e) => setSTFilter(e.value)}
-            placeholder="ST"
+            onChange={(e) => setCluster_IDFilter(e.value)}
+            placeholder="Cluster_ID"
             filter={true}
             filterPlaceholder="Search"
             maxselectedlabels={2}
           />
-          <label htmlFor="ms-ST"> ST</label>
+          <label htmlFor="ms-Cluster_ID"> Cluster_ID</label>
         </FloatLabel>
 
         <FloatLabel>
@@ -355,7 +355,7 @@ const FilteringLogic = ({
             hospitalFilter.length === 0 &&
             postalTownFilter.length === 0 &&
             countyFilter.length === 0 &&
-            STFilter.length === 0 &&
+            Cluster_IDFilter.length === 0 &&
             !dateRange
           }
         />
@@ -365,3 +365,4 @@ const FilteringLogic = ({
 };
 
 export default FilteringLogic;
+

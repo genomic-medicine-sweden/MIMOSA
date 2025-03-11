@@ -98,7 +98,7 @@ const Map = ({
     }
 
     filteredData.forEach((item) => {
-      const { PostCode, Date, ID, Hospital, ST, analysis_profile } =
+      const { PostCode, Date, ID, Hospital, Cluster_ID, analysis_profile } =
         item.properties;
       let coordinates;
       let County;
@@ -127,16 +127,16 @@ const Map = ({
             countyName = feature.properties.name;
 
             if (!countyCounts[countyName]) {
-              countyCounts[countyName] = { total: 0, ST: {} };
+              countyCounts[countyName] = { total: 0, Cluster_ID: {} };
             }
             countyCounts[countyName].total++;
-            countyCounts[countyName].ST[ST] =
-              (countyCounts[countyName].ST[ST] || 0) + 1;
+            countyCounts[countyName].Cluster_ID[Cluster_ID] =
+              (countyCounts[countyName].Cluster_ID[Cluster_ID] || 0) + 1;
           }
         }
       });
 
-      const color = getColor(ST, analysis_profile);
+      const color = getColor(Cluster_ID, analysis_profile);
       const marker = L.circleMarker(coordinates, {
         color: "black",
         fillColor: color,
@@ -158,7 +158,7 @@ const Map = ({
       const popupContent = `
         <div>
           <h3>ID: ${ID}</h3>
-          <b>ST:</b> ${ST}<br>
+          <b>Cluster_ID:</b> ${Cluster_ID}<br>
           ${!hospitalView ? `<b>County:</b> ${County}<br>` : ""}
           ${!hospitalView ? `<b>Postcode:</b> ${PostCode.slice(-5)}<br>` : ""}
           <b>Date:</b> ${Date}<br>
@@ -232,7 +232,7 @@ const Map = ({
               const countyName = feature.properties.name;
               const countyData = infoRef.current.countyCounts[countyName] || {
                 total: 0,
-                ST: {},
+                Cluster_ID: {},
               };
               const content = generateInfoContent(countyName, countyData);
               onInfoUpdate(content);
@@ -296,7 +296,7 @@ const Map = ({
               const countyData = (infoRef.current.countyCounts &&
                 infoRef.current.countyCounts[countyName]) || {
                 total: 0,
-                ST: {},
+                Cluster_ID: {},
               };
               const content = generateInfoContent(countyName, countyData);
               onInfoUpdate(content);
@@ -360,7 +360,7 @@ const Map = ({
 
         const countyData = infoRef.current?.countyCounts?.[countyName] || {
           total: 0,
-          ST: {},
+          Cluster_ID: {},
         };
         const content = generateInfoContent(countyName, countyData);
         onInfoUpdate(content);
@@ -385,3 +385,4 @@ const Map = ({
 };
 
 export default Map;
+

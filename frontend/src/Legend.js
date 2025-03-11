@@ -1,25 +1,33 @@
 import { getColor } from "./ColorAssignment";
 
-const DEFAULT_COLOR = "#D3D3D3";
-
 const generateLegendItems = (data) => {
   if (!Array.isArray(data) || data.length === 0) {
     return [];
   }
 
-  const uniqueSTProfiles = new Set(data.map(item => `${item.properties.ST}-${item.properties.analysis_profile}`));
+  const uniqueCluster_IDProfiles = new Set(
+    data.map((item) => `${item.properties.Cluster_ID}-${item.properties.analysis_profile}`)
+  );
 
-  const legendItems = Array.from(uniqueSTProfiles).map((profile) => {
-    const [ST, analysis_profile] = profile.split("-");
-    const color = getColor(ST, analysis_profile);
-    return {
-      value: ST,
-      label: `${ST}`,
-      color: color,
-    };
+  const legendMap = new Map();
+
+  uniqueCluster_IDProfiles.forEach((profile) => {
+    let [Cluster_ID, analysis_profile] = profile.split("-");
+    let displayLabel = Cluster_ID;
+    
+    if (Cluster_ID.toLowerCase().includes("singleton")) {
+       displayLabel = "Singleton"; 
+       Cluster_ID = "Singleton"; 
+    }
+
+    const color = getColor(Cluster_ID, analysis_profile);
+    
+    if (!legendMap.has(displayLabel)) {
+      legendMap.set(displayLabel, { value: displayLabel, label: displayLabel, color: color });
+    }
   });
 
-  return legendItems.filter(item => item.color !== DEFAULT_COLOR);
+  return Array.from(legendMap.values());
 };
 
 export default generateLegendItems;

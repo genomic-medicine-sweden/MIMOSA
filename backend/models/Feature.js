@@ -8,6 +8,7 @@ const featureSchema = new mongoose.Schema({
     analysis_profile: String,
     Date: String,
     ID: String,
+    QC_Status: String, 
     ST: String,
     arcC: String,
     aroE: String,

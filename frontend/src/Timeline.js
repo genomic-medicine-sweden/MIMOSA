@@ -36,7 +36,6 @@ const Timeline = ({ filteredData }) => {
 
   const groupDataBy = (data, groupingType) => {
     const groupedData = {};
-
     data.forEach((item) => {
       let date;
       if (groupingType === "year") {
@@ -47,34 +46,55 @@ const Timeline = ({ filteredData }) => {
         date = item.properties.Date;
       }
 
-      const ST = item.properties.ST;
+      let clusterID = item.properties.Cluster_ID;
+      if (clusterID.toLowerCase().includes("singleton")) {
+        clusterID = "Singleton";
+      }
 
       if (!groupedData[date]) {
         groupedData[date] = {};
       }
-
-      if (!groupedData[date][ST]) {
-        groupedData[date][ST] = 0;
+      if (!groupedData[date][clusterID]) {
+        groupedData[date][clusterID] = 0;
       }
-
-      groupedData[date][ST] += 1;
+      groupedData[date][clusterID] += 1;
     });
-
     return groupedData;
   };
 
   const dataByDate = groupDataBy(filteredData, grouping);
-
   const labels = Object.keys(dataByDate).sort();
 
-  const ST = [...new Set(filteredData.map((item) => item.properties.ST))];
+  const uniqueClusterIDs = [
+    ...new Set(
+      filteredData.map((item) => {
+        let cid = item.properties.Cluster_ID;
+        if (cid.toLowerCase().includes("singleton")) {
+          return "Singleton";
+        }
+        return cid;
+      })
+    ),
+  ];
 
-  const datasets = ST.map((ST) => {
+  const datasets = uniqueClusterIDs.map((Cluster_ID) => {
+    let itemWithID = filteredData.find((item) => {
+      let cid = item.properties.Cluster_ID;
+      if (Cluster_ID === "Singleton") {
+        return cid.toLowerCase().includes("singleton");
+      }
+      return cid === Cluster_ID;
+    });
+    const analysis_profile = itemWithID ? itemWithID.properties.analysis_profile : "default";
+
     return {
-      label: ST,
-      data: labels.map((label) => dataByDate[label][ST] || 0),
-      backgroundColor: getColor(ST),
-      borderColor: chartType === "bar" ? "black" : getColor(ST),
+      label: Cluster_ID,
+      data: labels.map((label) => dataByDate[label][Cluster_ID] || 0),
+      backgroundColor: getColor(Cluster_ID, analysis_profile, true),
+      borderColor:
+        chartType === "bar"
+          ? "black"
+          : getColor(Cluster_ID, analysis_profile, true),
       borderWidth: chartType === "bar" ? 1 : 2,
       fill: chartType !== "bar",
     };
@@ -93,9 +113,7 @@ const Timeline = ({ filteredData }) => {
       },
     },
     scales: {
-      x: {
-        stacked: true,
-      },
+      x: { stacked: true },
       y: {
         stacked: true,
         ticks: {
@@ -123,9 +141,7 @@ const Timeline = ({ filteredData }) => {
 
   return (
     <div className="timeline-component" style={{ marginBottom: "0px" }}>
-      <div
-        style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}
-      >
+      <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
         <SelectButton
           value={grouping}
           options={groupingOptions}
@@ -139,10 +155,7 @@ const Timeline = ({ filteredData }) => {
         >
           {chartType === "bar" ? "Line Chart" : "Bar Chart"}
         </Button>
-        <div
-          className="tooltip-wrapper"
-          style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}
-        >
+        <div style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
           <PrimeTooltip target=".export-button" position="bottom" />
           <Button
             icon="pi pi-image"

@@ -101,6 +101,26 @@ const SidebarComponent = () => {
                   Postcodes
                 </a>
               </div>
+              <div>
+                <a
+                  href="https://github.com/insapathogenomics/ReporTree"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "none", color: "blue" }}
+                >
+                  ReporTree
+                </a>
+              </div>
+              <div>
+                <a
+                  href="https://github.com/SMD-Bioinformatics-Lund/bonsai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "none", color: "blue" }}
+                >
+                  Bonsai
+                </a>
+              </div>
             </div>
           </Fieldset>
         </div>
@@ -120,5 +140,4 @@ const SidebarComponent = () => {
 };
 
 export default SidebarComponent;
-
 
