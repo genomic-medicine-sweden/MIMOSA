@@ -1,59 +1,38 @@
 const HospitalCoordinates = {
   "Lindesbergs Lasarett": {
-    coordinates: [59.6023, 15.2169],
-    postaltown: "Lindesberg",
-    County: "Örebro",
+    PostCode: "SE-71182",
   },
   "Karlskoga Lasarett": {
-    coordinates: [59.3154, 14.5051],
-    postaltown: "Karlskoga",
-    County: "Örebro",
+    PostCode: "SE-69144",
   },
   "Örebro Universitetssjukhus": {
-    coordinates: [59.2758, 15.2253],
-    postaltown: "Örebro",
-    County: "Örebro",
+    PostCode: "SE-70185",
   },
   "Norrlands Universitetsjukhus": {
-    coordinates: [63.8176, 20.298],
-    postaltown: "Umeå",
-    County: "Västerbotten",
+    PostCode: "SE-90737",
   },
   "Akademiska Sjukhuset": {
-    coordinates: [59.8677, 17.6308],
-    postaltown: "Uppsala",
-    County: "Uppsala",
+    PostCode: "SE-75185",
   },
   "KI-Solna": {
-    coordinates: [59.3488, 18.0299],
-    postaltown: "Stockholm",
-    County: "Stockholm",
+    PostCode: "SE-17165",
   },
   "KI-Huddinge": {
-    coordinates: [59.2215, 17.9363],
-    postaltown: "Huddinge",
-    County: "Stockholm",
+    PostCode: "SE-14152",
   },
   "Skånes Universitetsjukhus Lund": {
-    coordinates: [59.7119, 13.1984],
-    postaltown: "Lund",
-    County: "Skåne",
+    PostCode: "SE-22242",
   },
   "Skånes Universitetsjukhus Malmö": {
-    coordinates: [55.5889, 13.0010],
-    postaltown: "Malmö",
-    County: "Skåne",
+    PostCode: "SE-21428",
   },
   "Sahlgrenska Universitetssjukhus": {
-    coordinates: [57.6826, 11.9616],
-    postaltown: "Göteborg",
-    County: "Västra Götaland",
+    PostCode: "SE-41345",
   },
   "Linköping Universitetssjukhus": {
-    coordinates: [58.4003, 15.6201],
-    postaltown: "Linköping",
-    County: "Östergötland",
-  }
+    PostCode: "SE-58185",
+  },
 };
+
 export default HospitalCoordinates;
 

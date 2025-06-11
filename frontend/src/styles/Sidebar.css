@@ -6,9 +6,14 @@
 }
 
 .sidebar-header {
+  padding: 0;
+  margin: 0;
   text-align: center;
-  padding: 2px;
-  margin-top: 0px;
+  line-height: 0;
+}
+
+.p-sidebar .p-sidebar-header {
+  padding: 0 !important;
 }
 
 .scrollable-content {
@@ -30,11 +35,6 @@
   margin: 0;
   font-size: 50px;
   font-weight: bold;
-}
-.sidebar-subtitle {
-  margin-top: 5px; 
-  font-size: 12px;
-  font-weight: normal; 
 }
 
 .fieldset-content {

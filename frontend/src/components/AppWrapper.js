@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import App from "./App";
-import config from "./config.json";
-import { countOccurrences, getColor } from "./ColorAssignment";
+import App from "@/components/App";
+import config from "@/config.json";
+import { countOccurrences, getColor } from "@/utils/ColorAssignment";
 
-const POLLING_INTERVAL = 5000; //every 5 seconds 
+const POLLING_INTERVAL = 5000; //every 5 seconds
 
 const AppWrapper = () => {
   const [data, setData] = useState(null);
   const [similarity, setSimilarity] = useState(null);
   const [dateRange, setDateRange] = useState(null);
-
+  const [logs,setLogs] = useState([]);
   useEffect(() => {
     let intervalId;
 
@@ -20,6 +20,10 @@ const AppWrapper = () => {
 
         const similarityResponse = await fetch(`${config.API_URL}/api/similarity`);
         const loadedSimilarity = await similarityResponse.json();
+	
+	const logsResponse = await fetch(`${config.API_URL}/api/logs`);
+	const loadedLogs = await logsResponse.json();
+	setLogs(loadedLogs);
 
         const clusteringResponse = await fetch(`${config.API_URL}/api/clustering`);
         let clusteringData = await clusteringResponse.json();
@@ -27,7 +31,6 @@ const AppWrapper = () => {
         if (!Array.isArray(clusteringData)) {
           clusteringData = [clusteringData];
         }
-
 
         let selectedMapping = null;
         if (clusteringData.length > 0) {
@@ -61,23 +64,32 @@ const AppWrapper = () => {
         const clusteringMapping = {};
         if (selectedMapping && selectedMapping.results) {
           selectedMapping.results.forEach(item => {
-            clusteringMapping[item.ID] = item.Cluster_ID;
+            clusteringMapping[item.ID] = {
+              clusterID: item.Cluster_ID || "Unknown",
+              partition: item.Partition || "Unknown",
+            };
           });
         }
 
         const processedData = loadedFeatures.map(item => {
           const featureID = item.properties.ID;
-          const resolvedClusterID =
-            clusteringMapping[featureID] || item.properties.Cluster_ID || "Unknown";
-          item.properties.Cluster_ID = resolvedClusterID;
+          const clusterInfo = clusteringMapping[featureID] || {
+            clusterID: item.properties.Cluster_ID || "Unknown",
+            partition: item.properties.Partition || "Unknown",
+          };
+
+          item.properties.Cluster_ID = clusterInfo.clusterID;
+          item.properties.Partition = clusterInfo.partition;
+
           return {
             ...item,
-            clusterID: resolvedClusterID,
-            color: getColor(resolvedClusterID, item.properties.analysis_profile),
+            clusterID: clusterInfo.clusterID,
+            partition: clusterInfo.partition,
+            color: getColor(clusterInfo.clusterID, item.properties.analysis_profile),
           };
         });
-        countOccurrences(processedData);
 
+        countOccurrences(processedData);
         setData(processedData);
         setSimilarity(loadedSimilarity);
       } catch (error) {
@@ -85,13 +97,10 @@ const AppWrapper = () => {
       }
     };
 
-  
     fetchData();
-
-   
     intervalId = setInterval(fetchData, POLLING_INTERVAL);
 
-    return () => clearInterval(intervalId); 
+    return () => clearInterval(intervalId);
   }, [dateRange]);
 
   return (
@@ -100,6 +109,7 @@ const AppWrapper = () => {
       similarity={similarity}
       dateRange={dateRange}
       setDateRange={setDateRange}
+      logs={logs}
     />
   );
 };

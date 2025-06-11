@@ -11,10 +11,10 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { getColor } from "./ColorAssignment";
+import { getColor } from "@/utils/ColorAssignment";
 import { SelectButton } from "primereact/selectbutton";
 import "primeicons/primeicons.css";
-import { exportTimelineImage } from "./TimelineExport";
+import { exportTimelineImage } from "@/utils/TimelineExport";
 import { Button } from "primereact/button";
 import { Tooltip as PrimeTooltip } from "primereact/tooltip";
 

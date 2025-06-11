@@ -90,3 +90,7 @@
   border-radius: 5px;
 }
 
+.leaflet-interactive {
+  shape-rendering: geometricPrecision;
+  image-rendering: pixelated;
+}

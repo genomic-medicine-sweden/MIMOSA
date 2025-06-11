@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import "./css/SidePanel.css";
+import "@/styles/SidePanel.css";
 import { SelectButton } from "primereact/selectbutton";
 import { Dropdown } from "primereact/dropdown";
-import generateLegendItems from "./Legend";
+import generateLegendItems from "@/components/Legend";
 import { Slider } from "primereact/slider";
-import { colorOptions } from "./MapColor";
-import boundariesData from "./assets/sweden-with-regions";
+import { colorOptions } from "@/utils/MapColor";
+import boundariesData from "@/assets/sweden-with-regions";
 
 const SidePanel = ({
   activeTab,

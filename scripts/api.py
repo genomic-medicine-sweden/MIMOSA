@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
 import json
 import requests
+from requests.exceptions import ConnectionError
 
 def load_credentials(credentials_file):
     """Load API credentials from a JSON file."""
@@ -14,20 +14,25 @@ def load_credentials(credentials_file):
 
 def get_access_token(credentials):
     """Retrieve the access token using the API credentials."""
-    response = requests.post(
-        f"{credentials['api_url']}/token",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        data={
-            "grant_type": "password",
-            "username": credentials["username"],
-            "password": credentials["password"]
-        }
-    )
-    response.raise_for_status()
-    return response.json().get("access_token")
+    try:
+        response = requests.post(
+            f"{credentials['api_url']}/token",
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            data={
+                "grant_type": "password",
+                "username": credentials["username"],
+                "password": credentials["password"]
+            }
+        )
+        response.raise_for_status()
+        return response.json().get("access_token")
+    except ConnectionError:
+        raise RuntimeError(f"Could not connect to Bonsai at {credentials['api_url']}. Is the server running?")
+    except requests.HTTPError as e:
+        raise RuntimeError(f"Failed to get access token: {e.response.text}") from e
 
 def fetch_samples(api_url, token):
     """Fetch samples from the API."""

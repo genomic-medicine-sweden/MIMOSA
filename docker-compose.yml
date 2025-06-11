@@ -21,6 +21,7 @@ services:
       - "./config.json:/app/frontend/src/config.json"
     environment:
       - PORT=3000
+      - NEXT_TELEMETRY_DISABLED=1
   mongo:
     image: mongo:latest
     ports:

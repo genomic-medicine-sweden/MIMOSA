@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { InputNumber } from "primereact/inputnumber";
-import "./css/CalendarActions.css";
+import "@/components/calendar/CalendarActions.css";
 
 const CalendarActions = ({ setDateRange }) => {
   const [days, setDays] = useState(null);

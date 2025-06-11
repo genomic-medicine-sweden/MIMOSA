@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import postcodeCoordinates from "./assets/postcode-coordinates";
+import postcodeCoordinates from "@/assets/postcode-coordinates";
 import { MultiSelect } from "primereact/multiselect";
 import { FloatLabel } from "primereact/floatlabel";
 import "primeicons/primeicons.css";
@@ -9,7 +9,7 @@ import "primeflex/primeflex.css";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
-import CalendarActions from "./CalendarActions";
+import CalendarActions from "@/components/calendar/CalendarActions";
 
 const FilteringLogic = ({
   data,

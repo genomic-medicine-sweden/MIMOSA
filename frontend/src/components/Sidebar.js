@@ -3,7 +3,7 @@ import { Sidebar } from "primereact/sidebar";
 import { BsGithub } from "react-icons/bs";
 import { Button } from "primereact/button";
 import { Fieldset } from "primereact/fieldset";
-import "./css/Sidebar.css";
+import "@/styles/Sidebar.css";
 
 const SidebarComponent = () => {
   const [visible, setVisible] = useState(false);
@@ -54,12 +54,18 @@ const SidebarComponent = () => {
         className="w-full md:w-20rem lg:w-30rem custom-sidebar"
       >
         <div className="sidebar-header">
-          <h2 className="sidebar-title">MIMOSA</h2>
-          <h3 className="sidebar-subtitle">
-            Microbial Investigation,Monitoring,Outbreak Surveillance, and
-            Analysis{" "}
-          </h3>
+          <img
+            src="/MIMOSA_Full_Logo.svg"
+            alt="MIMOSA logo"
+            style={{
+              display: "block",
+              maxWidth: "100%",
+              height: "auto",
+              margin: "0 auto",
+            }}
+          />
         </div>
+
         <div className="scrollable-content">
           <Fieldset
             legend="Info"

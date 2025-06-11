@@ -1,0 +1,141 @@
+{
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "ID": "TEST1",
+        "analysis_profile": "staphylococcus_aureus",
+        "QC_Status": "PASS",
+        "Pipeline_Version": "1.0",
+        "Pipeline_Date": "2025-06-01",
+        "Date": "2025-06-11",
+        "PostCode": "SE-71131",
+        "Hospital": "Örebro Universitetssjukhus",
+        "typing": {
+          "ST": "8",
+          "alleles": {
+            "yqiL": "10",
+            "pta": "20",
+            "gmk": "30",
+            "glpF": "40",
+            "aroE": "50",
+            "tpi": "60"
+          }
+        }
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": []
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "ID": "TEST2",
+        "analysis_profile": "staphylococcus_aureus",
+        "QC_Status": "PASS",
+        "Pipeline_Version": "1.0",
+        "Pipeline_Date": "2025-05-01",
+        "Date": "2025-05-10",
+        "PostCode": "SE-70364",
+        "Hospital": "Örebro Universitetssjukhus",
+        "typing": {
+          "ST": "9",
+          "alleles": {
+            "yqiL": "11",
+            "pta": "21",
+            "gmk": "31",
+            "glpF": "41",
+            "aroE": "51",
+            "tpi": "61"
+          }
+        }
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": []
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "ID": "TEST3",
+        "analysis_profile": "staphylococcus_aureus",
+        "QC_Status": "PASS",
+        "Pipeline_Version": "1.0",
+        "Pipeline_Date": "2025-06-02",
+        "Date": "2025-06-02",
+        "PostCode": "SE-58183",
+        "Hospital": "Linköping Universitetssjukhus",
+        "typing": {
+          "ST": "TEST",
+          "alleles": {
+            "yqiL": "1",
+            "pta": "2",
+            "gmk": "3",
+            "glpF": "4",
+            "aroE": "5",
+            "tpi": "6"
+          }
+        }
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": []
+      }
+    }
+  ],
+  "clustering": {
+    "results": [
+      {
+        "ID": "TEST1",
+        "Cluster_ID": "TEST",
+        "Partition": "Partition_T"
+      },
+      {
+        "ID": "TEST2",
+        "Cluster_ID": "TEST",
+        "Partition": "Partition_T"
+      },
+      {
+        "ID": "TEST3",
+        "Cluster_ID": "Singleton_Test",
+        "Partition": "Partition_T"
+      }
+    ],
+    "createdAt": "2025-06-11T12:00:00"
+  },
+  "similarity": [
+    {
+      "ID": "TEST1",
+      "similar": [
+        {
+          "ID": "TEST2",
+          "similarity": 0.95
+        }
+      ],
+      "createdAt": "2025-06-11T12:00:00"
+    },
+    {
+      "ID": "TEST2",
+      "similar": [
+        {
+          "ID": "TEST3",
+          "similarity": 0.93
+        }
+      ],
+      "createdAt": "2025-06-11T12:00:00"
+    },
+    {
+      "ID": "TEST3",
+      "similar": [
+        {
+          "ID": "TEST1",
+          "similarity": 0.91
+        }
+      ],
+      "createdAt": "2025-06-11T12:00:00"
+    }
+  ]
+}
+

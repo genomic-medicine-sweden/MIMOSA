@@ -61,6 +61,8 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
                                     else (sequencing_date, "Unknown"))
 
             pipeline_version = sample_data.get("pipeline", {}).get("version", "Unknown")
+            pipeline_date_full = sample_data.get("pipeline", {}).get("date", "")
+            pipeline_date = pipeline_date_full.split("T")[0] if "T" in pipeline_date_full else pipeline_date_full
             analysis_profile = sample_data.get("pipeline", {}).get("analysis_profile", "Unknown")
             lims_id = sample_data.get("lims_id", "Unknown")
             qc_status = sample_data.get("qc_status", {}).get("status", "Unknown")
@@ -71,6 +73,7 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
                 "Date": date_part,
                 "Time": time_part,
                 "Pipeline_Version": pipeline_version,
+                "Pipeline_Date": pipeline_date,
                 "Profile": analysis_profile,
                 "QC_Status": qc_status
             }
@@ -82,17 +85,10 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
                     (result for result in sample_data.get("typing_result", []) if result.get("type") == "mlst"),
                     {}
                 )
-                mlst_fields = {
-                    "ST": mlst_result.get("result", {}).get("sequence_type", "Unknown"),
-                    "arcC": mlst_result.get("result", {}).get("alleles", {}).get("arcC", "Unknown"),
-                    "aroE": mlst_result.get("result", {}).get("alleles", {}).get("aroE", "Unknown"),
-                    "pta": mlst_result.get("result", {}).get("alleles", {}).get("pta", "Unknown"),
-                    "glpF": mlst_result.get("result", {}).get("alleles", {}).get("glpF", "Unknown"),
-                    "gmk": mlst_result.get("result", {}).get("alleles", {}).get("gmk", "Unknown"),
-                    "tpi": mlst_result.get("result", {}).get("alleles", {}).get("tpi", "Unknown"),
-                    "yqiL": mlst_result.get("result", {}).get("alleles", {}).get("yqiL", "Unknown"),
-                }
-                metadata_row.update(mlst_fields)
+                metadata_row["ST"] = mlst_result.get("result", {}).get("sequence_type", "Unknown")
+                alleles = mlst_result.get("result", {}).get("alleles", {})
+                for gene, allele in alleles.items():
+                    metadata_row[gene] = allele
 
             # Process cgMLST data
             typing_results = sample_data.get("typing_result", [])
@@ -121,11 +117,10 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
         # Save cgMLST file for the profile
         if cgmlst_data_frames:
             combined_cgmlst = pd.concat(cgmlst_data_frames, ignore_index=True)
-            #replace missing codes
-            missing_codes = ["ASM","EXC","INF","LNF","PLNF","PLOT3", "PLOT5",
+            # Replace missing codes
+            missing_codes = ["ASM", "EXC", "INF", "LNF", "PLNF", "PLOT3", "PLOT5",
                              "LOTSC", "NIPH", "NIPHEM", "PAMA", "ALM"]
-
-            combined_cgmlst.replace(missing_codes,"0",inplace=True)
+            combined_cgmlst.replace(missing_codes, "0", inplace=True)
 
             cgmlst_file = os.path.join(output_folder, f"cgmlst_{profile}.tsv")
             combined_cgmlst.to_csv(cgmlst_file, sep='\t', index=False)

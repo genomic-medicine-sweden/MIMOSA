@@ -6,5 +6,6 @@ volumes/mongodb/*
 backend/node_modules
 backend/package-lock.json
 frontend/node_modules
+frontend/.next
+frontend/src/config.json
 frontend/package-lock.json
-

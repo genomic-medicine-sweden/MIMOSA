@@ -1,37 +1,35 @@
 #!/usr/bin/env python3
 import argparse
 import os
-from api import load_credentials, get_access_token,fetch_samples
-from process_samples import process_samples_by_profile
-from process_tsv import process_tsv,process_cluster_composition
+import json
+import tempfile
+import shutil
+from api import load_credentials, get_access_token, fetch_samples
+from upload import upload_similarity
+from process_tsv import process_tsv, process_cluster_composition
 from update_metadata import update_metadata_with_supplementary_metadata
-from run_reportree import run_reportree
-from upload import upload_features,upload_clustering,upload_similarity
-from process_similarity import process_similarity
-
+from sample_checks import get_new_sample_ids, prompt_if_no_new_samples
+from MIMOSA import mimosa
+from pymongo import MongoClient
 
 AVAILABLE_PROFILES = ["staphylococcus_aureus"]
 
-
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Process sample data, run ReporTree, and upload results to MIMOSA."
-    )
+    parser = argparse.ArgumentParser(description="Process sample data, run ReporTree, and upload results to MIMOSA.")
     parser.add_argument("--credentials", required=True, help="Path to Bonsai credentials file.")
-    parser.add_argument("--output", required=True, help="Output folder path.")
-    parser.add_argument("--supplementary_metadata", required=True, help="Path to csv file with additional metadata (Postcode, Hospital,...)´.")
-    parser.add_argument("--config", required=True, help="Path to Config file.")
-    parser.add_argument(
-        "--profile",
-        required=True,
-        nargs="+",
-        help=("Target profile(s) to process (e.g. staphylococcus_aureus). "
-              "Pass 'All' to process all available profiles.")
-    )
+    parser.add_argument("--config", required=True, help="Path to config file for MIMOSA.")
+    parser.add_argument("--profile", required=True, nargs="+", help="Target profile(s) to process. Pass 'All' to process all.")
+    parser.add_argument("--output", required=False, help="Directory for output files.")
+    parser.add_argument("--supplementary_metadata", required=False, help="Path to supplementary metadata.")
+    parser.add_argument("--save_files", action="store_true", help="Save output files locally.")
+    parser.add_argument("--update", action="store_true", help="Update existing samples with new Bonsai and metadata info.")
+    parser.add_argument("--debug", action="store_true", required=False, help="Print full traceback for errors.")
     args = parser.parse_args()
 
-    
-    if len(args.profile) == 1 and args.profile[0].lower() == "all":
+    if args.save_files and not args.output:
+        parser.error("--save_files requires --output to be set.")
+
+    if "All" in args.profile:
         target_profiles = AVAILABLE_PROFILES
     else:
         target_profiles = [p for p in args.profile if p in AVAILABLE_PROFILES]
@@ -42,61 +40,66 @@ def parse_args():
 
     return args, target_profiles
 
+def get_analyzed_sample_ids(config_path):
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    client = MongoClient(config["MONGO_URI"])
+    db = client[config["MONGO_DB_NAME"]]
+    ids = db["similarities"].distinct("ID")
+    client.close()
+    return set(ids)
+
 def main():
     args, target_profiles = parse_args()
-
-    # Load API credentials and retrieve an access token.
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
 
-    #  Process valid profiles
-    metadata_files, cgmlst_files = process_samples_by_profile(
-        api_url=credentials["api_url"],
-        token=token,
-        output_folder=args.output,
-        target_profiles=target_profiles,
-        user_selected_profiles=args.profile
-    )
+    base_dir = args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
+    if args.save_files:
+        os.makedirs(base_dir, exist_ok=True)
 
-    if metadata_files and cgmlst_files:
-        #  Update metadata for valid profiles
-        for meta_file in metadata_files:
-            update_metadata_with_supplementary_metadata(meta_file, args.supplementary_metadata)
+    try:
+        all_samples = fetch_samples(credentials["api_url"], token)
+        analyzed_ids = get_analyzed_sample_ids(args.config)
 
-        #  Run ReporTree for valid profiles
-        for meta_file, cgmlst_file in zip(metadata_files, cgmlst_files):
-            profile = os.path.basename(meta_file).split("_", 1)[1].rsplit(".", 1)[0]
-            run_reportree(meta_file, cgmlst_file, args.output, profile)
+        for profile in target_profiles:
+            qc_only = False
+            if args.update:
+                target_ids = {
+                    s["sample_id"] for s in all_samples
+                    if s.get("profile") == profile and s.get("sample_id") in analyzed_ids
+                }
+                if not target_ids:
+                    print(f"No existing samples to update for profile '{profile}'.")
+                    continue
+            else:
+                new_ids = get_new_sample_ids(all_samples, analyzed_ids, profile)
 
-    #  Process and upload data for valid profiles
-    if metadata_files:
-        for meta_file in metadata_files:
-            profile = os.path.basename(meta_file).split("_", 1)[1].rsplit(".", 1)[0]
-            metadata_partitions_tsv = os.path.join(args.output, f"{profile}_metadata_w_partitions.tsv")
-            clusterComposition_tsv = os.path.join(args.output, f"{profile}_clusterComposition.tsv")
-            features_json = os.path.join(args.output, f"features_{profile}.json")
-            clusters_json = os.path.join(args.output, f"clusters_{profile}.json")
+                if not new_ids:
+                    if  prompt_if_no_new_samples(profile, new_ids):
+                        target_ids = analyzed_ids
+                        qc_only = False
+                    else:
+                        continue                        
+                else:
+                    target_ids = new_ids
+                    qc_only = False
 
-            process_tsv(metadata_partitions_tsv, features_json)
-            process_cluster_composition(clusterComposition_tsv, clusters_json)
-            upload_features(args.config, features_json)
-            upload_clustering(args.config, clusters_json)
+            profile_dir = os.path.join(base_dir, profile)
+            mimosa(profile, profile_dir, args, credentials, token, target_ids)
 
-    # Process similarity for valid profiles
-    samples = fetch_samples(credentials["api_url"], token)
-    target_samples = [sample for sample in samples if sample.get("profile") in target_profiles]
+    finally:
+        if not args.save_files and os.path.exists(base_dir):
+            shutil.rmtree(base_dir, ignore_errors=True)
 
-    for profile in target_profiles:
-        profile_samples = [sample for sample in target_samples if sample.get("profile") == profile]
-        sample_ids = [sample["sample_id"] for sample in profile_samples if "sample_id" in sample]
-        if sample_ids:
-            similarity_results = process_similarity(credentials["api_url"], token, sample_ids, args.output, profile)
-        else:
-            print(f"\nNo samples found for similarity processing for profile: {profile}.")
-    
-        similarity_json = os.path.join(args.output, f"{profile}_similarity.json")
-        upload_similarity(args.config, similarity_json)
-    
 if __name__ == "__main__":
-    main()
+    args, _ = parse_args()
+    try:
+        main()
+    except Exception as e:
+        if args.debug:
+            raise
+        else:
+            print(f"{type(e).__name__}: {e}. For more information, try again with --debug.")
+            exit(1)
 

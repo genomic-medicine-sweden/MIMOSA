@@ -1,16 +1,19 @@
 import React, { useState, useRef } from "react";
-import FilteringLogic from "./FilteringLogic";
-import Map from "./Map";
-import Table from "./Table";
-import Timeline from "./Timeline";
+import dynamic from "next/dynamic";
+import FilteringLogic from "@/components/FilteringLogic";
+import Table from "@/components/Table";
+import Timeline from "@/components/Timeline";
 import { Fieldset } from "primereact/fieldset";
-import SidebarComponent from "./Sidebar";
-import "./css/App.css";
-import SidePanel from "./SidePanel";
-import ImageExport from "./ImageExport";
-import { generateInfoContent } from "./info";
+import SidebarComponent from "@/components/Sidebar";
+import "@/styles/App.css";
+import SidePanel from "@/components/SidePanel";
+import ImageExport from "@/components/export/ImageExport";
+import { generateInfoContent } from "@/utils/info";
 
-const App = ({ data, similarity, dateRange, setDateRange }) => {
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+
+
+const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
   const [filteredData, setFilteredData] = useState(data);
   const [hospitalView, setHospitalView] = useState(false);
   const [mapColor, setMapColor] = useState("green");
@@ -50,7 +53,8 @@ const App = ({ data, similarity, dateRange, setDateRange }) => {
       total: 0,
       Cluster_ID: {},
     };
-    const content = county === "All" ? "" : generateInfoContent(county, countyData);
+    const content =
+      county === "All" ? "" : generateInfoContent(county, countyData);
     setInfoContent(content);
   };
 
@@ -59,7 +63,16 @@ const App = ({ data, similarity, dateRange, setDateRange }) => {
   return (
     <div className="container">
       <header className="header">
-        <h1>MIMOSA</h1>
+        <img
+          src="/MIMOSA_simpletxt.svg"
+          alt="MIMOSA"
+          style={{
+            display: "block",
+            maxWidth: "auto",
+            height: "135%",
+            margin: "1 auto",
+          }}
+        />
         <SidebarComponent />
       </header>
 
@@ -96,6 +109,7 @@ const App = ({ data, similarity, dateRange, setDateRange }) => {
 
       <main className="main-content" ref={mainContentRef}>
         <Map
+          key={typeof window !== "undefined" ? window.innerWidth : "static"}
           filteredData={filteredData}
           hospitalView={hospitalView}
           mapColor={mapColor}
@@ -128,7 +142,12 @@ const App = ({ data, similarity, dateRange, setDateRange }) => {
       <footer className="footer">
         <div className="card pt-0">
           <Fieldset legend="Table" toggleable collapsed={true}>
-            <Table filteredData={filteredData} similarity={similarity} />
+            <Table
+              filteredData={filteredData}
+              similarity={similarity}
+              dateRange={dateRange}
+              logs={logs}
+            />
           </Fieldset>
         </div>
         <div className="card pt-1">

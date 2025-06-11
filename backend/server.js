@@ -4,6 +4,7 @@ const cors = require("cors");
 const featureRoutes = require("./routes/feature");
 const similarityRoutes = require("./routes/similarity");
 const clusteringRoutes = require("./routes/clustering");
+const logsRoutes = require("./routes/Logs");
 const config = require('./config.json');
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(cors());
 app.use("/api/features", featureRoutes);
 app.use("/api/similarity", similarityRoutes);
 app.use("/api/clustering", clusteringRoutes);
+app.use("/api/logs", logsRoutes);
 
 mongoose.connect(config.MONGO_URI_DOCKER)
   .then(() => {

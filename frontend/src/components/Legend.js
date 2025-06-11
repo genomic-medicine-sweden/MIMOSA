@@ -1,4 +1,4 @@
-import { getColor } from "./ColorAssignment";
+import { getColor } from "@/utils/ColorAssignment";
 
 const generateLegendItems = (data) => {
   if (!Array.isArray(data) || data.length === 0) {
