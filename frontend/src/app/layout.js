@@ -2,7 +2,7 @@
 
 export const metadata = {
   title: "MIMOSA",
-  description: "Precision diagnostics dashboard",
+  description: "Microbial Investigation,Monitoring,Outbreak Surveillance, and Analysis.",
   icons: {
     icon: "/MIMOSA_ICO.ico",
   },
