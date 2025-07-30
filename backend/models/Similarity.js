@@ -5,12 +5,13 @@ const similaritySchema = new mongoose.Schema({
   similar: [
     {
       ID: { type: String },
-      similarity: { type: Number } 
+      similarity: { type: Number }
     }
-  ]
+  ],
+  createdAt: { type: Date, default: Date.now }
 });
 
-const Similarity = mongoose.model("Similarity", similaritySchema);
+const Similarity = mongoose.model("Similarity", similaritySchema, "similarities");
 
 module.exports = Similarity;
 

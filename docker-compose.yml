@@ -21,13 +21,14 @@ services:
       - "./config.json:/app/frontend/src/config.json"
     environment:
       - PORT=3000
-
-
-  #MongoDB container
+      - NEXT_TELEMETRY_DISABLED=1
   mongo:
     image: mongo:latest
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - "./volumes/mongodb:/data/db"
 
+  reportree:
+    image: insapathogenomics/reportree:v2.5.4
+    restart: always
