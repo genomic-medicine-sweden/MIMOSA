@@ -19,14 +19,16 @@ const FilteringLogic = ({
   selectedCounty,
   countyFilter,
   setCountyFilter,
-  dateRange,  
-  setDateRange    
+  dateRange,
+  setDateRange,
 }) => {
   const [postcodeFilter, setPostcodeFilter] = useState([]);
   const [idFilter, setIdFilter] = useState([]);
   const [hospitalFilter, setHospitalFilter] = useState([]);
   const [Cluster_IDFilter, setCluster_IDFilter] = useState([]);
-  const [analysisProfileFilter, setAnalysisProfileFilter] = useState("staphylococcus_aureus");
+  const [analysisProfileFilter, setAnalysisProfileFilter] = useState(
+    "staphylococcus_aureus",
+  );
   const [Cluster_ID, setCluster_ID] = useState([]);
   const [analysisProfiles, setAnalysisProfiles] = useState([]);
   const [postcodes, setPostcodes] = useState([]);
@@ -54,9 +56,10 @@ const FilteringLogic = ({
       ...new Set(
         data
           .filter(
-            (item) => item.properties.analysis_profile === analysisProfileFilter
+            (item) =>
+              item.properties.analysis_profile === analysisProfileFilter,
           )
-          .map((item) => item.properties.PostCode)
+          .map((item) => item.properties.PostCode),
       ),
     ];
 
@@ -64,9 +67,10 @@ const FilteringLogic = ({
       ...new Set(
         data
           .filter(
-            (item) => item.properties.analysis_profile === analysisProfileFilter
+            (item) =>
+              item.properties.analysis_profile === analysisProfileFilter,
           )
-          .map((item) => item.properties.ID)
+          .map((item) => item.properties.ID),
       ),
     ];
 
@@ -74,9 +78,10 @@ const FilteringLogic = ({
       ...new Set(
         data
           .filter(
-            (item) => item.properties.analysis_profile === analysisProfileFilter
+            (item) =>
+              item.properties.analysis_profile === analysisProfileFilter,
           )
-          .map((item) => item.properties.Hospital)
+          .map((item) => item.properties.Hospital),
       ),
     ];
 
@@ -90,7 +95,7 @@ const FilteringLogic = ({
             ...new Set(
               filteredCoordinates
                 .filter((coord) => countyFilter.includes(coord.County))
-                .map((coord) => coord.postaltown)
+                .map((coord) => coord.postaltown),
             ),
           ]
         : [...new Set(filteredCoordinates.map((item) => item.postaltown))];
@@ -103,9 +108,10 @@ const FilteringLogic = ({
       ...new Set(
         data
           .filter(
-            (item) => item.properties.analysis_profile === analysisProfileFilter
+            (item) =>
+              item.properties.analysis_profile === analysisProfileFilter,
           )
-          .map((item) => item.properties.Cluster_ID)
+          .map((item) => item.properties.Cluster_ID),
       ),
     ];
 
@@ -129,7 +135,10 @@ const FilteringLogic = ({
       let meetsCriteria = true;
       const postcode = item.properties.PostCode;
 
-      if (Cluster_IDFilter.length > 0 && !Cluster_IDFilter.includes(item.properties.Cluster_ID)) {
+      if (
+        Cluster_IDFilter.length > 0 &&
+        !Cluster_IDFilter.includes(item.properties.Cluster_ID)
+      ) {
         meetsCriteria = false;
       }
       if (
@@ -365,4 +374,3 @@ const FilteringLogic = ({
 };
 
 export default FilteringLogic;
-

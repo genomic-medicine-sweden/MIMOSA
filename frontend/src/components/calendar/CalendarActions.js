@@ -76,4 +76,3 @@ const CalendarActions = ({ setDateRange }) => {
 };
 
 export default CalendarActions;
-
