@@ -26,7 +26,7 @@ Chart.register(
   LinearScale,
   Title,
   Tooltip,
-  Legend
+  Legend,
 );
 
 const Timeline = ({ filteredData }) => {
@@ -73,7 +73,7 @@ const Timeline = ({ filteredData }) => {
           return "Singleton";
         }
         return cid;
-      })
+      }),
     ),
   ];
 
@@ -85,7 +85,9 @@ const Timeline = ({ filteredData }) => {
       }
       return cid === Cluster_ID;
     });
-    const analysis_profile = itemWithID ? itemWithID.properties.analysis_profile : "default";
+    const analysis_profile = itemWithID
+      ? itemWithID.properties.analysis_profile
+      : "default";
 
     return {
       label: Cluster_ID,
@@ -141,7 +143,9 @@ const Timeline = ({ filteredData }) => {
 
   return (
     <div className="timeline-component" style={{ marginBottom: "0px" }}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
+      <div
+        style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}
+      >
         <SelectButton
           value={grouping}
           options={groupingOptions}
@@ -155,7 +159,9 @@ const Timeline = ({ filteredData }) => {
         >
           {chartType === "bar" ? "Line Chart" : "Bar Chart"}
         </Button>
-        <div style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
+        <div
+          style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}
+        >
           <PrimeTooltip target=".export-button" position="bottom" />
           <Button
             icon="pi pi-image"
@@ -180,4 +186,3 @@ const Timeline = ({ filteredData }) => {
 };
 
 export default Timeline;
-
