@@ -1,21 +1,43 @@
 #!/usr/bin/env python3
 import json
+import os
+import requests
 from pymongo import MongoClient
+from dotenv import load_dotenv, find_dotenv
 from log_updates import log_sample_event
+from requests.exceptions import RequestException
 
-def upload_features(config_file_path, data_file_path, overwrite=False, show_log=False):
+dotenv_path = find_dotenv(filename=".env", usecwd=True)
+if not dotenv_path:
+    raise FileNotFoundError("Could not find project-root .env file.")
+load_dotenv(dotenv_path)
+
+mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
+db_name = os.getenv("MONGO_DB_NAME")
+mimosa_domain = os.getenv("DOMAIN")
+backend_port = os.getenv("BACKEND_PORT")
+
+def validate_upload_token(token):
     """
-    Upload features to MIMOSA.
+    Validate that the provided token corresponds to an actual user in MIMOSA.
     """
     try:
-        with open(config_file_path, 'r') as config_file:
-            config = json.load(config_file)
-    except Exception as error:
-        print('Error loading config file:', error)
-        return
+        resp = requests.get(
+            f"http://{mimosa_domain}:{backend_port}/api/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        resp.raise_for_status()
+        return resp.json().get("email")
+    except RequestException as e:
+        raise RuntimeError(f"Authentication failed: {e}")
 
-    mongo_uri = config.get('MONGO_URI')
-    db_name = config.get('MONGO_DB_NAME')
+def upload_features(data_file_path, overwrite=False, show_log=False, upload_token=None):
+    if not upload_token:
+        raise RuntimeError("upload_token is required for authenticated upload.")
+    validate_upload_token(upload_token)
+    uploader_email = validate_upload_token(upload_token)
+
 
     try:
         with open(data_file_path, 'r') as file:
@@ -35,7 +57,6 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
         changed = []
         old = existing.get("properties", {})
         new = new.get("properties", {})
-
         for key in new:
             if key == "typing":
                 old_typing = old.get("typing", {})
@@ -50,7 +71,6 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
             else:
                 if old.get(key) != new.get(key):
                     changed.append(key)
-
         return changed
 
     def upload_data(data):
@@ -58,12 +78,9 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
         for item in data:
             sample_id = item["properties"]["ID"]
             existing = collection.find_one({"properties.ID": sample_id})
-
+            new_props = item.get("properties", {})
             if existing:
                 old_props = existing.get("properties", {})
-                new_props = item.get("properties", {})
-
-                # Always check and update QC_Status
                 old_qc = old_props.get("QC_Status")
                 new_qc = new_props.get("QC_Status")
                 if old_qc != new_qc:
@@ -77,16 +94,14 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
                         db,
                         sample_id,
                         new_props.get("analysis_profile"),
-                        changes_dict={"QC_Status": {"old": old_qc, "new": new_qc}}
+                        changes_dict={"QC_Status": {"old": old_qc, "new": new_qc}},
+                        changed_by="bonsai"
                     )
-
-                # Full overwrite and logging for other fields only if --update
                 if overwrite:
                     changed_fields = get_changed_fields(existing, item)
                     if changed_fields:
                         collection.replace_one({"_id": existing["_id"]}, item)
                         updated_count += 1
-
                         diff_dict = {}
                         for field in changed_fields:
                             if field == "ST":
@@ -98,11 +113,8 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
                             else:
                                 old_val = old_props.get(field)
                                 new_val = new_props.get(field)
-
                             diff_dict[field] = {"old": old_val, "new": new_val}
-
-                        log_sample_event(db, sample_id, new_props.get("analysis_profile"), changes_dict=diff_dict)
-
+                        log_sample_event(db, sample_id, new_props.get("analysis_profile"), changes_dict=diff_dict,changed_by=uploader_email)
                         if show_log:
                             changes = ", ".join(sorted(changed_fields))
                             print(f"Sample with ID {sample_id} updated with {changes}")
@@ -110,7 +122,7 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
                 collection.insert_one(item)
                 uploaded_count += 1
                 print(f"Sample with ID {sample_id} uploaded successfully!")
-                log_sample_event(db, item["properties"].get("ID"), item["properties"].get("analysis_profile"), is_insert=True)
+                log_sample_event(db, sample_id, new_props.get("analysis_profile"), is_insert=True,changed_by=uploader_email)
 
     try:
         upload_data(data_to_upload)
@@ -122,16 +134,10 @@ def upload_features(config_file_path, data_file_path, overwrite=False, show_log=
     if overwrite and show_log and updated_count == 0 and uploaded_count == 0:
         print("No samples were updated or uploaded.")
 
-def upload_clustering(config_file_path, data_file_path):
-    try:
-        with open(config_file_path, 'r') as config_file:
-            config = json.load(config_file)
-    except Exception as error:
-        print("Error loading config file:", error)
-        return
-
-    mongo_uri = config.get("MONGO_URI")
-    db_name = config.get("MONGO_DB_NAME")
+def upload_clustering(data_file_path, upload_token=None):
+    if not upload_token:
+        raise RuntimeError("upload_token is required for authenticated upload.")
+    validate_upload_token(upload_token)
 
     try:
         with open(data_file_path, 'r') as file:
@@ -152,16 +158,10 @@ def upload_clustering(config_file_path, data_file_path):
     finally:
         client.close()
 
-def upload_similarity(config_file_path, data_file_path):
-    try:
-        with open(config_file_path, 'r') as config_file:
-            config = json.load(config_file)
-    except Exception as error:
-        print("Error loading config file:", error)
-        return
-
-    mongo_uri = config.get("MONGO_URI")
-    db_name = config.get("MONGO_DB_NAME")
+def upload_similarity(data_file_path, upload_token=None):
+    if not upload_token:
+        raise RuntimeError("upload_token is required for authenticated upload.")
+    validate_upload_token(upload_token)
 
     try:
         with open(data_file_path, 'r') as file:

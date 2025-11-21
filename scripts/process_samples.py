@@ -6,14 +6,14 @@ import datetime
 import pandas as pd
 from api import fetch_samples, fetch_sample_details
 
-def process_samples_by_profile(api_url, token, output_folder, target_profiles=None, user_selected_profiles=None):
+def process_samples_by_profile(bonsai_api_url, token, output_folder, target_profiles=None, user_selected_profiles=None):
     """
     Process samples grouped by their profiles, filtering based on target_profiles.
     """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    samples = fetch_samples(api_url, token)
+    samples = fetch_samples(bonsai_api_url, token)
     profiles = {}
     # track skipped profiles
     skipped_profiles = set()
@@ -53,7 +53,7 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
         metadata_rows = []
 
         for sample_id in sample_ids:
-            sample_data = fetch_sample_details(api_url, token, sample_id)
+            sample_data = fetch_sample_details(bonsai_api_url, token, sample_id)
 
             # Extracting common fields
             sequencing_date = sample_data.get("sequencing_date", "Unknown")
@@ -129,4 +129,3 @@ def process_samples_by_profile(api_url, token, output_folder, target_profiles=No
             print(f"No cgMLST data collected for profile {profile}")
 
     return metadata_files, cgmlst_files
-
