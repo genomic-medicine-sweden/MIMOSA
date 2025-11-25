@@ -7,7 +7,15 @@ RUN npm install
 
 COPY frontend/ .
 
-COPY config.json ./src/config.json
+COPY .env /app/.env
+
+ARG DOMAIN
+ARG BACKEND_PORT
+ARG BONSAI_PORT
+
+ENV DOMAIN=$DOMAIN
+ENV BACKEND_PORT=$BACKEND_PORT
+ENV BONSAI_PORT=$BONSAI_PORT
 
 RUN npm run build
 

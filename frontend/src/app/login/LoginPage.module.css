@@ -1,0 +1,72 @@
+/* LoginPage.module.css */
+
+.loginContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f8fafd;
+  padding: 1rem;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.loginCard {
+  background-color: #ffffff;
+  padding: 2rem 2.5rem;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  min-height: 180px;
+}
+
+.logoImg {
+  max-width: 160px;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+.formGroup {
+  margin-bottom: 1.25rem;
+}
+
+.input {
+  width: 100%;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.link {
+  font-size: 0.9rem;
+  color: #10b981;
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
+.loginButton {
+  width: 100%;
+  background-color: #2196f3ff;
+  border: none;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+}
+.loginButton:hover {
+  background-color: #0b7ad1ff;
+}

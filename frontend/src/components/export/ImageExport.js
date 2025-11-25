@@ -27,4 +27,3 @@ const ImageExport = ({ mainContentRef }) => {
 };
 
 export default ImageExport;
-

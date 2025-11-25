@@ -29,19 +29,18 @@ export const getColor = (Cluster_ID, analysis_profile, force = false) => {
   if (Cluster_ID === "Unknown") {
     return DEFAULT_COLOR;
   }
-  
+
   if (Cluster_ID.toLowerCase().includes("singleton")) {
     return SINGLETON_COLOR;
   }
-  
+
   const key = `${Cluster_ID}-${analysis_profile}`;
   const count = Cluster_IDProfileCountMap.get(key) || 0;
-  
+
   if (force || count >= 2) {
     const colorIndex = hashCluster_IDToColorIndex(Cluster_ID, analysis_profile);
     return colorPalette[colorIndex];
   }
-  
+
   return DEFAULT_COLOR;
 };
-

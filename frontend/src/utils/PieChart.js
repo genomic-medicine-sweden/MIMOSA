@@ -30,4 +30,3 @@ const createPieChartSVG = (filteredData, markerSize, strokeWidth = 1) => {
   return svg.node().outerHTML;
 };
 export default createPieChartSVG;
-

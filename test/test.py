@@ -4,13 +4,18 @@ import os
 import argparse
 import tempfile
 import json
-import requests
-from urllib.parse import urljoin
+from dotenv import load_dotenv, find_dotenv
+
+dotenv_path = find_dotenv(filename=".env", usecwd=True)
+if not dotenv_path:
+    raise FileNotFoundError("Could not find project-root .env file.")
+load_dotenv(dotenv_path)
 
 SCRIPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 sys.path.insert(0, SCRIPT_DIR)
 
 from upload import upload_features, upload_clustering, upload_similarity
+from api import load_credentials, authenticate_mimosa_user
 
 def load_test_data():
     data_path = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -24,27 +29,24 @@ def write_temp_json(data):
     return temp.name
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Test uploads to MIMOSA models.")
+    parser = argparse.ArgumentParser(description="Test uploads to MIMOSA. ")
     parser.add_argument(
-        "--config",
-        default="config.json",
-        help="Path to MIMOSA config file (default: config.json)"
+        "--credentials",
+        required=True,
+        help="Path to credentials file for authentication"
     )
     parser.add_argument(
         "--delete",
         action="store_true",
-        help="Delete test entries instead of uploading"
+        help="Delete test entries"
     )
     return parser.parse_args()
 
-def delete_test_data(config_path, test_data):
+def delete_test_data(test_data):
     from pymongo import MongoClient
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
-    mongo_uri = config.get("MONGO_URI")
-    db_name = config.get("MONGO_DB_NAME")
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME")
 
     client = MongoClient(mongo_uri)
     db = client[db_name]
@@ -65,23 +67,38 @@ def main():
     test_data = load_test_data()
 
     if args.delete:
-        delete_test_data(args.config, test_data)
+        delete_test_data(test_data)
         return
+
+    credentials = load_credentials(args.credentials)
+    upload_token = authenticate_mimosa_user(credentials)
 
     features_file = write_temp_json(test_data["features"])
     clustering_file = write_temp_json(test_data["clustering"])
     similarity_file = write_temp_json(test_data["similarity"])
 
     print("Uploading test features...")
-    upload_features(args.config, features_file, overwrite=True, show_log=True)
+    upload_features(
+        data_file_path=features_file,
+        overwrite=True,
+        show_log=True,
+        upload_token=upload_token
+    )
 
     print("\nUploading test clustering...")
-    upload_clustering(args.config, clustering_file)
+    upload_clustering(
+        data_file_path=clustering_file,
+        upload_token=upload_token
+    )
 
     print("\nUploading test similarity...")
-    upload_similarity(args.config, similarity_file)
+    upload_similarity(
+        data_file_path=similarity_file,
+        upload_token=upload_token
+    )
 
     print("\nTest upload script completed.")
+
 
 if __name__ == "__main__":
     main()

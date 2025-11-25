@@ -19,8 +19,8 @@ def parse_args():
     )
     return parser.parse_args()
 
-def prepare_supplementary(api_url, token, output_folder, profile):
-    samples = fetch_samples(api_url, token)
+def prepare_supplementary(bonsai_api_url, token, output_folder, profile):
+    samples = fetch_samples(bonsai_api_url, token)
     matched_samples = [s for s in samples if s.get("profile") == profile]
 
     if not matched_samples:
@@ -35,7 +35,7 @@ def prepare_supplementary(api_url, token, output_folder, profile):
         if not sample_id:
             continue
 
-        details = fetch_sample_details(api_url, token, sample_id)
+        details = fetch_sample_details(bonsai_api_url, token, sample_id)
         lims_id = details.get("lims_id", "Unknown")
 
         rows.append({
@@ -58,7 +58,7 @@ def main():
     if not os.path.exists(args.output):
         os.makedirs(args.output)
 
-    prepare_supplementary(credentials["api_url"], token, args.output, args.profile)
+    prepare_supplementary(credentials["bonsai_api_url"], token, args.output, args.profile)
 
 if __name__ == "__main__":
     main()

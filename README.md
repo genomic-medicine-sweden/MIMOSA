@@ -8,56 +8,68 @@ git clone https://github.com/genomic-medicine-sweden/MIMOSA
 
 cd MIMOSA
 
-vi config.json #edit API_URL
+vi .env #edit Domain and JWT_SECRET
 
 docker compose up -d
- 
+
 ```
 MIMOSA can then be viewed in the browser at localhost:3000
 
+## Create user
+```
+docker compose exec mimosa-backend ./scripts/mimosa create-user \
+  --p=<password> \
+  --fname=<first-name> \
+  --lname=<last-name> \
+  --m=<email> \
+  --r=<role> \
+  --county=<county>
+```
+Additional users can also be created through the **admin** panel. 
 ## Testing
-The test suite in `test/` can be used to verify that MIMOSA accepts uploads correctly for features, clustering, and similarity data.
+The test suite in `test/` can be used to confirm that MIMOSA correctly handles uploads.
 Test data is defined in [`test/test_data.json`](test/test_data.json) and includes three artificial samples: `TEST1`, `TEST2`, and `TEST3`.
 
 ```
-python test/test.py
+python test/test.py --credentials credentials.json
 ```
-This uploads the test records to the configured MongoDB collections using `config.json`.
+This uploads the test records to the configured MongoDB collections using your credentials. 
 
-To remove the test samples , add the `--delete` flag
+To remove the test samples, add the `--delete` flag.
 
 ## Uploading data from Bonsai
-In order to retrive samples from [Bonsai](https://github.com/SMD-Bioinformatics-Lund/bonsai) the bonsai_credentials.json
-must be edited to include the required authentication details.
-
+To retrieve samples from [Bonsai](https://github.com/SMD-Bioinformatics-Lund/bonsai), you must provide valid authentication details in your credentials file (`credentials.json`).
 ```
 python scripts/main.py \
-    --config <path_to_config.json> \
-    --credentials <path_to_bonsai_credentials.json> \
+    --credentials <credentials.json> \
     --supplementary_metadata <path_to_supplementary_metadata.csv> \
-    --profile staphylococcus_aureus 
+    --profile staphylococcus_aureus
 ```
- `--update`: Update existing sample metadata.
 
- `--save_files`: Save intermediate and final output files to the specified `--output` directory.
- 
- `--debug`: Show full error tracebacks for debugging.
+Optional flags: 
+* `--update`: Update existing sample metadata.
+* `--save_files`: Save intermediate and final output files to the specified `--output` directory.
+* `--debug`: Show full error tracebacks for debugging.
 
 ### supplementary-metadata
-Example of supplementary_metadata.csv
+Example of `supplementary_metadata.csv`:
+
 ```
 sample,lims_id,PostCode,Hospital,Date
 Sample_143,lims_143,71131,Örebro Universitetssjukhus,2025-03-05
 ```
-To aid with preparing the `--supplementary_metadata` file required by MIMOSA, the prepare_supplementary_metadata.py script generates a template CSV with sample and lims_id for all samples matching a specified profile from Bonsai.
-Fields such as PostCode and Hospital are left blank and must be filled in manually before uploading to MIMOSA.
+
+To aid in preparing the `--supplementary_metadata` file required by MIMOSA, the `prepare_supplementary_metadata.py` script generates a template CSV with `sample` and `lims_id` for all samples matching a specified profile from Bonsai.
+Fields such as `PostCode` and `Hospital` are left blank and must be filled in manually before uploading to MIMOSA.
 
 ```
 python scripts/prepare_supplementary_metadata.py \
-    --credentials <path_to_bonsai_credentials.json> \
+    --credentials <credentials.json> \
     --output <path_to_output_directory> \
     --profile staphylococcus_aureus
 ```
+
+Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page.
 
 #### conda environment
 
@@ -68,7 +80,7 @@ python scripts/prepare_supplementary_metadata.py \
 
  pip install -r scripts/requirements.txt
 
-``` 
+```
 
 ##### Links
 
@@ -79,3 +91,4 @@ python scripts/prepare_supplementary_metadata.py \
 [ReporTree](https://github.com/insapathogenomics/ReporTree)
 
 [Bonsai](https://github.com/SMD-Bioinformatics-Lund/bonsai)
+

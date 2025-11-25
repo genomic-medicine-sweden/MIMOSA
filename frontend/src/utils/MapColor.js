@@ -7,4 +7,3 @@ export const colorMapping = {
   green: "#004d00",
   "#444444": "#000000",
 };
-

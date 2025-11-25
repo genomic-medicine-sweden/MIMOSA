@@ -24,6 +24,7 @@ const Map = ({
   selectedCounties,
   infoRef,
   countyFilter,
+  staticView = false,
 }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
@@ -32,19 +33,25 @@ const Map = ({
   const geojsonLayerRef = useRef(null);
   const currentZoomRef = useRef(null);
 
-  const defaultStyle = useMemo(() => ({
-    color: mapColor,
-    weight: 2,
-    opacity: 1,
-    fillOpacity: 0.5,
-  }), [mapColor]);
+  const defaultStyle = useMemo(
+    () => ({
+      color: mapColor,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.5,
+    }),
+    [mapColor],
+  );
 
-  const highlightStyle = useMemo(() => ({
-    color: colorMapping[mapColor] || mapColor,
-    fillColor: colorMapping[mapColor] || mapColor,
-    opacity: 1,
-    fillOpacity: 0.5,
-  }), [mapColor]);
+  const highlightStyle = useMemo(
+    () => ({
+      color: colorMapping[mapColor] || mapColor,
+      fillColor: colorMapping[mapColor] || mapColor,
+      opacity: 1,
+      fillOpacity: 0.5,
+    }),
+    [mapColor],
+  );
 
   const pickZoom = () => {
     const width = window.innerWidth;
@@ -77,8 +84,8 @@ const Map = ({
         <div style="width: ${pieChartSize}px; height: ${pieChartSize}px; position: relative; display: flex; align-items: center; justify-content: center;">
           ${chartSVG}
           <div style="position: absolute; width: ${pieChartSize}px; height: ${pieChartSize}px; display: flex; align-items: center; justify-content: center; font-size: ${
-        Math.log(count) * 3
-      }px; color: black;">
+            Math.log(count) * 3
+          }px; color: black;">
             ${count}
           </div>
         </div>
@@ -99,7 +106,8 @@ const Map = ({
     if (!Array.isArray(filteredData) || filteredData.length === 0) return;
 
     filteredData.forEach((item) => {
-      const { PostCode, Date, ID, Hospital, Cluster_ID, analysis_profile } = item.properties;
+      const { PostCode, Date, ID, Hospital, Cluster_ID, analysis_profile } =
+        item.properties;
       let coordinates, County;
 
       if (!hospitalView && postcodeCoordinates[PostCode]) {
@@ -218,11 +226,11 @@ const Map = ({
           if (!selectedCounties || selectedCounties.includes("All")) {
             layer.setStyle(highlightStyle);
             const countyName = feature.properties.name;
-            const countyData =
-              (infoRef.current?.countyCounts && infoRef.current.countyCounts[countyName]) || {
-                total: 0,
-                Cluster_ID: {},
-              };
+            const countyData = (infoRef.current?.countyCounts &&
+              infoRef.current.countyCounts[countyName]) || {
+              total: 0,
+              Cluster_ID: {},
+            };
             onInfoUpdate(generateInfoContent(countyName, countyData));
           }
         });
@@ -235,7 +243,14 @@ const Map = ({
         });
       },
     }).addTo(mapInstance.current);
-  }, [selectedCounties, defaultStyle, highlightStyle, onInfoUpdate, infoRef, countyFilter]);
+  }, [
+    selectedCounties,
+    defaultStyle,
+    highlightStyle,
+    onInfoUpdate,
+    infoRef,
+    countyFilter,
+  ]);
 
   useEffect(() => {
     const waitForMapContainer = (callback) => {
@@ -271,17 +286,36 @@ const Map = ({
           maxBounds: swedenBounds,
           maxBoundsViscosity: 1.0,
           zoomControl: false,
-        }).setView([63.0, 15.0], initialZoom);
+        });
 
         mapInstance.current = map;
 
-	setTimeout(() => {
-		  map.invalidateSize();
-		  const newZoom = pickZoom();
-		  currentZoomRef.current = newZoom;
-		  map.setMinZoom(newZoom);
-		  map.setView([63.0, 15.0], newZoom);
-	}, 100);
+        let initialBounds = swedenBounds;
+
+        if (
+          staticView &&
+          selectedCounties.length === 1 &&
+          selectedCounties[0] !== "All"
+        ) {
+          const feature = boundariesData.features.find(
+            (f) => f.properties.name === selectedCounties[0],
+          );
+          if (feature) {
+            initialBounds = L.geoJSON(feature).getBounds();
+          }
+        }
+
+        map.fitBounds(initialBounds, { animate: false });
+
+        setTimeout(() => {
+          map.invalidateSize();
+          const newZoom = pickZoom();
+          currentZoomRef.current = newZoom;
+          map.setMinZoom(newZoom);
+          if (!staticView) {
+            map.setView([63.0, 15.0], newZoom);
+          }
+        }, 100);
 
         L.svg({ padding: 0 }).addTo(map);
 
@@ -290,8 +324,6 @@ const Map = ({
             'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
           opacity: 0,
         }).addTo(map);
-
-        map.fitBounds(swedenBounds, { maxZoom: initialZoom });
 
         const infoControl = L.control({ position: "topright" });
         infoControl.onAdd = function () {
@@ -307,26 +339,28 @@ const Map = ({
         infoControl.addTo(map);
         infoRef.current = infoControl;
 
-	const handleResize = () => {
-	  const waitAndResize = () => {
-	    if (
-	      mapRef.current &&
-	      mapRef.current.clientWidth > 0 &&
-	      mapRef.current.clientHeight > 0
-	    ) {	
-	      const newZoom = pickZoom();
-	      if (newZoom !== currentZoomRef.current) {
-	        currentZoomRef.current = newZoom;
-	        mapInstance.current.setMinZoom(newZoom);
-	        mapInstance.current.setView([63.0, 15.0], newZoom);
-	      }
-	      mapInstance.current.invalidateSize();
-	    } else {
-	      requestAnimationFrame(waitAndResize);
-	    }	
-	  };
-	  waitAndResize();
-	};
+        const handleResize = () => {
+          const waitAndResize = () => {
+            if (
+              mapRef.current &&
+              mapRef.current.clientWidth > 0 &&
+              mapRef.current.clientHeight > 0
+            ) {
+              const newZoom = pickZoom();
+              if (newZoom !== currentZoomRef.current) {
+                currentZoomRef.current = newZoom;
+                mapInstance.current.setMinZoom(newZoom);
+                if (!staticView) {
+                  mapInstance.current.setView([63.0, 15.0], newZoom);
+                }
+              }
+              mapInstance.current.invalidateSize();
+            } else {
+              requestAnimationFrame(waitAndResize);
+            }
+          };
+          waitAndResize();
+        };
         window.addEventListener("resize", handleResize);
 
         cleanupFn = () => {
@@ -344,7 +378,7 @@ const Map = ({
     return () => {
       cleanupFn();
       Object.values(markersRef.current).forEach((markerCluster) =>
-        markerCluster.clearLayers()
+        markerCluster.clearLayers(),
       );
     };
   }, [
@@ -377,7 +411,7 @@ const Map = ({
     if (selectedCounties[0] !== "All") {
       const countyName = selectedCounties[0];
       const feature = boundariesData.features.find(
-        (f) => f.properties.name === countyName
+        (f) => f.properties.name === countyName,
       );
 
       if (feature) {
@@ -411,4 +445,3 @@ const Map = ({
 };
 
 export default Map;
-

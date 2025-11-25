@@ -4,13 +4,12 @@ import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Tooltip } from "primereact/tooltip";
 import postcodeData from "@/assets/postcode-coordinates.js";
-import  ExportButton  from "@/components/export/ExportButton";
+import ExportButton from "@/components/export/ExportButton";
 import "primereact/resources/themes/saga-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import calculateDistance from "@/utils/distance.js";
 import HospitalCoordinates from "@/assets/hospital-coordinates";
-import config from "@/config.json";
 
 const isModifiedRecently = (sampleId, logs) => {
   const log = logs.find((log) => log.sample_id === sampleId);
@@ -23,6 +22,8 @@ const isModifiedRecently = (sampleId, logs) => {
     return diffHours <= 24;
   });
 };
+
+const bonsaiUrl = process.env.NEXT_PUBLIC_BONSAI_URL;
 
 const Table = ({ filteredData, similarity, dateRange, logs }) => {
   const [rows, setRows] = useState(5);
@@ -42,7 +43,9 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
 
     if (!dateRange || dateRange.length === 0) {
       return entries.reduce((latest, current) =>
-        new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest
+        new Date(current.createdAt) > new Date(latest.createdAt)
+          ? current
+          : latest,
       );
     }
 
@@ -58,34 +61,50 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
 
   const rowExpansionTemplate = (rowData) => {
     const similarData = getRelevantSimilarity(rowData.properties.ID);
-    const sampleLog = logs.find((log) => log.sample_id === rowData.properties.ID);
+    const sampleLog = logs.find(
+      (log) => log.sample_id === rowData.properties.ID,
+    );
 
     const mainPostcode = rowData.properties.PostCode;
     const mainCoordinates = postcodeData[mainPostcode]?.coordinates || [];
     const mainHospital = rowData.properties.Hospital;
     const mainHospitalPostcode = HospitalCoordinates[mainHospital]?.PostCode;
-    const mainHospitalCoordinates = postcodeData[mainHospitalPostcode]?.coordinates || [];
+    const mainHospitalCoordinates =
+      postcodeData[mainHospitalPostcode]?.coordinates || [];
 
     const findPostcodeById = (id) => {
-      const matchingSample = filteredData.find(item => item.properties.ID === id);
+      const matchingSample = filteredData.find(
+        (item) => item.properties.ID === id,
+      );
       return matchingSample ? matchingSample.properties.PostCode : null;
     };
 
     const findHospitalById = (id) => {
-      const matchingSample = filteredData.find(item => item.properties.ID === id);
+      const matchingSample = filteredData.find(
+        (item) => item.properties.ID === id,
+      );
       return matchingSample ? matchingSample.properties.Hospital : null;
     };
 
     return (
       <div className="p-3">
         <h3>Additional Information</h3>
-        <p><strong>Partition:</strong> {rowData.properties.Partition}</p>
-        <p><strong>Pipeline Version:</strong> {rowData.properties.Pipeline_Version}</p>
-        <p><strong>Date of Analysis:</strong> {rowData.properties.Pipeline_Date}</p>
-        <p><strong>QC Status:</strong> {rowData.properties.QC_Status}</p>
+        <p>
+          <strong>Partition:</strong> {rowData.properties.Partition}
+        </p>
+        <p>
+          <strong>Pipeline Version:</strong>{" "}
+          {rowData.properties.Pipeline_Version}
+        </p>
+        <p>
+          <strong>Date of Analysis:</strong> {rowData.properties.Pipeline_Date}
+        </p>
+        <p>
+          <strong>QC Status:</strong> {rowData.properties.QC_Status}
+        </p>
         <p>
           <a
-            href={`${config.BONSAI_URL}/sample/${rowData.properties.ID}`}
+            href={`${bonsaiUrl}/sample/${rowData.properties.ID}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ textDecoration: "underline", color: "#007ad9" }}
@@ -93,11 +112,12 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
             View Sample in Bonsai
           </a>
         </p>
-        <p><strong>ST:</strong> {
-          !isNaN(parseInt(rowData?.properties?.typing?.ST))
+        <p>
+          <strong>ST:</strong>{" "}
+          {!isNaN(parseInt(rowData?.properties?.typing?.ST))
             ? parseInt(rowData.properties.typing.ST)
-            : rowData?.properties?.typing?.ST || "N/A"
-        }</p>
+            : rowData?.properties?.typing?.ST || "N/A"}
+        </p>
 
         <table style={{ marginLeft: "1rem" }}>
           <thead>
@@ -111,11 +131,15 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           <tbody>
             <tr>
               <td style={{ textAlign: "center" }}>Allele No</td>
-              {Object.values(rowData.properties.typing.alleles).map((allele, index) => (
-                <td key={index} style={{ textAlign: "center" }}>
-                  {!isNaN(parseInt(allele)) ? parseInt(allele) : allele || "N/A"}
-                </td>
-              ))}
+              {Object.values(rowData.properties.typing.alleles).map(
+                (allele, index) => (
+                  <td key={index} style={{ textAlign: "center" }}>
+                    {!isNaN(parseInt(allele))
+                      ? parseInt(allele)
+                      : allele || "N/A"}
+                  </td>
+                ),
+              )}
             </tr>
           </tbody>
         </table>
@@ -134,41 +158,55 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
               </thead>
               <tbody>
                 {similarData.similar
-                  .filter((similarSample) => similarSample.ID !== rowData.properties.ID)
+                  .filter(
+                    (similarSample) =>
+                      similarSample.ID !== rowData.properties.ID,
+                  )
                   .map((similarSample) => {
                     const similarPostcode = findPostcodeById(similarSample.ID);
-                    const similarCoordinates = postcodeData[similarPostcode]?.coordinates || [];
+                    const similarCoordinates =
+                      postcodeData[similarPostcode]?.coordinates || [];
 
                     const similarHospital = findHospitalById(similarSample.ID);
-		    const similarHospitalPostcode = HospitalCoordinates[similarHospital]?.PostCode;
-		    const similarHospitalCoordinates = postcodeData[similarHospitalPostcode]?.coordinates || [];
+                    const similarHospitalPostcode =
+                      HospitalCoordinates[similarHospital]?.PostCode;
+                    const similarHospitalCoordinates =
+                      postcodeData[similarHospitalPostcode]?.coordinates || [];
 
                     const distance =
-                      mainCoordinates.length === 2 && similarCoordinates.length === 2
+                      mainCoordinates.length === 2 &&
+                      similarCoordinates.length === 2
                         ? calculateDistance(
                             mainCoordinates[0],
                             mainCoordinates[1],
                             similarCoordinates[0],
-                            similarCoordinates[1]
+                            similarCoordinates[1],
                           ).toFixed(2)
                         : "N/A";
 
                     const hospitalDistance =
-                      mainHospitalCoordinates.length === 2 && similarHospitalCoordinates.length === 2
+                      mainHospitalCoordinates.length === 2 &&
+                      similarHospitalCoordinates.length === 2
                         ? calculateDistance(
                             mainHospitalCoordinates[0],
                             mainHospitalCoordinates[1],
                             similarHospitalCoordinates[0],
-                            similarHospitalCoordinates[1]
+                            similarHospitalCoordinates[1],
                           ).toFixed(2)
                         : "N/A";
 
                     return (
                       <tr key={similarSample.ID}>
-                        <td style={{ textAlign: "center" }}>{similarSample.ID}</td>
-                        <td style={{ textAlign: "center" }}>{parseFloat(similarSample.similarity).toFixed(2)}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {similarSample.ID}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {parseFloat(similarSample.similarity).toFixed(2)}
+                        </td>
                         <td style={{ textAlign: "center" }}>{distance}</td>
-                        <td style={{ textAlign: "center" }}>{hospitalDistance}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {hospitalDistance}
+                        </td>
                       </tr>
                     );
                   })}
@@ -229,24 +267,80 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                   >
                     <thead>
                       <tr>
-                        <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Date</th>
-                        <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Field</th>
-                        <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Old Value</th>
-                        <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>New Value</th>
+                        <th
+                          style={{
+                            borderBottom: "1px solid #ccc",
+                            padding: "8px",
+                          }}
+                        >
+                          Date
+                        </th>
+                        <th
+                          style={{
+                            borderBottom: "1px solid #ccc",
+                            padding: "8px",
+                          }}
+                        >
+                          Field
+                        </th>
+                        <th
+                          style={{
+                            borderBottom: "1px solid #ccc",
+                            padding: "8px",
+                          }}
+                        >
+                          Old Value
+                        </th>
+                        <th
+                          style={{
+                            borderBottom: "1px solid #ccc",
+                            padding: "8px",
+                          }}
+                        >
+                          New Value
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {sampleLog.updates.map((update, index) =>
-                        Object.entries(update.changes).map(([field, change]) => (
-                          <tr key={`${index}-${field}`}>
-                            <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
-                              {new Date(update.date).toLocaleString()}
-                            </td>
-                            <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>{field}</td>
-                            <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>{change.old}</td>
-                            <td style={{ borderBottom: "1px solid #eee", padding: "8px" }}>{change.new}</td>
-                          </tr>
-                        ))
+                        Object.entries(update.changes).map(
+                          ([field, change]) => (
+                            <tr key={`${index}-${field}`}>
+                              <td
+                                style={{
+                                  borderBottom: "1px solid #eee",
+                                  padding: "8px",
+                                }}
+                              >
+                                {new Date(update.date).toLocaleString()}
+                              </td>
+                              <td
+                                style={{
+                                  borderBottom: "1px solid #eee",
+                                  padding: "8px",
+                                }}
+                              >
+                                {field}
+                              </td>
+                              <td
+                                style={{
+                                  borderBottom: "1px solid #eee",
+                                  padding: "8px",
+                                }}
+                              >
+                                {change.old}
+                              </td>
+                              <td
+                                style={{
+                                  borderBottom: "1px solid #eee",
+                                  padding: "8px",
+                                }}
+                              >
+                                {change.new}
+                              </td>
+                            </tr>
+                          ),
+                        ),
                       )}
                     </tbody>
                   </table>
@@ -269,16 +363,23 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     return entry && entry.County !== "0" ? entry.County : "";
   };
 
-  const formatPostcode = (postcode) => postcode.substring(Math.max(postcode.length - 5, 0));
+  const formatPostcode = (postcode) =>
+    postcode.substring(Math.max(postcode.length - 5, 0));
 
   const checkIntraInter = (Cluster_ID, county) => {
     let intra = false;
     let inter = false;
-    const sameCluster = filteredData.filter(item => item.properties.Cluster_ID === Cluster_ID);
-    sameCluster.forEach(item => {
+    const sameCluster = filteredData.filter(
+      (item) => item.properties.Cluster_ID === Cluster_ID,
+    );
+    sameCluster.forEach((item) => {
       const itemCounty = getCounty(item.properties.PostCode);
       if (itemCounty === county) {
-        if (!intra && sameCluster.filter(i => getCounty(i.properties.PostCode) === county).length > 1) {
+        if (
+          !intra &&
+          sameCluster.filter((i) => getCounty(i.properties.PostCode) === county)
+            .length > 1
+        ) {
           intra = true;
         }
       } else {
@@ -294,13 +395,21 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
     const Cluster_ID = rowData.properties.Cluster_ID;
     const county = getCounty(rowData.properties.PostCode);
-    const { intra, inter } = county ? checkIntraInter(Cluster_ID, county) : { intra: false, inter: false };
+    const { intra, inter } = county
+      ? checkIntraInter(Cluster_ID, county)
+      : { intra: false, inter: false };
 
     const recentlyModified = isModifiedRecently(rowData.properties.ID, logs);
 
     return (
       <div style={{ display: "flex", gap: "0.5rem" }}>
-        {diffDays < 7 && <Tag value="New" className="tag-new" data-pr-tooltip="Newly reported (within 7 days)" />}
+        {diffDays < 7 && (
+          <Tag
+            value="New"
+            className="tag-new"
+            data-pr-tooltip="Newly reported (within 7 days)"
+          />
+        )}
         {recentlyModified && (
           <Tag
             value="Modified"
@@ -309,8 +418,22 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
             data-pr-tooltip="Modified within last 24 hours"
           />
         )}
-        {intra && <Tag value="Intra" style={{ backgroundColor: "orange", color: "white" }} className="tag-intra" data-pr-tooltip="Within County - Same Cluster_ID" />}
-        {inter && <Tag value="Inter" style={{ backgroundColor: "red", color: "white" }} className="tag-inter" data-pr-tooltip="Across Counties - Same Cluster_ID" />}
+        {intra && (
+          <Tag
+            value="Intra"
+            style={{ backgroundColor: "orange", color: "white" }}
+            className="tag-intra"
+            data-pr-tooltip="Within County - Same Cluster_ID"
+          />
+        )}
+        {inter && (
+          <Tag
+            value="Inter"
+            style={{ backgroundColor: "red", color: "white" }}
+            className="tag-inter"
+            data-pr-tooltip="Across Counties - Same Cluster_ID"
+          />
+        )}
       </div>
     );
   };
@@ -353,23 +476,46 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
       >
         <Column expander style={{ width: "3rem" }} />
         <Column field="properties.ID" header="ID" sortable />
-        <Column header="Analysis Profile" body={(rowData) => (
-          <span style={{ fontStyle: "italic" }}>
-            {rowData.properties.analysis_profile.replace(/_/g, " ")}
-          </span>
-        )} sortable />
+        <Column
+          header="Analysis Profile"
+          body={(rowData) => (
+            <span style={{ fontStyle: "italic" }}>
+              {rowData.properties.analysis_profile.replace(/_/g, " ")}
+            </span>
+          )}
+          sortable
+        />
         <Column field="properties.Cluster_ID" header="Cluster_ID" sortable />
         <Column field="properties.Date" header="Date" sortable />
-        <Column header="Postcode" body={(rowData) => formatPostcode(rowData.properties.PostCode)} sortable />
-        <Column header="Postal Town" body={(rowData) => getPostalTown(rowData.properties.PostCode)} sortable />
-        <Column header="County" body={(rowData) => getCounty(rowData.properties.PostCode)} sortable />
-        <Column header="Hospital" body={(rowData) => rowData.properties.Hospital} sortable />
+        <Column
+          header="Postcode"
+          body={(rowData) => formatPostcode(rowData.properties.PostCode)}
+          sortable
+        />
+        <Column
+          header="Postal Town"
+          body={(rowData) => getPostalTown(rowData.properties.PostCode)}
+          sortable
+        />
+        <Column
+          header="County"
+          body={(rowData) => getCounty(rowData.properties.PostCode)}
+          sortable
+        />
+        <Column
+          header="Hospital"
+          body={(rowData) => rowData.properties.Hospital}
+          sortable
+        />
         <Column header="" body={severityBodyTemplate} />
       </DataTable>
-      <Tooltip ref={tooltipRef} target=".tag-new, .tag-intra, .tag-inter, .tag-modified" position="bottom" />
+      <Tooltip
+        ref={tooltipRef}
+        target=".tag-new, .tag-intra, .tag-inter, .tag-modified"
+        position="bottom"
+      />
     </div>
   );
 };
 
 export default Table;
-
