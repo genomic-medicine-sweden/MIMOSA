@@ -1,3 +1,8 @@
+## [Unreleased]
+
+### Changed
+- **Dependencies:** Bump Next.js from 15.3.3 to 15.5.7.
+
 ## [v0.2.0]
 
 ### Added
