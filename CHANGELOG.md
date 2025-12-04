@@ -1,0 +1,31 @@
+## [v0.2.0]
+
+### Added
+- **Login and authentication flow** with token-based MIMOSA user validation across scripts and improved logging of user actions.
+- **Swagger documentation**
+- **Role-based access control (RBAC)**:
+  - Restricted access to specific routes and features based on user roles.
+- **Login module**:
+  - **Dashboard**  
+    - Summary view of samples, recent sample activity for user’s county  
+  - **My County**  
+    - Map visualisation for the user’s county  
+  - **Notifications**  
+    - Currently does not connect to any backend logic or notification system — intended as a scaffold for future development  
+  - **Logs**  
+    - Detailed view of sample logs  
+  - **Samples**  
+    - View for Samples with the option to edit Hospital, Date and Postcode  
+    - Filterable by incomplete samples (i.e. samples missing metadata)  
+  - **Settings**  
+    - Page for managing user’s county and password  
+  - **Admin**  
+    - View for adding and managing users  
+
+### Changed
+- Migrated backend from `Express` to `NestJS`
+- Migrated configuration from `config.json` to `.env`
+- Updated scripts to use `.env`
+
+### Fixed
+- Replaced deprecated `xlsx` with `exceljs`

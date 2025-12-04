@@ -1,10 +1,3 @@
-const colorPalette = [
-  "red",
-  "yellow",
-  "orange",
-  "blue",
-  "purple",
-];
+const colorPalette = ["red", "yellow", "orange", "blue", "purple"];
 
 export default colorPalette;
-

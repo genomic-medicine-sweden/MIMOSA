@@ -35,4 +35,3 @@ const HospitalCoordinates = {
 };
 
 export default HospitalCoordinates;
-

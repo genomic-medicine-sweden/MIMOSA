@@ -2,7 +2,7 @@ volumes/mongodb/*
 !volumes/mongodb/.gitkeep
 ./config.json
 **/__pycache__/
-./credentials.json
+/credentials.json
 backend/node_modules
 backend/package-lock.json
 backend/dist

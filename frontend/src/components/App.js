@@ -12,7 +12,6 @@ import { generateInfoContent } from "@/utils/info";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-
 const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
   const [filteredData, setFilteredData] = useState(data);
   const [hospitalView, setHospitalView] = useState(false);
@@ -161,4 +160,3 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
 };
 
 export default App;
-

@@ -25,4 +25,3 @@ const ExportButton = ({ data }) => {
 };
 
 export default ExportButton;
-

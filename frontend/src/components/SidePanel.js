@@ -68,7 +68,7 @@ const SidePanel = ({
                 setSelectedColor(e.value);
                 handleColorChange(e.value);
               }}
-             placeholder={selectedColor}
+              placeholder={selectedColor}
             />
             <p>Marker Size</p>
             <Slider
@@ -120,4 +120,3 @@ const SidePanel = ({
 };
 
 export default SidePanel;
-

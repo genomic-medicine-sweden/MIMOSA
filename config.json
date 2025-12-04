@@ -1,8 +1,0 @@
-{
-  "API_URL":"http://localhost:5000",
-  "MONGO_URI": "mongodb://127.0.0.1:27018/mimosa",
-  "MONGO_URI_DOCKER":"mongodb://mongo:27017/mimosa",
-  "BACKEND_PORT": 5000,
-  "MONGO_DB_NAME": "mimosa",
-  "BONSAI_URL": "http://localhost.se:8000"
-}

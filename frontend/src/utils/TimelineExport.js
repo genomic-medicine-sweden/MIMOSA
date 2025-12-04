@@ -6,7 +6,7 @@ export const exportTimelineImage = async (chartRef) => {
     const node = chartRef.current;
 
     domtoimage
-      .toBlob(node) 
+      .toBlob(node)
       .then((blob) => {
         const date = new Date();
         const formattedDate = date
@@ -24,4 +24,3 @@ export const exportTimelineImage = async (chartRef) => {
     console.error("Error exporting timeline image:", error);
   }
 };
-
