@@ -2,7 +2,7 @@
   "name": "MIMOSA-backend",
   "version": "0.2.0",
   "description": "",
-  "author": "Olivia Andersson <olivia.andersson@regionorebrolan.se>",
+  "author": "Olivia Andersson <olivia.andersson [at] regionorebrolan [dot] se>",
   "private": true,
   "license": "ISC",
   "scripts": {

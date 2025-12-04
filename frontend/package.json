@@ -2,7 +2,7 @@
   "name": "MIMOSA",
   "version": "0.2.0",
   "private": true,
-  "author": "Olivia Andersson <olivia.andersson@regionorebrolan.se>",
+  "author": "Olivia Andersson <olivia.andersson [at] regionorebrolan [dot] se>",
   "scripts": {
     "predev": "node generate-env.cjs",
     "prebuild": "node generate-env.cjs",
