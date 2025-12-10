@@ -30,6 +30,10 @@ const LogsPage = dynamic(() => import("@/components/dashboard/LogsPage"), {
   ssr: false,
 });
 
+const MatrixPage = dynamic(() => import("@/components/dashboard/MatrixPage"), {
+  ssr: false,
+});
+
 export default function DashboardPage() {
   const { viewMode } = useViewMode();
   const { data } = useAppData();
@@ -40,6 +44,7 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.ADMIN) return <AdminPage />;
   if (viewMode === ViewModes.SAMPLES) return <SamplesPage />;
   if (viewMode === ViewModes.LOGS) return <LogsPage />;
+  if (viewMode === ViewModes.MATRIX) return <MatrixPage />;
 
   return (
     <>
