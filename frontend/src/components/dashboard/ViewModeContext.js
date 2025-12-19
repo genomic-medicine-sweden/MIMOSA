@@ -10,6 +10,7 @@ export const ViewModes = {
   NOTIFICATIONS: "notifications",
   ADMIN: "admin",
   SAMPLES: "samples",
+  MATRIX: "matrix",
 };
 
 export function ViewModeProvider({ children }) {

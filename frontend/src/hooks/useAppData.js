@@ -8,6 +8,7 @@ export default function useAppData() {
   const [similarity, setSimilarity] = useState(null);
   const [dateRange, setDateRange] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [clusters, setClusters] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +69,14 @@ export default function useAppData() {
         setData(enriched);
         setSimilarity(similarityData);
         setLogs(logsData);
+        const clusterGroups = {};
+        enriched.forEach((item) => {
+          const id = item.properties.ID;
+          const clusterId = item.properties.Cluster_ID;
+          if (!clusterGroups[clusterId]) clusterGroups[clusterId] = [];
+          clusterGroups[clusterId].push(id);
+        });
+        setClusters(clusterGroups);
       } catch (error) {
         console.error("Error loading data:", error);
       }
@@ -76,5 +85,5 @@ export default function useAppData() {
     fetchData();
   }, [dateRange]);
 
-  return { data, similarity, logs, dateRange, setDateRange };
+  return { data, similarity, logs, clusters, dateRange, setDateRange };
 }

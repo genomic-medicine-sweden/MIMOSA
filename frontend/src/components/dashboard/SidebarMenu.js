@@ -54,6 +54,13 @@ export default function SidebarMenu() {
           text
           onClick={() => setViewMode(ViewModes.NOTIFICATIONS)}
         />
+        <Button
+          label="Matrix"
+          icon="pi pi-th-large"
+          className="w-full justify-start"
+          text
+          onClick={() => setViewMode(ViewModes.MATRIX)}
+        />
         {role === "admin" && (
           <Button
             label="Logs"

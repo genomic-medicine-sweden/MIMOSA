@@ -1,7 +1,17 @@
-## [Unreleased]
+## [v0.2.1]
+
+### Added
+- **Distance matrix**:
+  - New Distance module enabling visualisation of Hamming distances between samples in a matrix view.
+
+- upload and runtime 'createdAt' timestamps for test data
 
 ### Changed
 - **Dependencies:** Bump Next.js from 15.3.3 to 15.5.7.
+
+## Fixed
+- removed legacy `icon.ico`.
+
 
 ## [v0.2.0]
 
