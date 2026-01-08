@@ -14,7 +14,7 @@ const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
 const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
   const [filteredData, setFilteredData] = useState(data);
-  const [hospitalView, setHospitalView] = useState(false);
+  const [hospitalView, setHospitalView] = useState(true);
   const [mapColor, setMapColor] = useState("green");
   const [markerSize, setMarkerSize] = useState(6);
   const [activeTab, setActiveTab] = useState(null);
