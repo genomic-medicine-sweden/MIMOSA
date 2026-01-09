@@ -122,7 +122,7 @@ const HospitalCoordinates = {
   "Lindesbergs lasarett": {
     PostCode: "SE-71182",
   },
-  "Linköping Universitetssjukhuset": {
+  "Linköping Universitetssjukhus": {
     PostCode: "SE-58185",
   },
   "Ljungby sjukhus": {
@@ -188,7 +188,7 @@ const HospitalCoordinates = {
   "Sabbatsbergs sjukhus": {
     PostCode: "SE-11361",
   },
-  "Sahlgrenska Universitetssjukhuset": {
+  "Sahlgrenska Universitetssjukhus": {
     PostCode: "SE-41345",
   },
   "Sala sjukhus": {
