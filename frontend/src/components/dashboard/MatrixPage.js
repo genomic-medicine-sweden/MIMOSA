@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { MultiSelect } from "primereact/multiselect";
 import { FloatLabel } from "primereact/floatlabel";
 import { Dropdown } from "primereact/dropdown";
@@ -8,20 +8,29 @@ import { Button } from "primereact/button";
 
 import useDistance from "@/hooks/useDistance";
 import useAppData from "@/hooks/useAppData";
+import useAnalysisProfiles from "@/hooks/useAnalysisProfiles";
 
 import { getLeafOrder } from "@/utils/newick";
 
 export default function MatrixPage() {
-  const [analysisProfile, setAnalysisProfile] = useState(
-    "staphylococcus_aureus",
-  );
+  const { data, clusters: appClusters } = useAppData();
+  const availableClusters = appClusters || {};
+
+  const analysisProfiles = useAnalysisProfiles(data);
+
+  const [analysisProfile, setAnalysisProfile] = useState("");
+
+  useEffect(() => {
+    if (!analysisProfile && analysisProfiles.length > 0) {
+      setAnalysisProfile(analysisProfiles[0]);
+    }
+  }, [analysisProfiles, analysisProfile]);
+
   const [clusterFilter, setClusterFilter] = useState([]);
   const [sampleFilter, setSampleFilter] = useState([]);
 
   const { samples, matrix, newick, loading, error } =
     useDistance(analysisProfile);
-  const { clusters: appClusters } = useAppData();
-  const availableClusters = appClusters || {};
 
   const treeOrder = useMemo(() => {
     if (!samples?.length || !newick) return [];
@@ -32,61 +41,51 @@ export default function MatrixPage() {
     }
   }, [samples, newick]);
 
-  const orderMap = useMemo(() => {
-    return new Map(treeOrder.map((id, i) => [id, i]));
-  }, [treeOrder]);
+  const orderMap = useMemo(
+    () => new Map(treeOrder.map((id, i) => [id, i])),
+    [treeOrder],
+  );
 
-  function getOrderIndex(id) {
-    const idx = orderMap.get(id);
-    return idx !== undefined ? idx : treeOrder.length + 100;
-  }
+  const getOrderIndex = (id) => orderMap.get(id) ?? treeOrder.length + 100;
 
   const clusterSamples = useMemo(() => {
     if (!Array.isArray(samples)) return [];
-
     if (!clusterFilter.length) return samples;
 
     const allowed = clusterFilter.flatMap((id) => availableClusters[id] || []);
 
     return samples.filter((s) => allowed.includes(s));
-  }, [clusterFilter, samples]);
+  }, [clusterFilter, samples, availableClusters]);
 
   const filteredSamples = useMemo(() => {
-    if (!Array.isArray(clusterSamples)) return [];
-
     const base =
       sampleFilter.length === 0
         ? clusterSamples
         : clusterSamples.filter((s) => sampleFilter.includes(s));
 
-    if (!Array.isArray(base)) return [];
-
     return [...base].sort((a, b) => getOrderIndex(a) - getOrderIndex(b));
   }, [clusterSamples, sampleFilter, orderMap]);
 
   const filteredValues = useMemo(() => {
-    if (!Array.isArray(filteredSamples) || !Array.isArray(samples) || !matrix)
-      return [];
+    if (!filteredSamples.length || !matrix || !samples) return [];
 
     const indices = filteredSamples.map((s) => samples.indexOf(s));
 
-    return indices.map((rowIndex) =>
-      indices.map((colIndex) => matrix[rowIndex]?.[colIndex] ?? 0),
-    );
+    return indices.map((i) => indices.map((j) => matrix[i]?.[j] ?? 0));
   }, [filteredSamples, samples, matrix]);
 
-  const maxDistance = useMemo(() => {
-    if (!Array.isArray(matrix)) return 1;
-    return Math.max(...matrix.flat(), 1);
-  }, [matrix]);
+  const maxDistance = useMemo(
+    () => Math.max(...(matrix?.flat() ?? []), 1),
+    [matrix],
+  );
 
-  function colourScale(value) {
+  const colourScale = (value) => {
     const ratio = value / maxDistance;
     const r = 255;
     const g = Math.floor(255 - 200 * ratio);
     const b = Math.floor(255 - 200 * ratio);
     return `rgb(${r},${g},${b})`;
-  }
+  };
 
   const resetFilters = () => {
     setClusterFilter([]);
@@ -102,14 +101,13 @@ export default function MatrixPage() {
           <Dropdown
             value={analysisProfile}
             onChange={(e) => setAnalysisProfile(e.value)}
-            options={[
-              {
-                label: "Staphylococcus aureus",
-                value: "staphylococcus_aureus",
-              },
-            ]}
+            options={analysisProfiles.map((profile) => ({
+              label: profile.replace(/_/g, " "),
+              value: profile,
+            }))}
             placeholder="Select Profile"
             className="w-full"
+            filter
           />
           <label>Analysis Profile</label>
         </FloatLabel>
@@ -118,16 +116,15 @@ export default function MatrixPage() {
           <MultiSelect
             value={clusterFilter}
             options={Object.keys(availableClusters).map((c) => ({
-              label: `Cluster ${c}`,
+              label: c,
               value: c,
             }))}
             onChange={(e) => {
               const selected = e.value ?? [];
               setClusterFilter(selected);
-              const auto = selected.flatMap(
-                (id) => availableClusters[id] || [],
+              setSampleFilter(
+                selected.flatMap((id) => availableClusters[id] || []),
               );
-              setSampleFilter(auto);
             }}
             className="w-20rem"
           />
@@ -137,7 +134,7 @@ export default function MatrixPage() {
         <FloatLabel>
           <MultiSelect
             value={sampleFilter}
-            options={(clusterSamples || []).map((s) => ({
+            options={clusterSamples.map((s) => ({
               label: s,
               value: s,
             }))}
@@ -176,7 +173,7 @@ export default function MatrixPage() {
                     left: 0,
                     zIndex: 50,
                   }}
-                ></th>
+                />
                 {filteredSamples.map((s) => (
                   <th
                     key={s}
@@ -208,7 +205,7 @@ export default function MatrixPage() {
                         width: "40px",
                         height: "40px",
                         backgroundColor: colourScale(value),
-                        colour: "black",
+                        color: "black",
                       }}
                     >
                       {value}
