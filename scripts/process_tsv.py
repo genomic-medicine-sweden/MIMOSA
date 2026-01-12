@@ -101,3 +101,25 @@ def process_cluster_composition(clusterComposition_tsv, clusters_json_path=None,
 
     return clustering_result
 
+
+def parse_distance_tsv(tsv_path):
+    """
+    Parse the *_dist_hamming.tsv file produced by ReporTree.
+    """
+    with open(tsv_path, "r") as f:
+        lines = [line.strip().split("\t") for line in f.readlines()]
+
+    samples = lines[0][1:]  
+
+    matrix = [
+        [int(x) for x in row[1:]]
+        for row in lines[1:]
+    ]
+
+    return samples, matrix
+
+
+def read_newick(path):
+    with open(path, "r") as f:
+        return f.read().strip()
+
