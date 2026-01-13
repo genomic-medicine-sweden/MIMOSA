@@ -136,6 +136,19 @@
       ],
       "createdAt": "2025-06-11T12:00:00"
     }
+  ],
+
+    "distance": [
+    {
+      "analysis_profile": "staphylococcus_aureus",
+      "samples": ["TEST1", "TEST2", "TEST3"],
+      "matrix": [
+        [0, 2, 8],
+        [2, 0, 7],
+        [8, 7, 0]
+      ],
+      "newick": "((TEST1:2,TEST2:2):5,TEST3:7);",
+      "createdAt": "2025-06-11T12:00:00"
+    }
   ]
 }
-
