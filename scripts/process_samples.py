@@ -15,30 +15,16 @@ def process_samples_by_profile(bonsai_api_url, token, output_folder, target_prof
 
     samples = fetch_samples(bonsai_api_url, token)
     profiles = {}
-    # track skipped profiles
-    skipped_profiles = set()
 
     for sample in samples:
         profile = sample.get("profile", "Unknown")
         sample_id = sample.get("sample_id")
-        if sample_id and profile:
-            if target_profiles is None or profile in target_profiles:
-                profiles.setdefault(profile, []).append(sample_id)
-            else:
-                skipped_profiles.add(profile)
 
-    if user_selected_profiles:
-        if len(user_selected_profiles) == 1 and user_selected_profiles[0].lower() == "all":
-            if skipped_profiles:
-                print("\nThe following profiles were found in Bonsai, but are currently not supported in MIMOSA and were skipped:")
-                for profile in sorted(skipped_profiles):
-                    print(f"  - {profile}")
-        else:
-            invalid_user_selected = set(user_selected_profiles) - set(target_profiles)
-            if invalid_user_selected:
-                print("\nThe following profiles were selected but are not available and will be skipped:")
-                for profile in sorted(invalid_user_selected):
-                    print(f"  - {profile}")
+        if not sample_id or not profile:
+            continue
+
+        if target_profiles is None or profile in target_profiles:
+            profiles.setdefault(profile, []).append(sample_id)
 
     if not profiles:
         print("No samples match the specified profiles. Exiting.")
@@ -55,7 +41,6 @@ def process_samples_by_profile(bonsai_api_url, token, output_folder, target_prof
         for sample_id in sample_ids:
             sample_data = fetch_sample_details(bonsai_api_url, token, sample_id)
 
-            # Extracting common fields
             sequencing_date = sample_data.get("sequencing_date", "Unknown")
             date_part, time_part = (sequencing_date.split("T") if "T" in sequencing_date
                                     else (sequencing_date, "Unknown"))
@@ -79,8 +64,7 @@ def process_samples_by_profile(bonsai_api_url, token, output_folder, target_prof
             }
             metadata_row = common_fields.copy()
 
-            # Extract MLST data for staphylococcus_aureus
-            if analysis_profile.lower() == "staphylococcus_aureus":
+            if analysis_profile.lower() in ["staphylococcus_aureus", "klebsiella_pneumoniae"]:
                 mlst_result = next(
                     (result for result in sample_data.get("typing_result", []) if result.get("type") == "mlst"),
                     {}
@@ -90,7 +74,6 @@ def process_samples_by_profile(bonsai_api_url, token, output_folder, target_prof
                 for gene, allele in alleles.items():
                     metadata_row[gene] = allele
 
-            # Process cgMLST data
             typing_results = sample_data.get("typing_result", [])
             cgmlst_result = None
             for result in typing_results:
@@ -108,13 +91,11 @@ def process_samples_by_profile(bonsai_api_url, token, output_folder, target_prof
 
             metadata_rows.append(metadata_row)
 
-        # Save metadata file for the profile
         metadata_file = os.path.join(output_folder, f"metadata_{profile}.tsv")
         metadata_df = pd.DataFrame(metadata_rows)
         metadata_df.to_csv(metadata_file, sep='\t', index=False)
         metadata_files.append(metadata_file)
 
-        # Save cgMLST file for the profile
         if cgmlst_data_frames:
             combined_cgmlst = pd.concat(cgmlst_data_frames, ignore_index=True)
             # Replace missing codes

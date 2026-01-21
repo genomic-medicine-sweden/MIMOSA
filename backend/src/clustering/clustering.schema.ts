@@ -4,6 +4,13 @@ import { Document } from 'mongoose';
 @Schema({ collection: 'clustering' })
 export class Clustering extends Document {
   @Prop({
+    type: String,
+    required: true,
+    index: true,
+  })
+  analysis_profile: string;
+
+  @Prop({
     type: [
       {
         ID: { type: String, required: true },

@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import json
 import tempfile
 import shutil
-from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from pymongo import MongoClient
 
@@ -12,12 +10,11 @@ from api import (
     load_credentials,
     get_access_token,
     fetch_samples,
-    authenticate_mimosa_user
+    authenticate_mimosa_user,
 )
 from upload import upload_similarity
-from process_tsv import process_tsv, process_cluster_composition
-from update_metadata import update_metadata_with_supplementary_metadata
 from sample_checks import get_new_sample_ids, prompt_if_no_new_samples
+from process_similarity import process_similarity
 from MIMOSA import mimosa
 
 dotenv_path = find_dotenv(filename=".env", usecwd=True)
@@ -25,7 +22,11 @@ if not dotenv_path:
     raise FileNotFoundError("Could not find project-root .env file.")
 load_dotenv(dotenv_path)
 
-AVAILABLE_PROFILES = ["staphylococcus_aureus"]
+AVAILABLE_PROFILES = [
+    "staphylococcus_aureus",
+    "klebsiella_pneumoniae",
+]
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Process sample data, run ReporTree, and upload results to MIMOSA.")
@@ -39,7 +40,7 @@ def parse_args():
     args = parser.parse_args()
 
     if args.save_files and not args.output:
-        parser.error("--save_files requires --output to be set.")
+        parser.error("--save_files requires --output")
 
     if "All" in args.profile:
         target_profiles = AVAILABLE_PROFILES
@@ -47,73 +48,109 @@ def parse_args():
         target_profiles = [p for p in args.profile if p in AVAILABLE_PROFILES]
 
     if not target_profiles:
-        print("No valid profiles selected. Exiting.")
-        exit(1)
+        raise SystemExit("No valid profiles selected.Exiting")
 
     return args, target_profiles
+
 
 def get_analyzed_sample_ids():
     mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
     db_name = os.getenv("MONGO_DB_NAME")
-
     client = MongoClient(mongo_uri)
-    db = client[db_name]
-    ids = db["similarities"].distinct("ID")
+    ids = set(client[db_name]["similarities"].distinct("ID"))
     client.close()
-    return set(ids)
+    return ids
+
 
 def main():
     args, target_profiles = parse_args()
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
-    upload_token = authenticate_mimosa_user(credentials)  
+    upload_token = authenticate_mimosa_user(credentials)
 
     base_dir = args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
     if args.save_files:
         os.makedirs(base_dir, exist_ok=True)
 
+    all_target_ids = set()
+
     try:
         all_samples = fetch_samples(credentials["bonsai_api_url"], token)
         analyzed_ids = get_analyzed_sample_ids()
+        any_new_samples = False
 
         for profile in target_profiles:
-            qc_only = False
             if args.update:
                 target_ids = {
-                    s["sample_id"] for s in all_samples
-                    if s.get("profile") == profile and s.get("sample_id") in analyzed_ids
+                    s["sample_id"]
+                    for s in all_samples
+                    if s.get("profile") == profile
+                    and s.get("sample_id") in analyzed_ids
                 }
                 if not target_ids:
-                    print(f"No existing samples to update for profile '{profile}'.")
+                    print(f"No samples to update for profile '{profile}'.")
                     continue
             else:
                 new_ids = get_new_sample_ids(all_samples, analyzed_ids, profile)
-
                 if not new_ids:
-                    if prompt_if_no_new_samples(profile, new_ids):
-                        target_ids = analyzed_ids
-                        qc_only = False
-                    else:
+                    if not prompt_if_no_new_samples(profile, new_ids):
                         continue
+                    target_ids = analyzed_ids
                 else:
                     target_ids = new_ids
-                    qc_only = False
+                    any_new_samples = True
+
+            all_target_ids.update(target_ids)
 
             profile_dir = os.path.join(base_dir, profile)
-            mimosa(profile, profile_dir, args, credentials, token, target_ids, upload_token)
+            mimosa(
+                profile,
+                profile_dir,
+                args,
+                credentials,
+                token,
+                target_ids,
+                upload_token,
+            )
+
+        run_similarity = True
+
+        if not any_new_samples:
+            answer = input(
+                "\nNo new samples detected across any profile. "
+                "Do you want to recompute similarity anyway? (yes/no): "
+            ).strip().lower()
+
+            if answer not in ("yes", "y"):
+                run_similarity = False  
+
+        if run_similarity:
+            print("\nRunning similarity for all samples")
+
+            similarity_results = process_similarity(
+                credentials["bonsai_api_url"],
+                 token,
+                sorted(all_target_ids),
+                base_dir,
+                "combined",
+                save_files=True,
+            )
+
+            similarity_path = os.path.join(base_dir, "combined_similarity.json")
+            upload_similarity(similarity_path, upload_token=upload_token)
+        else:
+            print("Skipping similarity computation.")
+
 
     finally:
         if not args.save_files and os.path.exists(base_dir):
             shutil.rmtree(base_dir, ignore_errors=True)
 
+
 if __name__ == "__main__":
-    args, _ = parse_args()
     try:
         main()
     except Exception as e:
-        if args.debug:
-            raise
-        else:
-            print(f"{type(e).__name__}: {e}. For more information, try again with --debug.")
-            exit(1)
+        print(f"{type(e).__name__}: {e}")
+        raise
 

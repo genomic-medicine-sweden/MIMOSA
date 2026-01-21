@@ -1,5 +1,23 @@
-## [v0.2.1]
+## [v0.3.0]
 
+### Added
+- Expanded list of Swedish hospitals with postcodes  
+- Support for *Klebsiella pneumoniae*
+- Profile-aware clustering
+
+### Changed
+- Default map view set to hospital-based
+- Similarity workflow and upload handling restructured to reduce unnecessary recomputation 
+- Profile field normalisation and request handling cleanup
+- Matrix view now dynamically selects and filters by available analysis profiles
+- **Dependencies:** Bump Next.js to ^15.5.9
+- Test upload script and data extended to support distance matrices 
+ 
+### Fixed
+- MultiSelect filter overflow caused by incorrect PrimeReact prop casing
+
+
+## [v0.2.1]
 ### Added
 - **Distance matrix**:
   - New Distance module enabling visualisation of Hamming distances between samples in a matrix view.
@@ -9,8 +27,10 @@
 ### Changed
 - **Dependencies:** Bump Next.js from 15.3.3 to 15.5.7.
 
-## Fixed
+### Fixed
 - removed legacy `icon.ico`.
+
+
 
 
 ## [v0.2.0]

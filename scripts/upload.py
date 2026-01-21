@@ -158,6 +158,35 @@ def upload_clustering(data_file_path, upload_token=None):
     finally:
         client.close()
 
+
+def upload_distance(data_file_path, upload_token=None):
+    if not upload_token:
+        raise RuntimeError("upload_token is required for authenticated upload.")
+    validate_upload_token(upload_token)
+
+    try:
+        with open(data_file_path, "r", encoding="utf-8") as file:
+            distance_data = json.load(file)
+    except Exception as error:
+        print("Error loading distance data file:", error)
+        return
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    collection = db["distance"]
+
+    try:
+        collection.update_one(
+            {"analysis_profile": distance_data.get("analysis_profile")},
+            {"$set": distance_data},
+            upsert=True,
+        )
+        print(f"Distance data stored for {distance_data.get('analysis_profile')}")
+    except Exception as err:
+        print("Error uploading distance data:", err)
+    finally:
+        client.close()
+
 def upload_similarity(data_file_path, upload_token=None):
     if not upload_token:
         raise RuntimeError("upload_token is required for authenticated upload.")

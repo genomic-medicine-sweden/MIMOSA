@@ -232,7 +232,7 @@ const FilteringLogic = ({
             placeholder="Analysis Profile"
             filter={true}
             filterPlaceholder="Search"
-            maxselectedlabels={2}
+            maxSelectedLabels={2}
           />
           <label htmlFor="ms-analysisProfileFilter">Analysis Profile</label>
         </FloatLabel>
@@ -247,7 +247,7 @@ const FilteringLogic = ({
             className="w-full"
             filter={true}
             filterPlaceholder="Search"
-            maxselectedlabels={2}
+            maxSelectedLabels={2}
           />
           <label htmlFor="ms-ids"> IDs</label>
         </FloatLabel>
@@ -263,7 +263,7 @@ const FilteringLogic = ({
             placeholder="Cluster_ID"
             filter={true}
             filterPlaceholder="Search"
-            maxselectedlabels={2}
+            maxSelectedLabels={2}
           />
           <label htmlFor="ms-Cluster_ID"> Cluster_ID</label>
         </FloatLabel>
@@ -295,7 +295,7 @@ const FilteringLogic = ({
                 placeholder="Postcode"
                 filter={true}
                 filterPlaceholder="Search"
-                maxselectedlabels={2}
+                maxSelectedLabels={2}
               />
               <label htmlFor="ms-PostCode"> Postcode</label>
             </FloatLabel>
@@ -311,7 +311,7 @@ const FilteringLogic = ({
                 placeholder="Postal Town"
                 filter={true}
                 filterPlaceholder="Search"
-                maxselectedlabels={2}
+                maxSelectedLabels={2}
               />
               <label htmlFor="ms-postalTownFilter"> Postal Town</label>
             </FloatLabel>
@@ -327,7 +327,7 @@ const FilteringLogic = ({
                 placeholder="County"
                 filter={true}
                 filterPlaceholder="Search"
-                maxselectedlabels={2}
+                maxSelectedLabels={2}
                 disabled={selectedCounty && selectedCounty !== "All"}
               />
               <label htmlFor="ms-countyFilter"> County</label>
@@ -346,7 +346,7 @@ const FilteringLogic = ({
             placeholder="Hospital"
             filter={true}
             filterPlaceholder="Search"
-            maxselectedlabels={2}
+            maxSelectedLabels={2}
           />
           <label htmlFor="ms-hospitalFilter"> Hospital</label>
         </FloatLabel>

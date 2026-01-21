@@ -26,29 +26,48 @@ export default function useAppData() {
         const features = await featuresRes.json();
         const similarityData = await similarityRes.json();
         const logsData = await logsRes.json();
-        let clustering = await clusteringRes.json();
-        if (!Array.isArray(clustering)) clustering = [clustering];
+        const clusteringArray = await clusteringRes.json();
 
-        // Choose most recent mapping
-        const selected = clustering.reduce((a, b) =>
-          new Date(a.createdAt) > new Date(b.createdAt) ? a : b,
-        );
+        const clusteringByProfile = {};
 
-        const mapping = {};
-        if (selected?.results) {
-          selected.results.forEach((item) => {
-            mapping[item.ID] = {
-              clusterID: item.Cluster_ID || "Unknown",
-              partition: item.Partition || "Unknown",
-            };
+        if (Array.isArray(clusteringArray)) {
+          clusteringArray.forEach((run) => {
+            const profile = run.analysis_profile;
+            if (!profile) return;
+
+            const existing = clusteringByProfile[profile];
+            if (
+              !existing ||
+              new Date(run.createdAt) > new Date(existing.createdAt)
+            ) {
+              clusteringByProfile[profile] = run;
+            }
           });
         }
 
+        const clusterMapByProfile = {};
+
+        Object.entries(clusteringByProfile).forEach(([profile, run]) => {
+          const mapping = {};
+          if (Array.isArray(run.results)) {
+            run.results.forEach((item) => {
+              mapping[item.ID] = {
+                clusterID: item.Cluster_ID ?? "Unknown",
+                partition: item.Partition ?? "Unknown",
+              };
+            });
+          }
+          clusterMapByProfile[profile] = mapping;
+        });
+
         const enriched = features.map((item) => {
           const id = item.properties.ID;
-          const clusterInfo = mapping[id] || {
-            clusterID: item.properties.Cluster_ID || "Unknown",
-            partition: item.properties.Partition || "Unknown",
+          const profile = item.properties.analysis_profile;
+
+          const profileMapping = clusterMapByProfile[profile] || {};
+          const clusterInfo = profileMapping[id] || {
+            clusterID: "Unknown",
+            partition: "Unknown",
           };
 
           item.properties.Cluster_ID = clusterInfo.clusterID;
@@ -58,10 +77,7 @@ export default function useAppData() {
             ...item,
             clusterID: clusterInfo.clusterID,
             partition: clusterInfo.partition,
-            color: getColor(
-              clusterInfo.clusterID,
-              item.properties.analysis_profile,
-            ),
+            color: getColor(clusterInfo.clusterID, profile),
           };
         });
 
@@ -69,6 +85,7 @@ export default function useAppData() {
         setData(enriched);
         setSimilarity(similarityData);
         setLogs(logsData);
+
         const clusterGroups = {};
         enriched.forEach((item) => {
           const id = item.properties.ID;

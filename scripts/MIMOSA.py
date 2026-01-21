@@ -5,14 +5,23 @@ from dotenv import load_dotenv, find_dotenv
 
 from process_samples import process_samples_by_profile
 from run_reportree import run_reportree
-from process_tsv import process_tsv, process_cluster_composition
-from upload import upload_features, upload_clustering, upload_similarity
-from process_similarity import process_similarity
+from process_tsv import (
+    process_tsv,
+    process_cluster_composition,
+    parse_distance_tsv,
+    read_newick,
+)
+from upload import (
+    upload_features,
+    upload_clustering,
+    upload_distance,
+)
 
 dotenv_path = find_dotenv(filename=".env", usecwd=True)
 if not dotenv_path:
     raise FileNotFoundError("Could not find project-root .env file.")
 load_dotenv(dotenv_path)
+
 
 def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_token):
     os.makedirs(profile_dir, exist_ok=True)
@@ -22,7 +31,7 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         token=token,
         output_folder=profile_dir,
         target_profiles=[profile],
-        user_selected_profiles=args.profile
+        user_selected_profiles=args.profile,
     )
 
     if not metadata_files or not cgmlst_files:
@@ -33,13 +42,20 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
 
     if args.supplementary_metadata:
         from update_metadata import update_metadata_with_supplementary_metadata
-        update_metadata_with_supplementary_metadata(metadata_file, args.supplementary_metadata)
+        update_metadata_with_supplementary_metadata(
+            metadata_file,
+            args.supplementary_metadata,
+        )
 
     if args.update:
-        metadata_partitions_tsv = metadata_file
         features_json_path = os.path.join(profile_dir, f"features_{profile}.json")
-        process_tsv(metadata_partitions_tsv, features_json_path, save_files=True)
-        upload_features(features_json_path, overwrite=True, show_log=True,upload_token=upload_token)
+        process_tsv(metadata_file, features_json_path, save_files=True)
+        upload_features(
+            features_json_path,
+            overwrite=True,
+            show_log=True,
+            upload_token=upload_token,
+        )
         return
 
     run_reportree(
@@ -47,16 +63,35 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         cgmlst_file,
         profile_dir,
         profile,
-        save_files=True
+        save_files=True,
     )
 
-    metadata_partitions_tsv = os.path.join(profile_dir, f"{profile}_metadata_w_partitions.tsv")
-    cluster_composition_tsv = os.path.join(profile_dir, f"{profile}_clusterComposition.tsv")
+    metadata_partitions_tsv = os.path.join(
+        profile_dir,
+        f"{profile}_metadata_w_partitions.tsv",
+    )
+    cluster_composition_tsv = os.path.join(
+        profile_dir,
+        f"{profile}_clusterComposition.tsv",
+    )
+
     features_json_path = os.path.join(profile_dir, f"features_{profile}.json")
     clusters_json_path = os.path.join(profile_dir, f"clusters_{profile}.json")
 
+    dist_tsv = os.path.join(profile_dir, f"{profile}_dist_hamming.tsv")
+    nwk_path = os.path.join(profile_dir, f"{profile}.nwk")
+    distance_json_path = os.path.join(profile_dir, f"{profile}_distance.json")
+
     process_tsv(metadata_partitions_tsv, features_json_path, save_files=True)
-    process_cluster_composition(cluster_composition_tsv, clusters_json_path, save_files=True)
+
+    clustering_result = process_cluster_composition(
+        cluster_composition_tsv,
+        save_files=False,
+    )
+    clustering_result["analysis_profile"] = profile
+
+    with open(clusters_json_path, "w", encoding="utf-8") as f:
+        json.dump(clustering_result, f, indent=2)
 
     show_log = args.update or len(sample_ids) == 0
 
@@ -64,50 +99,26 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         features_json_path,
         overwrite=args.update,
         show_log=show_log,
-        upload_token=upload_token
-        )
+        upload_token=upload_token,
+    )
 
-    upload_clustering(clusters_json_path,upload_token=upload_token)
+    upload_clustering(clusters_json_path, upload_token=upload_token)
 
-    similarity_path = os.path.join(profile_dir, f"{profile}_similarity.json")
-    if os.path.exists(similarity_path):
-        with open(similarity_path, 'r', encoding='utf-8') as f:
-            existing = json.load(f)
+    if os.path.exists(dist_tsv) and os.path.exists(nwk_path):
+        samples, matrix = parse_distance_tsv(dist_tsv)
+        newick_text = read_newick(nwk_path)
+
+        distance_doc = {
+            "analysis_profile": profile,
+            "samples": samples,
+            "matrix": matrix,
+            "newick": newick_text,
+        }
+
+        with open(distance_json_path, "w", encoding="utf-8") as f:
+            json.dump(distance_doc, f, indent=2)
+
+        upload_distance(distance_json_path, upload_token=upload_token)
     else:
-        existing = []
-
-    new_results = process_similarity(
-        credentials["bonsai_api_url"],
-        token,
-        list(sample_ids),
-        profile_dir,
-        profile,
-        save_files=True
-    ) if sample_ids else []
-
-    existing_ids = {item["ID"] for item in existing}
-    affected_ids = {
-        neighbor.get("ID")
-        for result in new_results
-        for neighbor in result.get("similar", [])
-        if neighbor.get("ID") in existing_ids
-    }
-
-    affected_results = process_similarity(
-        credentials["bonsai_api_url"],
-        token,
-        list(affected_ids),
-        profile_dir,
-        profile,
-        save_files=True
-    ) if affected_ids else []
-
-    combined = [
-        r for r in existing if r["ID"] not in {r["ID"] for r in affected_results}
-    ] + new_results + affected_results
-
-    with open(similarity_path, 'w', encoding='utf-8') as f:
-        json.dump(combined, f, indent=2)
-
-    upload_similarity(similarity_path, upload_token=upload_token)
+        print("Distance matrix or Newick file missing — skipping distance upload.")
 
