@@ -32,10 +32,10 @@ const HospitalCoordinates = {
   "Danderyds sjukhus": {
     PostCode: "SE-18288",
   },
-  Elisabethsjukhuset: {
+  "Elisabethsjukhuset": {
     PostCode: "SE-75226",
   },
-  "Enköping Lasarettet": {
+  "Enköping Lasarett": {
     PostCode: "SE-74538",
   },
   "Ersta sjukhus": {
@@ -116,7 +116,7 @@ const HospitalCoordinates = {
   "Köping sjukhus": {
     PostCode: "SE-73130",
   },
-  "Landskrona Lasarettet": {
+  "Landskrona Lasarett": {
     PostCode: "SE-26136",
   },
   "Lindesbergs lasarett": {
@@ -143,10 +143,10 @@ const HospitalCoordinates = {
   "Mora lasarett": {
     PostCode: "SE-79251",
   },
-  "Motala Lasarettet": {
+  "Motala Lasarett": {
     PostCode: "SE-59135",
   },
-  Mälarsjukhuset: {
+  "Mälarsjukhuset": {
     PostCode: "SE-63349",
   },
   "Mölndals sjukhus": {
@@ -155,7 +155,7 @@ const HospitalCoordinates = {
   "Nacka sjukhus": {
     PostCode: "SE-13145",
   },
-  Nordhemskliniken: {
+  "Nordhemskliniken": {
     PostCode: "SE-41328",
   },
   "Norra Älvsborgs Länssjukhus": {
@@ -236,7 +236,7 @@ const HospitalCoordinates = {
   "Säters sjukhus": {
     PostCode: "SE-78332",
   },
-  Södersjukhuset: {
+  "Södersjukhuset": {
     PostCode: "SE-11883",
   },
   "Södertälje sjukhus": {
@@ -251,7 +251,7 @@ const HospitalCoordinates = {
   "Torsby Sjukhus": {
     PostCode: "SE-68534",
   },
-  "Trelleborg Lasarettet": {
+  "Trelleborg Lasarett": {
     PostCode: "SE-23152",
   },
   "Uddevalla sjukhus": {
@@ -260,7 +260,7 @@ const HospitalCoordinates = {
   "Visby lasarett": {
     PostCode: "SE-62155",
   },
-  Vrinnevisjukhuset: {
+  "Vrinnevisjukhuset": {
     PostCode: "SE-60379",
   },
   "Värnamo sjukhus": {
@@ -275,7 +275,7 @@ const HospitalCoordinates = {
   "Växjö sjukhus": {
     PostCode: "SE-35234",
   },
-  "Ystad Lasarettet": {
+  "Ystad Lasarett": {
     PostCode: "SE-27133",
   },
   "Ängelholms sjukhus": {
