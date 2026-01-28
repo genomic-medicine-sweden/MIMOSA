@@ -41,41 +41,27 @@ def parse_args():
         description="Process sample data, run ReporTree, and upload results to MIMOSA."
     )
     parser.add_argument(
-            "--credentials",
-            required=True,
-            help="Path to credentials file."
-            )
+        "--credentials", required=True, help="Path to credentials file."
+    )
     parser.add_argument(
         "--profile",
         required=True,
         nargs="+",
         help="Target profile(s) to process. Pass 'All' to process all.",
     )
-    parser.add_argument(
-            "--output",
-            required=False,
-            help="Directory for output files."
-            )
+    parser.add_argument("--output", required=False, help="Directory for output files.")
     parser.add_argument(
         "--supplementary_metadata",
         required=False,
         help="Path to supplementary metadata.",
     )
     parser.add_argument(
-            "--save_files",
-            action="store_true",
-            help="Save output files locally."
-            )
+        "--save_files", action="store_true", help="Save output files locally."
+    )
     parser.add_argument(
-            "--update",
-            action="store_true",
-            help="Update existing samples."
-            )
-    parser.add_argument(
-            "--debug",
-            action="store_true",
-            help="Print full traceback."
-            )
+        "--update", action="store_true", help="Update existing samples."
+    )
+    parser.add_argument("--debug", action="store_true", help="Print full traceback.")
     parser.add_argument(
         "--skip_similarity",
         action="store_true",
@@ -102,9 +88,13 @@ def get_analyzed_sample_ids():
     mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
     db_name = os.getenv("MONGO_DB_NAME")
     client = MongoClient(mongo_uri)
-    ids = set(client[db_name]["similarities"].distinct("ID"))
+    db = client[db_name]
+
+    similarity_ids = set(db["similarities"].distinct("ID"))
+    feature_ids = set(db["features"].distinct("properties.ID"))
+
     client.close()
-    return ids
+    return similarity_ids | feature_ids
 
 
 def main():
@@ -133,7 +123,9 @@ def main():
     token = get_access_token(credentials)
     upload_token = authenticate_mimosa_user(credentials)
 
-    base_dir = args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
+    base_dir = (
+        args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
+    )
     if args.save_files:
         os.makedirs(base_dir, exist_ok=True)
 
@@ -191,17 +183,23 @@ def main():
             run_similarity = False
 
         elif not any_new_samples:
-            answer = input(
-                "\nNo new samples detected across any profile. "
-                "Do you want to recompute similarity anyway? (yes/no): "
-            ).strip().lower()
+            answer = (
+                input(
+                    "\nNo new samples detected across any profile. "
+                    "Do you want to recompute similarity anyway? (yes/no): "
+                )
+                .strip()
+                .lower()
+            )
             if answer not in ("yes", "y"):
                 run_similarity = False
 
         if run_similarity:
             print("\nRunning similarity")
 
-            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["total"] = len(all_target_ids)
+            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["total"] = len(
+                all_target_ids
+            )
             pipeline_state[GLOBAL_PROFILE]["run_similarity"]["done"] = 0
             render_pipeline_state(pipeline_state)
 
@@ -244,4 +242,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

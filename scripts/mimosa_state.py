@@ -135,8 +135,7 @@ def render_pipeline_state(state):
                     entry = stages[stage]
                     artefact = UPLOAD_LABELS.get(stage, stage)
                     print(
-                        f"    - {artefact:<{LABEL_WIDTH-4}}"
-                        f"{entry['status'].value}"
+                        f"    - {artefact:<{LABEL_WIDTH-4}}" f"{entry['status'].value}"
                     )
             else:
                 print(f"  {label:<{LABEL_WIDTH}}{status}")
@@ -163,15 +162,9 @@ def render_pipeline_state(state):
             if label == "Similarity analysis":
                 done, total = _aggregate_progress(entries)
                 suffix = f" ({done}/{total})" if total else ""
-                print(
-                    f"  {label:<{LABEL_WIDTH}}"
-                    f"{status}{suffix}"
-                )
+                print(f"  {label:<{LABEL_WIDTH}}" f"{status}{suffix}")
             else:
-                print(
-                    f"  {label:<{LABEL_WIDTH}}"
-                    f"{status}"
-                )
+                print(f"  {label:<{LABEL_WIDTH}}" f"{status}")
 
         print()
 
@@ -188,10 +181,7 @@ def render_runtime_summary(state):
         duration = _sum_duration(stages.values())
         total_run_time += duration
 
-        print(
-            f"{profile:<{LABEL_WIDTH}}"
-            f"{format_duration(duration)}"
-        )
+        print(f"{profile:<{LABEL_WIDTH}}" f"{format_duration(duration)}")
 
     global_state = state.get(GLOBAL_PROFILE)
     if global_state:
@@ -205,11 +195,7 @@ def render_runtime_summary(state):
             total_run_time += similarity_time
 
             print(
-                f"{'Similarity':<{LABEL_WIDTH}}"
-                f"{format_duration(similarity_time)}"
+                f"{'Similarity':<{LABEL_WIDTH}}" f"{format_duration(similarity_time)}"
             )
 
-    print(
-        f"\n{'Total':<{LABEL_WIDTH}}"
-        f"{format_duration(total_run_time)}"
-    )
+    print(f"\n{'Total':<{LABEL_WIDTH}}" f"{format_duration(total_run_time)}")

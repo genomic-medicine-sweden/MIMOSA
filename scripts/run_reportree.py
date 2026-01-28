@@ -3,9 +3,12 @@ import os
 import shutil
 import subprocess
 
-def run_reportree(metadata_file, cgmlst_file, output_folder, analysis_profile, save_files=False):
+
+def run_reportree(
+    metadata_file, cgmlst_file, output_folder, analysis_profile, save_files=False
+):
     """
-    ReporTree. 
+    ReporTree.
     """
     os.makedirs(output_folder, exist_ok=True)
 
@@ -25,15 +28,19 @@ def run_reportree(metadata_file, cgmlst_file, output_folder, analysis_profile, s
     analysis = "grapetree"
 
     docker_command = [
-        "docker", "run", "--rm",
-        "-v", f"{os.path.abspath(output_folder)}:/data",
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{os.path.abspath(output_folder)}:/data",
         "insapathogenomics/reportree:v2.5.4",
-        "bash", "-c",
+        "bash",
+        "-c",
         f"mkdir -p /data && reportree.py "
         f"-m /data/{metadata_basename} "
         f"-a /data/{cgmlst_basename} "
         f"-out /data/{analysis_profile} "
-        f"--analysis {analysis} --method {method} -thr {thr}"
+        f"--analysis {analysis} --method {method} -thr {thr}",
     ]
 
     print(f"Running ReporTree for {analysis_profile}…")

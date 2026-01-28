@@ -42,4 +42,3 @@ def run_stage(
 
         render_pipeline_state(pipeline_state)
         raise
-
