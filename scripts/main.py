@@ -17,6 +17,14 @@ from sample_checks import get_new_sample_ids, prompt_if_no_new_samples
 from process_similarity import process_similarity
 from MIMOSA import mimosa
 
+from mimosa_state import (
+    init_pipeline_state,
+    Status,
+    render_pipeline_state,
+    render_runtime_summary,
+)
+from mimosa_runner import run_stage
+
 dotenv_path = find_dotenv(filename=".env", usecwd=True)
 if not dotenv_path:
     raise FileNotFoundError("Could not find project-root .env file.")
@@ -29,14 +37,51 @@ AVAILABLE_PROFILES = [
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Process sample data, run ReporTree, and upload results to MIMOSA.")
-    parser.add_argument("--credentials", required=True, help="Path to credentials file.")
-    parser.add_argument("--profile", required=True, nargs="+", help="Target profile(s) to process. Pass 'All' to process all.")
-    parser.add_argument("--output", required=False, help="Directory for output files.")
-    parser.add_argument("--supplementary_metadata", required=False, help="Path to supplementary metadata.")
-    parser.add_argument("--save_files", action="store_true", help="Save output files locally.")
-    parser.add_argument("--update", action="store_true", help="Update existing samples with new Bonsai and metadata info.")
-    parser.add_argument("--debug", action="store_true", required=False, help="Print full traceback for errors.")
+    parser = argparse.ArgumentParser(
+        description="Process sample data, run ReporTree, and upload results to MIMOSA."
+    )
+    parser.add_argument(
+            "--credentials",
+            required=True,
+            help="Path to credentials file."
+            )
+    parser.add_argument(
+        "--profile",
+        required=True,
+        nargs="+",
+        help="Target profile(s) to process. Pass 'All' to process all.",
+    )
+    parser.add_argument(
+            "--output",
+            required=False,
+            help="Directory for output files."
+            )
+    parser.add_argument(
+        "--supplementary_metadata",
+        required=False,
+        help="Path to supplementary metadata.",
+    )
+    parser.add_argument(
+            "--save_files",
+            action="store_true",
+            help="Save output files locally."
+            )
+    parser.add_argument(
+            "--update",
+            action="store_true",
+            help="Update existing samples."
+            )
+    parser.add_argument(
+            "--debug",
+            action="store_true",
+            help="Print full traceback."
+            )
+    parser.add_argument(
+        "--skip_similarity",
+        action="store_true",
+        help="Skip similarity and related uploads",
+    )
+
     args = parser.parse_args()
 
     if args.save_files and not args.output:
@@ -48,7 +93,7 @@ def parse_args():
         target_profiles = [p for p in args.profile if p in AVAILABLE_PROFILES]
 
     if not target_profiles:
-        raise SystemExit("No valid profiles selected.Exiting")
+        raise SystemExit("No valid profiles selected. Exiting.")
 
     return args, target_profiles
 
@@ -64,6 +109,26 @@ def get_analyzed_sample_ids():
 
 def main():
     args, target_profiles = parse_args()
+
+    GLOBAL_PROFILE = "__global__"
+    pipeline_state = init_pipeline_state(target_profiles + [GLOBAL_PROFILE])
+
+    for stage in (
+        "prepare_metadata",
+        "run_reportree",
+        "process_features",
+        "upload_features",
+        "upload_clustering",
+        "upload_distance",
+    ):
+        pipeline_state[GLOBAL_PROFILE][stage]["status"] = Status.SKIPPED
+
+    if args.skip_similarity:
+        for stage in ("run_similarity", "upload_similarity"):
+            pipeline_state[GLOBAL_PROFILE][stage]["status"] = Status.SKIPPED
+
+    render_pipeline_state(pipeline_state)
+
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
     upload_token = authenticate_mimosa_user(credentials)
@@ -78,6 +143,11 @@ def main():
         all_samples = fetch_samples(credentials["bonsai_api_url"], token)
         analyzed_ids = get_analyzed_sample_ids()
         any_new_samples = False
+
+        for profile in target_profiles:
+            pipeline_state[profile]["fetch_samples"]["status"] = Status.DONE
+        pipeline_state[GLOBAL_PROFILE]["fetch_samples"]["status"] = Status.DONE
+        render_pipeline_state(pipeline_state)
 
         for profile in target_profiles:
             if args.update:
@@ -100,6 +170,7 @@ def main():
                     target_ids = new_ids
                     any_new_samples = True
 
+            pipeline_state[profile]["fetch_samples"]["count"] = len(target_ids)
             all_target_ids.update(target_ids)
 
             profile_dir = os.path.join(base_dir, profile)
@@ -111,46 +182,66 @@ def main():
                 token,
                 target_ids,
                 upload_token,
+                pipeline_state,
             )
 
         run_similarity = True
 
-        if not any_new_samples:
+        if args.skip_similarity or not all_target_ids:
+            run_similarity = False
+
+        elif not any_new_samples:
             answer = input(
                 "\nNo new samples detected across any profile. "
                 "Do you want to recompute similarity anyway? (yes/no): "
             ).strip().lower()
-
             if answer not in ("yes", "y"):
-                run_similarity = False  
+                run_similarity = False
 
         if run_similarity:
-            print("\nRunning similarity for all samples")
+            print("\nRunning similarity")
 
-            similarity_results = process_similarity(
+            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["total"] = len(all_target_ids)
+            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["done"] = 0
+            render_pipeline_state(pipeline_state)
+
+            def similarity_progress():
+                pipeline_state[GLOBAL_PROFILE]["run_similarity"]["done"] += 1
+                render_pipeline_state(pipeline_state)
+
+            run_stage(
+                pipeline_state,
+                GLOBAL_PROFILE,
+                "run_similarity",
+                process_similarity,
                 credentials["bonsai_api_url"],
-                 token,
+                token,
                 sorted(all_target_ids),
                 base_dir,
                 "combined",
                 save_files=True,
+                progress_callback=similarity_progress,
             )
 
             similarity_path = os.path.join(base_dir, "combined_similarity.json")
-            upload_similarity(similarity_path, upload_token=upload_token)
-        else:
-            print("Skipping similarity computation.")
 
+            run_stage(
+                pipeline_state,
+                GLOBAL_PROFILE,
+                "upload_similarity",
+                upload_similarity,
+                similarity_path,
+                upload_token=upload_token,
+                count=len(all_target_ids),
+            )
 
     finally:
         if not args.save_files and os.path.exists(base_dir):
             shutil.rmtree(base_dir, ignore_errors=True)
 
+    render_runtime_summary(pipeline_state)
+
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"{type(e).__name__}: {e}")
-        raise
+    main()
 
