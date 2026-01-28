@@ -1,3 +1,16 @@
+## [unreleased]
+
+### Added
+- Pipeline execution state tracking with per-stage status, counts, and runtime summary
+- `--skip_similarity` flag to explicitly skip similarity computation and uploads
+
+### Changed
+- Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
+
+### Fixed
+- Normalised hospital names in the hospital coordinates list
+- Normalised file handling and encoding across upload helpers
+
 ## [v0.3.0]
 
 ### Added
