@@ -17,6 +17,7 @@ db_name = os.getenv("MONGO_DB_NAME")
 mimosa_domain = os.getenv("DOMAIN")
 backend_port = os.getenv("BACKEND_PORT")
 
+
 def validate_upload_token(token):
     """
     Validate that the provided token corresponds to an actual user in MIMOSA.
@@ -25,30 +26,29 @@ def validate_upload_token(token):
         resp = requests.get(
             f"http://{mimosa_domain}:{backend_port}/api/users/me",
             headers={"Authorization": f"Bearer {token}"},
-            timeout=10
+            timeout=10,
         )
         resp.raise_for_status()
         return resp.json().get("email")
     except RequestException as e:
         raise RuntimeError(f"Authentication failed: {e}")
 
+
 def upload_features(data_file_path, overwrite=False, show_log=False, upload_token=None):
     if not upload_token:
         raise RuntimeError("upload_token is required for authenticated upload.")
-    validate_upload_token(upload_token)
     uploader_email = validate_upload_token(upload_token)
 
-
     try:
-        with open(data_file_path, 'r') as file:
+        with open(data_file_path, "r", encoding="utf-8") as file:
             data_to_upload = json.load(file)
     except Exception as error:
-        print('Error loading data file:', error)
+        print("Error loading data file:", error)
         return
 
     client = MongoClient(mongo_uri)
     db = client[db_name]
-    collection = db['features']
+    collection = db["features"]
 
     updated_count = 0
     uploaded_count = 0
@@ -56,11 +56,11 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
     def get_changed_fields(existing, new):
         changed = []
         old = existing.get("properties", {})
-        new = new.get("properties", {})
-        for key in new:
+        new_props = new.get("properties", {})
+        for key in new_props:
             if key == "typing":
                 old_typing = old.get("typing", {})
-                new_typing = new.get("typing", {})
+                new_typing = new_props.get("typing", {})
                 if old_typing.get("ST") != new_typing.get("ST"):
                     changed.append("ST")
                 if "alleles" in new_typing:
@@ -69,7 +69,7 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                         if old_alleles.get(allele_key) != allele_val:
                             changed.append(allele_key)
             else:
-                if old.get(key) != new.get(key):
+                if old.get(key) != new_props.get(key):
                     changed.append(key)
         return changed
 
@@ -79,29 +79,31 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
             sample_id = item["properties"]["ID"]
             existing = collection.find_one({"properties.ID": sample_id})
             new_props = item.get("properties", {})
+
             if existing:
                 old_props = existing.get("properties", {})
                 old_qc = old_props.get("QC_Status")
                 new_qc = new_props.get("QC_Status")
+
                 if old_qc != new_qc:
                     collection.update_one(
                         {"_id": existing["_id"]},
-                        {"$set": {"properties.QC_Status": new_qc}}
+                        {"$set": {"properties.QC_Status": new_qc}},
                     )
-                    if show_log:
-                        print(f"Updated QC_Status for Sample with ID {sample_id}")
                     log_sample_event(
                         db,
                         sample_id,
                         new_props.get("analysis_profile"),
                         changes_dict={"QC_Status": {"old": old_qc, "new": new_qc}},
-                        changed_by="bonsai"
+                        changed_by="bonsai",
                     )
+
                 if overwrite:
                     changed_fields = get_changed_fields(existing, item)
                     if changed_fields:
                         collection.replace_one({"_id": existing["_id"]}, item)
                         updated_count += 1
+
                         diff_dict = {}
                         for field in changed_fields:
                             if field == "ST":
@@ -113,26 +115,37 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                             else:
                                 old_val = old_props.get(field)
                                 new_val = new_props.get(field)
+
                             diff_dict[field] = {"old": old_val, "new": new_val}
-                        log_sample_event(db, sample_id, new_props.get("analysis_profile"), changes_dict=diff_dict,changed_by=uploader_email)
-                        if show_log:
-                            changes = ", ".join(sorted(changed_fields))
-                            print(f"Sample with ID {sample_id} updated with {changes}")
+
+                        log_sample_event(
+                            db,
+                            sample_id,
+                            new_props.get("analysis_profile"),
+                            changes_dict=diff_dict,
+                            changed_by=uploader_email,
+                        )
             else:
                 collection.insert_one(item)
                 uploaded_count += 1
-                print(f"Sample with ID {sample_id} uploaded successfully!")
-                log_sample_event(db, sample_id, new_props.get("analysis_profile"), is_insert=True,changed_by=uploader_email)
+                log_sample_event(
+                    db,
+                    sample_id,
+                    new_props.get("analysis_profile"),
+                    is_insert=True,
+                    changed_by=uploader_email,
+                )
 
     try:
         upload_data(data_to_upload)
     except Exception as err:
-        print('Error uploading data:', err)
+        print("Error uploading data:", err)
     finally:
         client.close()
 
     if overwrite and show_log and updated_count == 0 and uploaded_count == 0:
         print("No samples were updated or uploaded.")
+
 
 def upload_clustering(data_file_path, upload_token=None):
     if not upload_token:
@@ -140,7 +153,7 @@ def upload_clustering(data_file_path, upload_token=None):
     validate_upload_token(upload_token)
 
     try:
-        with open(data_file_path, 'r') as file:
+        with open(data_file_path, "r", encoding="utf-8") as file:
             clustering_data = json.load(file)
     except Exception as error:
         print("Error loading clustering data file:", error)
@@ -148,7 +161,7 @@ def upload_clustering(data_file_path, upload_token=None):
 
     client = MongoClient(mongo_uri)
     db = client[db_name]
-    collection = db['clustering']
+    collection = db["clustering"]
 
     try:
         collection.insert_one(clustering_data)
@@ -187,13 +200,14 @@ def upload_distance(data_file_path, upload_token=None):
     finally:
         client.close()
 
+
 def upload_similarity(data_file_path, upload_token=None):
     if not upload_token:
         raise RuntimeError("upload_token is required for authenticated upload.")
     validate_upload_token(upload_token)
 
     try:
-        with open(data_file_path, 'r') as file:
+        with open(data_file_path, "r", encoding="utf-8") as file:
             similarity_data = json.load(file)
     except Exception as error:
         print("Error loading similarity data file:", error)
@@ -201,12 +215,21 @@ def upload_similarity(data_file_path, upload_token=None):
 
     client = MongoClient(mongo_uri)
     db = client[db_name]
-    collection = db['similarities']
+    collection = db["similarities"]
 
     try:
         for item in similarity_data:
-            collection.insert_one(item)
+            if "ID" not in item:
+                continue
+
+            collection.replace_one(
+                {"ID": item["ID"]},
+                item,
+                upsert=True,
+            )
+
             print(f"Similarity data for ID {item['ID']} uploaded successfully!")
+
     except Exception as err:
         print("Error uploading similarity data:", err)
     finally:
