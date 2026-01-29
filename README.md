@@ -50,7 +50,7 @@ Optional flags:
 * `--update`: Update existing sample metadata.
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
-* `--skip_similarity`: Skip similarity computation and related uploads.
+* `--skip_similarity`: Skip similarity computation via Bonsai and related uploads.
 
 ### supplementary-metadata
 Example of `supplementary_metadata.csv`:
