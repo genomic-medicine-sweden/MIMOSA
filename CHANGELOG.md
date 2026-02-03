@@ -7,6 +7,7 @@
 ### Changed
 - Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
 - Similarity uploads now overwrite existing records by sample ID
+- Refactored frontend filtering logic to stabilise analysis profile–based filtering
 
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
