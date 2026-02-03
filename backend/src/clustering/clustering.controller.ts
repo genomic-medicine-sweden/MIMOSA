@@ -25,7 +25,9 @@ export class ClusteringController {
     type: String,
     description: 'Analysis profile',
   })
-  getAll(@Query('analysis_profile') analysisProfile?: string) {
+  getAll(
+    @Query('analysis_profile') analysisProfile?: string,
+  ) {
     if (analysisProfile) {
       return this.clusteringService.findLatestByProfile(analysisProfile);
     }
@@ -33,3 +35,4 @@ export class ClusteringController {
     return this.clusteringService.findAll();
   }
 }
+
