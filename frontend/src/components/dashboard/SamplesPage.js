@@ -19,6 +19,9 @@ import {
 
 import useSampleManagement from "@/hooks/useSampleManagement";
 import FeatureEditDialog from "./samples/FeatureEditDialog";
+import BulkEditDialog from "./samples/BulkEditDialog";
+import ExcelDropzone from "./samples/ExcelDropzone";
+
 import { fieldFeaturesMeta, hospitalOptions } from "./samples/sampleUtils";
 import { fieldValidators } from "./samples/samplesValidation";
 
@@ -31,6 +34,13 @@ export default function SamplesPage() {
     useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingEditData, setPendingEditData] = useState(null);
+
+  const [bulkUpdates, setBulkUpdates] = useState([]);
+  const [bulkErrors, setBulkErrors] = useState([]);
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+
+  const [lastExcelRows, setLastExcelRows] = useState([]);
+
   const [filters, setFilters] = useState(
     getInitialFilterState(
       [
@@ -96,14 +106,12 @@ export default function SamplesPage() {
     const row = tableSamples[e.index];
     setEditingOriginalRow({ ...row });
     setOriginalPropertiesSnapshot({ ...row.properties });
-
     setFieldErrors((prev) => ({ ...prev, [e.index]: {} }));
   };
 
   const onRowEditCancel = (e) => {
     setEditingOriginalRow(null);
     setOriginalPropertiesSnapshot(null);
-
     setFieldErrors((prev) => {
       const updated = { ...prev };
       delete updated[e.index];
@@ -120,9 +128,7 @@ export default function SamplesPage() {
     editableFields.forEach((key) => {
       const oldVal = originalProps[key] ?? "";
       const newVal = rawProps[key];
-      const changed = newVal !== undefined && oldVal !== newVal;
-
-      if (changed) {
+      if (newVal !== undefined && oldVal !== newVal) {
         changes[key] =
           key === "PostCode" && /^\d{5}$/.test(newVal)
             ? `SE-${newVal}`
@@ -130,9 +136,7 @@ export default function SamplesPage() {
       }
     });
 
-    if (Object.keys(changes).length === 0) {
-      return;
-    }
+    if (Object.keys(changes).length === 0) return;
 
     setPendingEditData({
       sampleId: originalProps.ID,
@@ -144,12 +148,10 @@ export default function SamplesPage() {
 
   const handleConfirm = async () => {
     const { sampleId, updatedProperties } = pendingEditData;
-
     try {
       await updateSample(sampleId, updatedProperties);
       toast.success(toastRef, "Sample Updated", `Updated ${sampleId}`);
-    } catch (err) {
-      console.error("Update failed:", err);
+    } catch {
       toast.error(toastRef, "Error", "Update failed");
     } finally {
       setShowConfirmDialog(false);
@@ -159,11 +161,106 @@ export default function SamplesPage() {
     }
   };
 
-  const handleCancelDialog = () => {
-    setShowConfirmDialog(false);
-    setEditingOriginalRow(null);
-    setOriginalPropertiesSnapshot(null);
-    setPendingEditData(null);
+  const computeBulkFromRows = (rows) => {
+    const updates = [];
+    const errors = [];
+
+    rows.forEach((row) => {
+      const sampleId = row.SampleID;
+      if (!sampleId) {
+        errors.push({ row: row.__row, message: "Missing SampleID" });
+        return;
+      }
+
+      const sample = samples.find((s) => s.properties.ID === sampleId);
+      if (!sample) {
+        errors.push({
+          row: row.__row,
+          message: `Unknown SampleID: ${sampleId}`,
+        });
+        return;
+      }
+
+      const changes = {};
+
+      ["Hospital", "PostCode", "Date"].forEach((field) => {
+        if (row[field] === undefined) return;
+
+        let value = row[field];
+        if (field === "PostCode") value = value.replace(/^SE-/, "");
+
+        const validator = fieldValidators[field];
+        const result = validator ? validator(value) : "";
+
+        if (result) {
+          errors.push({
+            row: row.__row,
+            sampleId,
+            field,
+            message: typeof result === "string" ? result : result.error,
+            suggestion:
+              typeof result === "object" ? result.suggestion : undefined,
+            originalValue: value,
+          });
+          return;
+        }
+
+        const normalised =
+          field === "PostCode" && /^\d{5}$/.test(value) ? `SE-${value}` : value;
+
+        if (sample.properties[field] !== normalised) {
+          changes[field] = normalised;
+        }
+      });
+
+      if (Object.keys(changes).length > 0) {
+        updates.push({
+          sampleId,
+          changes,
+          original: sample.properties,
+        });
+      }
+    });
+
+    setBulkUpdates(updates);
+    setBulkErrors(errors);
+  };
+
+  const handleParsedExcel = (rows) => {
+    setLastExcelRows(rows);
+    computeBulkFromRows(rows);
+    setShowBulkDialog(true);
+  };
+
+  const handleAcceptSuggestion = (field, fromValue, toValue) => {
+    const nextRows = lastExcelRows.map((r) => {
+      if (r[field] === undefined) return r;
+      if (String(r[field]).trim() !== String(fromValue).trim()) return r;
+      return { ...r, [field]: toValue };
+    });
+
+    setLastExcelRows(nextRows);
+    computeBulkFromRows(nextRows);
+  };
+
+  const handleBulkConfirm = async () => {
+    try {
+      for (const u of bulkUpdates) {
+        await updateSample(u.sampleId, u.changes);
+      }
+      toast.success(
+        toastRef,
+        "Bulk update complete",
+        `${bulkUpdates.length} samples updated`,
+      );
+    } catch (err) {
+      toast.error(toastRef, "Bulk update failed", err.message);
+    } finally {
+      setShowBulkDialog(false);
+      setBulkUpdates([]);
+      setBulkErrors([]);
+      setLastExcelRows([]);
+    }
   };
 
   const textEditor = useCallback(
@@ -173,28 +270,22 @@ export default function SamplesPage() {
 
       const handleChange = (e) => {
         let val = e.target.value;
-        if (field === "PostCode") {
-          val = val.replace(/^SE-/, "");
-        }
+        if (field === "PostCode") val = val.replace(/^SE-/, "");
 
-        const validationFn = fieldValidators[field];
-        const errorMsg = validationFn ? validationFn(val) : "";
+        const validator = fieldValidators[field];
+        const result = validator ? validator(val) : "";
+        const errorMsg =
+          typeof result === "string" ? result : result?.error || "";
 
         setFieldErrors((prev) => {
           const updated = { ...prev };
           const row = { ...(updated[options.rowIndex] || {}) };
 
-          if (errorMsg) {
-            row[field] = errorMsg;
-          } else {
-            delete row[field];
-          }
+          if (errorMsg) row[field] = errorMsg;
+          else delete row[field];
 
-          if (Object.keys(row).length > 0) {
-            updated[options.rowIndex] = row;
-          } else {
-            delete updated[options.rowIndex];
-          }
+          if (Object.keys(row).length > 0) updated[options.rowIndex] = row;
+          else delete updated[options.rowIndex];
 
           return updated;
         });
@@ -228,11 +319,11 @@ export default function SamplesPage() {
         options={optionsList}
         onChange={(e) => {
           const selected = e.value;
-          const selectedValue =
+          options.editorCallback(
             selected && typeof selected === "object"
               ? (selected.value ?? "")
-              : (selected ?? "");
-          options.editorCallback(selectedValue);
+              : (selected ?? ""),
+          );
         }}
         placeholder="Select a hospital"
         className="w-full"
@@ -246,6 +337,8 @@ export default function SamplesPage() {
       <h1 className="text-2xl font-bold mb-2">Samples</h1>
       <Toast ref={toastRef} position="bottom-right" />
 
+      <ExcelDropzone onParsed={handleParsedExcel} />
+
       <div className="w-full flex mb-2">
         <button
           onClick={resetAllFilters}
@@ -255,6 +348,7 @@ export default function SamplesPage() {
           <i className="pi pi-filter-slash"></i>
         </button>
       </div>
+
       <style>{`
         .p-datatable .p-datatable-thead > tr:first-child > th {
           background-color: white !important;
@@ -281,7 +375,7 @@ export default function SamplesPage() {
             (s) => s.properties.ID === rowData.properties.ID,
           );
           const rowErrors = fieldErrorsRef.current?.[rowIndex] || {};
-          return !Object.values(rowErrors).some((err) => err);
+          return !Object.values(rowErrors).some(Boolean);
         }}
       >
         <Column
@@ -382,12 +476,21 @@ export default function SamplesPage() {
 
       <FeatureEditDialog
         visible={showConfirmDialog}
-        onHide={handleCancelDialog}
+        onHide={() => setShowConfirmDialog(false)}
         onConfirm={handleConfirm}
         sampleId={editingOriginalRow?.properties?.ID}
         originalProperties={originalPropertiesSnapshot}
         newProperties={pendingEditData?.updatedProperties}
         fieldFeatures={fieldFeaturesMeta}
+      />
+
+      <BulkEditDialog
+        visible={showBulkDialog}
+        onHide={() => setShowBulkDialog(false)}
+        onConfirm={handleBulkConfirm}
+        updates={bulkUpdates}
+        errors={bulkErrors}
+        onAcceptSuggestion={handleAcceptSuggestion}
       />
     </div>
   );
