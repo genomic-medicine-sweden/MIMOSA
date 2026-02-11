@@ -13,12 +13,9 @@ def prompt_if_no_new_samples(profile, new_ids):
     Prompt the user if no new samples exist for a given profile. Returns True if user wants to proceed anyway.
     """
     if not new_ids:
-        user_input = (
-            input(
-                f"No new samples found for profile '{profile}'. Do you want to proceed anyway? (yes/no): "
-            )
-            .strip()
-            .lower()
-        )
+        user_input = input(
+            f"No new samples found for profile '{profile}'. Do you want to proceed anyway? (yes/no): "
+        ).strip().lower()
         return user_input in ["yes", "y"]
     return True
+

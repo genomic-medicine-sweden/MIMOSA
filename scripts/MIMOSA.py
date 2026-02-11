@@ -26,9 +26,7 @@ if not dotenv_path:
 load_dotenv(dotenv_path)
 
 
-def mimosa(
-    profile, profile_dir, args, credentials, token, sample_ids, upload_token, state
-):
+def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_token, state):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
 
@@ -54,7 +52,6 @@ def mimosa(
 
     if args.supplementary_metadata:
         from update_metadata import update_metadata_with_supplementary_metadata
-
         update_metadata_with_supplementary_metadata(
             metadata_file,
             args.supplementary_metadata,
@@ -190,3 +187,4 @@ def mimosa(
     else:
         print("Distance matrix or Newick file missing — skipping distance upload.")
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
+

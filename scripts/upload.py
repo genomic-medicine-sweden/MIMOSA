@@ -109,19 +109,9 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                             if field == "ST":
                                 old_val = old_props.get("typing", {}).get("ST")
                                 new_val = new_props.get("typing", {}).get("ST")
-                            elif field in new_props.get("typing", {}).get(
-                                "alleles", {}
-                            ):
-                                old_val = (
-                                    old_props.get("typing", {})
-                                    .get("alleles", {})
-                                    .get(field)
-                                )
-                                new_val = (
-                                    new_props.get("typing", {})
-                                    .get("alleles", {})
-                                    .get(field)
-                                )
+                            elif field in new_props.get("typing", {}).get("alleles", {}):
+                                old_val = old_props.get("typing", {}).get("alleles", {}).get(field)
+                                new_val = new_props.get("typing", {}).get("alleles", {}).get(field)
                             else:
                                 old_val = old_props.get(field)
                                 new_val = new_props.get(field)
@@ -244,3 +234,4 @@ def upload_similarity(data_file_path, upload_token=None):
         print("Error uploading similarity data:", err)
     finally:
         client.close()
+

@@ -130,3 +130,4 @@ def process_similarity(
             json.dump(similarity, outfile, indent=2)
 
     return similarity
+
