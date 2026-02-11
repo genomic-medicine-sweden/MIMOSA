@@ -3,6 +3,7 @@
 ### Added
 - Pipeline execution state tracking with per-stage status, counts, and runtime summary
 - `--skip_similarity` flag to explicitly skip similarity computation and uploads
+- Bulk sample editing via Excel upload, including validation and preview
 
 ### Changed
 - Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
@@ -12,6 +13,8 @@
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
 - Normalised file handling and encoding across upload helpers
+- Inconsistent filter behaviour when switching analysis profiles
+- Minor validation and UI state issues in the samples dashboard
 
 ## [v0.3.0]
 
