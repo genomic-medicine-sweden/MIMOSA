@@ -70,7 +70,7 @@ python scripts/prepare_supplementary_metadata.py \
     --profile staphylococcus_aureus
 ```
 
-Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page.
+Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page,either throguh inline editing or by uploading an excel (`.xlsx`) file for bulk updates
 
 #### conda environment
 
