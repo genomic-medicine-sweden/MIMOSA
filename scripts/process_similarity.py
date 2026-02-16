@@ -47,6 +47,7 @@ def process_similarity(
     poll_interval=3,
     max_attempts=10,
     save_files=False,
+    progress_callback=None,
 ):
     """
     Submit similarity jobs for a list of samples
@@ -62,7 +63,10 @@ def process_similarity(
             unique_sample_ids.append(sample_id)
 
     for sample in unique_sample_ids:
-        print(f"\nSubmitting similarity job for sample: {sample}")
+        if progress_callback:
+            progress_callback()
+        else:
+            print(f"\nSubmitting similarity job for sample: {sample}")
 
         try:
             job_id = submit_similarity_job(bonsai_api_url, token, sample)

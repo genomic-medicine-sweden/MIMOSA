@@ -1,0 +1,18 @@
+[
+  {
+    "label": "Sweden Boundaries",
+    "url": "https://cartographyvectors.com/map/1521-sweden-with-regions"
+  },
+  {
+    "label": "Postcodes",
+    "url": "https://www.geonames.org/"
+  },
+  {
+    "label": "ReporTree",
+    "url": "https://github.com/insapathogenomics/ReporTree"
+  },
+  {
+    "label": "Bonsai",
+    "url": "https://github.com/SMD-Bioinformatics-Lund/bonsai"
+  }
+]

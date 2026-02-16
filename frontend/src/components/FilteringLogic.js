@@ -29,6 +29,7 @@ const FilteringLogic = ({
   const [analysisProfileFilter, setAnalysisProfileFilter] = useState(
     "staphylococcus_aureus",
   );
+
   const [Cluster_ID, setCluster_ID] = useState([]);
   const [analysisProfiles, setAnalysisProfiles] = useState([]);
   const [postcodes, setPostcodes] = useState([]);
@@ -37,6 +38,16 @@ const FilteringLogic = ({
   const [postalTownFilter, setPostalTownFilter] = useState([]);
   const [postalTowns, setPostalTowns] = useState([]);
   const [counties, setCounties] = useState([]);
+
+  useEffect(() => {
+    if (!Array.isArray(data) || data.length === 0) return;
+
+    const uniqueAnalysisProfiles = [
+      ...new Set(data.map((item) => item.properties.analysis_profile)),
+    ];
+
+    setAnalysisProfiles(uniqueAnalysisProfiles);
+  }, [data]);
 
   useEffect(() => {
     if (selectedCounty && selectedCounty !== "All") {
@@ -52,37 +63,24 @@ const FilteringLogic = ({
       return;
     }
 
+    const profileFilteredData = data.filter(
+      (item) => item.properties.analysis_profile === analysisProfileFilter,
+    );
+
     const uniquePostcodes = [
-      ...new Set(
-        data
-          .filter(
-            (item) =>
-              item.properties.analysis_profile === analysisProfileFilter,
-          )
-          .map((item) => item.properties.PostCode),
-      ),
+      ...new Set(profileFilteredData.map((item) => item.properties.PostCode)),
     ];
 
     const uniqueIds = [
-      ...new Set(
-        data
-          .filter(
-            (item) =>
-              item.properties.analysis_profile === analysisProfileFilter,
-          )
-          .map((item) => item.properties.ID),
-      ),
+      ...new Set(profileFilteredData.map((item) => item.properties.ID)),
     ];
 
     const uniqueHospitals = [
-      ...new Set(
-        data
-          .filter(
-            (item) =>
-              item.properties.analysis_profile === analysisProfileFilter,
-          )
-          .map((item) => item.properties.Hospital),
-      ),
+      ...new Set(profileFilteredData.map((item) => item.properties.Hospital)),
+    ];
+
+    const uniqueCluster_ID = [
+      ...new Set(profileFilteredData.map((item) => item.properties.Cluster_ID)),
     ];
 
     const filteredCoordinates = Object.entries(postcodeCoordinates)
@@ -104,104 +102,78 @@ const FilteringLogic = ({
       ...new Set(filteredCoordinates.map((item) => item.County)),
     ];
 
-    const uniqueCluster_ID = [
-      ...new Set(
-        data
-          .filter(
-            (item) =>
-              item.properties.analysis_profile === analysisProfileFilter,
-          )
-          .map((item) => item.properties.Cluster_ID),
-      ),
-    ];
-
-    const uniqueAnalysisProfiles = [
-      ...new Set(data.map((item) => item.properties.analysis_profile)),
-    ];
-    setAnalysisProfiles(uniqueAnalysisProfiles);
-
     setPostcodes(uniquePostcodes);
     setIds(uniqueIds);
     setHospitals(uniqueHospitals);
+    setCluster_ID(uniqueCluster_ID);
     setPostalTowns(postalTowns);
     setCounties(counties);
-    setCluster_ID(uniqueCluster_ID);
-    setAnalysisProfiles(uniqueAnalysisProfiles);
 
-    const filtered = data.filter((item) => {
+    const filtered = profileFilteredData.filter((item) => {
       const itemDate = new Date(item.properties.Date);
       itemDate.setHours(0, 0, 0, 0);
 
-      let meetsCriteria = true;
       const postcode = item.properties.PostCode;
 
       if (
         Cluster_IDFilter.length > 0 &&
         !Cluster_IDFilter.includes(item.properties.Cluster_ID)
-      ) {
-        meetsCriteria = false;
-      }
-      if (
-        analysisProfileFilter.length > 0 &&
-        !analysisProfileFilter.includes(item.properties.analysis_profile)
-      ) {
-        meetsCriteria = false;
-      }
-      if (postcodeFilter.length > 0 && !postcodeFilter.includes(postcode)) {
-        meetsCriteria = false;
-      }
-      if (idFilter.length > 0 && !idFilter.includes(item.properties.ID)) {
-        meetsCriteria = false;
-      }
+      )
+        return false;
+
+      if (postcodeFilter.length > 0 && !postcodeFilter.includes(postcode))
+        return false;
+
+      if (idFilter.length > 0 && !idFilter.includes(item.properties.ID))
+        return false;
+
       if (
         hospitalFilter.length > 0 &&
         !hospitalFilter.includes(item.properties.Hospital)
-      ) {
-        meetsCriteria = false;
-      }
+      )
+        return false;
+
       if (
         postalTownFilter.length > 0 &&
         !postalTownFilter.includes(postcodeCoordinates[postcode]?.postaltown)
-      ) {
-        meetsCriteria = false;
-      }
+      )
+        return false;
+
       if (
         countyFilter.length > 0 &&
         !countyFilter.includes(postcodeCoordinates[postcode]?.County)
-      ) {
-        meetsCriteria = false;
-      }
+      )
+        return false;
+
       if (dateRange) {
         let startDate, endDate;
+
         if (dateRange.length === 1 || dateRange[1] === null) {
           startDate = new Date(dateRange[0]);
-          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(dateRange[0]);
           endDate.setHours(23, 59, 59, 999);
-        } else if (dateRange.length === 2) {
+        } else {
           startDate = new Date(dateRange[0]);
-          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(dateRange[1]);
           endDate.setHours(23, 59, 59, 999);
         }
-        if (itemDate < startDate || itemDate > endDate) {
-          meetsCriteria = false;
-        }
+
+        if (itemDate < startDate || itemDate > endDate) return false;
       }
 
-      return meetsCriteria;
+      return true;
     });
 
     setFilteredData(filtered);
   }, [
     data,
+    analysisProfileFilter,
     postcodeFilter,
     idFilter,
     hospitalFilter,
     postalTownFilter,
     countyFilter,
     Cluster_IDFilter,
-    analysisProfileFilter,
     dateRange,
     setFilteredData,
   ]);
@@ -211,11 +183,12 @@ const FilteringLogic = ({
     setIdFilter([]);
     setHospitalFilter([]);
     setPostalTownFilter([]);
+    setCluster_IDFilter([]);
+    setDateRange(null);
+
     if (!(selectedCounty && selectedCounty !== "All")) {
       setCountyFilter([]);
     }
-    setCluster_IDFilter([]);
-    setDateRange(null);
   };
 
   return (
@@ -232,7 +205,6 @@ const FilteringLogic = ({
             placeholder="Analysis Profile"
             filter={true}
             filterPlaceholder="Search"
-            maxSelectedLabels={2}
           />
           <label htmlFor="ms-analysisProfileFilter">Analysis Profile</label>
         </FloatLabel>

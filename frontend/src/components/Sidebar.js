@@ -1,39 +1,45 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "primereact/sidebar";
-import { BsGithub } from "react-icons/bs";
 import { Button } from "primereact/button";
 import { Fieldset } from "primereact/fieldset";
+import { BsGithub } from "react-icons/bs";
+import ReactMarkdown from "react-markdown";
 import "@/styles/Sidebar.css";
 
 const SidebarComponent = () => {
   const [visible, setVisible] = useState(false);
-  const [MIMOSAInfo, setMIMOSAInfo] = useState("");
+  const [mimosaInfo, setMimosaInfo] = useState("");
+  const [resources, setResources] = useState([]);
   const [collapsedState, setCollapsedState] = useState([]);
 
   useEffect(() => {
-    fetch("/MIMOSAInfo.txt")
+    fetch("/mimosa-info.md")
       .then((response) => response.text())
-      .then((text) => setMIMOSAInfo(text));
+      .then(setMimosaInfo)
+      .catch((err) => console.error("Failed to load mimosa-info.md", err));
   }, []);
 
   useEffect(() => {
-    const initialState = Array.from({ length: 2 }, () => true);
-    setCollapsedState(initialState);
+    fetch("/resources.json")
+      .then((response) => response.json())
+      .then(setResources)
+      .catch((err) => console.error("Failed to load resources.json", err));
+  }, []);
+
+  useEffect(() => {
+    setCollapsedState([true, true]);
   }, []);
 
   const toggleCollapsed = (index) => {
-    const newCollapsedState = [...collapsedState];
-    newCollapsedState[index] = !newCollapsedState[index];
-    setCollapsedState(newCollapsedState);
+    setCollapsedState((prev) => {
+      const next = [...prev];
+      next[index] = !next[index];
+      return next;
+    });
   };
 
   useEffect(() => {
-    if (visible) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
-
+    document.body.style.overflow = visible ? "hidden" : "auto";
     return () => {
       document.body.style.overflow = "auto";
     };
@@ -47,6 +53,7 @@ const SidebarComponent = () => {
         aria-label="Open Sidebar"
         onClick={() => setVisible(true)}
       />
+
       <Sidebar
         visible={visible}
         onHide={() => setVisible(false)}
@@ -74,9 +81,24 @@ const SidebarComponent = () => {
             onToggle={() => toggleCollapsed(0)}
             className="fieldset-content"
           >
-            <p>{MIMOSAInfo}</p>
+            <ReactMarkdown
+              components={{
+                a: ({ node, ...props }) => (
+                  <a
+                    {...props}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "blue" }}
+                  />
+                ),
+              }}
+            >
+              {mimosaInfo}
+            </ReactMarkdown>
           </Fieldset>
-          <div style={{ marginTop: "20px" }}></div>
+
+          <div style={{ marginTop: "20px" }} />
+
           <Fieldset
             legend="Resource Links"
             toggleable
@@ -87,49 +109,21 @@ const SidebarComponent = () => {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "10px" }}
             >
-              <div>
+              {resources.map((resource) => (
                 <a
-                  href="https://cartographyvectors.com/map/1521-sweden-with-regions"
+                  key={resource.url}
+                  href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ textDecoration: "none", color: "blue" }}
                 >
-                  Sweden Boundaries
+                  {resource.label}
                 </a>
-              </div>
-              <div>
-                <a
-                  href="https://www.geonames.org/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: "none", color: "blue" }}
-                >
-                  Postcodes
-                </a>
-              </div>
-              <div>
-                <a
-                  href="https://github.com/insapathogenomics/ReporTree"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: "none", color: "blue" }}
-                >
-                  ReporTree
-                </a>
-              </div>
-              <div>
-                <a
-                  href="https://github.com/SMD-Bioinformatics-Lund/bonsai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: "none", color: "blue" }}
-                >
-                  Bonsai
-                </a>
-              </div>
+              ))}
             </div>
           </Fieldset>
         </div>
+
         <div className="fixed-area">
           <a
             className="navbar-brand"

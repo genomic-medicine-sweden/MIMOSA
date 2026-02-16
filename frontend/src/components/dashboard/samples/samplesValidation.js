@@ -1,4 +1,5 @@
 import postcodeCoordinates from "@/assets/postcode-coordinates";
+import HospitalCoordinates from "@/assets/hospital-coordinates";
 
 export const validatePostCode = (value) => {
   if (!value?.trim()) return "";
@@ -46,8 +47,85 @@ export const validateDate = (value) => {
 
   return "";
 };
+const STOP_WORDS = new Set([
+  "sjukhus",
+  "lasarett",
+  "universitetssjukhus",
+  "universitet",
+]);
+
+const normalise = (value) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
+
+const tokenize = (value) =>
+  normalise(value)
+    .split(/\s+/)
+    .filter((t) => t && !STOP_WORDS.has(t));
+
+const canonicalHospitals = Object.keys(HospitalCoordinates);
+
+const normalisedHospitalMap = canonicalHospitals.reduce((acc, name) => {
+  acc[normalise(name)] = name;
+  return acc;
+}, {});
+
+const tokenSimilarity = (aTokens, bTokens) => {
+  const a = new Set(aTokens);
+  const b = new Set(bTokens);
+  const intersection = [...a].filter((x) => b.has(x)).length;
+  const union = new Set([...a, ...b]).size;
+  return union === 0 ? 0 : intersection / union;
+};
+
+const findClosestHospital = (value) => {
+  const inputTokens = tokenize(value);
+  if (inputTokens.length === 0) return null;
+
+  let best = null;
+  let bestScore = 0;
+
+  for (const name of canonicalHospitals) {
+    const score = tokenSimilarity(inputTokens, tokenize(name));
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = name;
+    }
+  }
+
+  return bestScore >= 0.5 ? best : null;
+};
+
+export const validateHospital = (value) => {
+  if (!value?.trim()) return "";
+
+  const norm = normalise(value);
+
+  if (normalisedHospitalMap[norm]) {
+    return "";
+  }
+
+  const suggestion = findClosestHospital(value);
+
+  if (suggestion) {
+    return {
+      error: `Hospital "${value}" is not supported.`,
+      suggestion,
+    };
+  }
+
+  return {
+    error: `Hospital "${value}" is not supported.`,
+  };
+};
 
 export const fieldValidators = {
   Date: validateDate,
   PostCode: validatePostCode,
+  Hospital: validateHospital,
 };

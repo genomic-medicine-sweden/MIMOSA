@@ -50,6 +50,7 @@ Optional flags:
 * `--update`: Update existing sample metadata.
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
+* `--skip_similarity`: Skip similarity computation via Bonsai and related uploads.
 
 ### supplementary-metadata
 Example of `supplementary_metadata.csv`:
@@ -69,7 +70,7 @@ python scripts/prepare_supplementary_metadata.py \
     --profile staphylococcus_aureus
 ```
 
-Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page.
+Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page,either throguh inline editing or by uploading an excel (`.xlsx`) file for bulk updates
 
 #### conda environment
 
