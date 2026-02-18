@@ -14,13 +14,26 @@ async function bootstrap() {
     fname: firstName,
     lname: lastName,
     m: email,
-    r: role = 'user',
+    r: role,
     county: homeCounty,
   } = args;
 
-  if (!password || !firstName || !lastName || !email || !homeCounty) {
-    console.error('Missing required fields. Usage:');
-    console.error('mimosa create-user --p <password> --fname <First> --lname <Last> --m <email> --r <role> --county <HomeCounty>');
+  const missing: string[] = [];
+
+  if (!password) missing.push('--p <password>');
+  if (!firstName) missing.push('--fname <First>');
+  if (!lastName) missing.push('--lname <Last>');
+  if (!email) missing.push('--m <email>');
+
+  if (missing.length > 0) {
+    console.error('Missing required arguments:');
+    for (const arg of missing) {
+      console.error(`  ${arg}`);
+    }
+    console.error('\nUsage:');
+    console.error(
+      '  mimosa create-user --p <password> --fname <First> --lname <Last> --m <email> [--r <role>] [--county <HomeCounty>]',
+    );
     process.exit(1);
   }
 
@@ -32,17 +45,19 @@ async function bootstrap() {
 
   const existing = await usersService.findByEmail(email);
   if (existing) {
-    console.log(`User with email ${email} already exists.`);
+    console.error(`User with email ${email} already exists.`);
+    await app.close();
     process.exit(1);
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+
   await usersService.create({
     firstName,
     lastName,
     email,
-    homeCounty,
     role,
+    homeCounty,
     passwordHash,
   });
 
@@ -52,4 +67,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
