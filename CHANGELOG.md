@@ -11,6 +11,9 @@
 - Similarity uploads now overwrite existing records by sample ID
 - Refactored frontend filtering logic to stabilise analysis profile–based filtering
 - Sidebar content management simplified and externalised
+- `role` and `homeCounty `fields are now optional when creating users (role defaults to `user `if omitted)
+- Improved `mimosa create-user` CLI validation and usage output
+
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
 - Normalised file handling and encoding across upload helpers
