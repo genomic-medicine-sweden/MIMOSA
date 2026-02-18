@@ -67,8 +67,8 @@ export class UsersService {
     firstName: string;
     lastName: string;
     email: string;
-    homeCounty: string;
-    role: string;
+    homeCounty?: string;
+    role?: string;
     passwordHash: string;
   }): Promise<User> {
     const user = new this.userModel({
@@ -80,7 +80,10 @@ export class UsersService {
 
   async findAll(): Promise<Omit<User, 'passwordHash' | '__v' | '_id'>[]> {
     const users = await this.userModel.find().lean();
-    return users.map(({ passwordHash, __v, _id, ...rest }) => rest) as Omit<User, 'passwordHash' | '__v' | '_id'>[];
+    return users.map(({ passwordHash, __v, _id, ...rest }) => rest) as Omit<
+      User,
+      'passwordHash' | '__v' | '_id'
+    >[];
   }
 
   async findMe(

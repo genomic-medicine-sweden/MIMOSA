@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsIn } from 'class-validator';
+import { IsEmail, IsString, IsIn, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -14,13 +14,19 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  homeCounty: string;
+  homeCounty?: string;
 
-  @ApiProperty({ enum: ['admin', 'user'], default: 'user' })
+  @ApiProperty({
+    enum: ['admin', 'user'],
+    default: 'user',
+    required: false,
+  })
+  @IsOptional()
   @IsIn(['admin', 'user'])
-  role: 'admin' | 'user';
+  role?: 'admin' | 'user';
 
   @ApiProperty()
   @IsString()
