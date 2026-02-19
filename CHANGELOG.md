@@ -14,6 +14,8 @@
 - `role` and `homeCounty `fields are now optional when creating users (role defaults to `user `if omitted)
 - Improved `mimosa create-user` CLI validation and usage output
 - Fix crash in table row expansion when metadata fields are missing.
+- Simplified My County view initialisation and fallback rendering when no home county is set
+- Improved handling of missing or invalid homeCounty in localStorage
 
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
