@@ -13,6 +13,7 @@
 - Sidebar content management simplified and externalised
 - `role` and `homeCounty `fields are now optional when creating users (role defaults to `user `if omitted)
 - Improved `mimosa create-user` CLI validation and usage output
+- Fix crash in table row expansion when metadata fields are missing.
 
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
