@@ -60,91 +60,104 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
   };
 
   const rowExpansionTemplate = (rowData) => {
-    const similarData = getRelevantSimilarity(rowData.properties.ID);
-    const sampleLog = logs.find(
-      (log) => log.sample_id === rowData.properties.ID,
-    );
+    const properties = rowData?.properties || {};
 
-    const mainPostcode = rowData.properties.PostCode;
+    const typing = properties.typing || {};
+    const alleles = typing.alleles || {};
+
+    const similarData = getRelevantSimilarity(properties.ID);
+    const sampleLog = logs?.find((log) => log.sample_id === properties.ID);
+
+    const mainPostcode = properties.PostCode;
     const mainCoordinates = postcodeData[mainPostcode]?.coordinates || [];
-    const mainHospital = rowData.properties.Hospital;
+
+    const mainHospital = properties.Hospital;
     const mainHospitalPostcode = HospitalCoordinates[mainHospital]?.PostCode;
     const mainHospitalCoordinates =
       postcodeData[mainHospitalPostcode]?.coordinates || [];
 
     const findPostcodeById = (id) => {
-      const matchingSample = filteredData.find(
-        (item) => item.properties.ID === id,
+      const matchingSample = filteredData?.find(
+        (item) => item?.properties?.ID === id,
       );
-      return matchingSample ? matchingSample.properties.PostCode : null;
+      return matchingSample?.properties?.PostCode || null;
     };
 
     const findHospitalById = (id) => {
-      const matchingSample = filteredData.find(
-        (item) => item.properties.ID === id,
+      const matchingSample = filteredData?.find(
+        (item) => item?.properties?.ID === id,
       );
-      return matchingSample ? matchingSample.properties.Hospital : null;
+      return matchingSample?.properties?.Hospital || null;
     };
 
     return (
       <div className="p-3">
         <h3>Additional Information</h3>
+
         <p>
-          <strong>Partition:</strong> {rowData.properties.Partition}
-        </p>
-        <p>
-          <strong>Pipeline Version:</strong>{" "}
-          {rowData.properties.Pipeline_Version}
-        </p>
-        <p>
-          <strong>Date of Analysis:</strong> {rowData.properties.Pipeline_Date}
-        </p>
-        <p>
-          <strong>QC Status:</strong> {rowData.properties.QC_Status}
-        </p>
-        <p>
-          <a
-            href={`${bonsaiUrl}/sample/${rowData.properties.ID}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ textDecoration: "underline", color: "#007ad9" }}
-          >
-            View Sample in Bonsai
-          </a>
-        </p>
-        <p>
-          <strong>ST:</strong>{" "}
-          {!isNaN(parseInt(rowData?.properties?.typing?.ST))
-            ? parseInt(rowData.properties.typing.ST)
-            : rowData?.properties?.typing?.ST || "N/A"}
+          <strong>Partition:</strong> {properties.Partition || "N/A"}
         </p>
 
-        <table style={{ marginLeft: "1rem" }}>
-          <thead>
-            <tr>
-              <th>Gene</th>
-              {Object.keys(rowData.properties.typing.alleles).map((gene) => (
-                <th key={gene}>{gene}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ textAlign: "center" }}>Allele No</td>
-              {Object.values(rowData.properties.typing.alleles).map(
-                (allele, index) => (
+        <p>
+          <strong>Pipeline Version:</strong>{" "}
+          {properties.Pipeline_Version || "N/A"}
+        </p>
+
+        <p>
+          <strong>Date of Analysis:</strong> {properties.Pipeline_Date || "N/A"}
+        </p>
+
+        <p>
+          <strong>QC Status:</strong> {properties.QC_Status || "N/A"}
+        </p>
+
+        {properties.ID && (
+          <p>
+            <a
+              href={`${bonsaiUrl}/sample/${properties.ID}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "underline", color: "#007ad9" }}
+            >
+              View Sample in Bonsai
+            </a>
+          </p>
+        )}
+
+        <p>
+          <strong>ST:</strong>{" "}
+          {!isNaN(parseInt(typing.ST))
+            ? parseInt(typing.ST)
+            : typing.ST || "N/A"}
+        </p>
+
+        {/* Render allele table only if alleles exist */}
+        {Object.keys(alleles).length > 0 && (
+          <table style={{ marginLeft: "1rem" }}>
+            <thead>
+              <tr>
+                <th>Gene</th>
+                {Object.keys(alleles).map((gene) => (
+                  <th key={gene}>{gene}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ textAlign: "center" }}>Allele No</td>
+                {Object.values(alleles).map((allele, index) => (
                   <td key={index} style={{ textAlign: "center" }}>
                     {!isNaN(parseInt(allele))
                       ? parseInt(allele)
                       : allele || "N/A"}
                   </td>
-                ),
-              )}
-            </tr>
-          </tbody>
-        </table>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        )}
 
-        {similarData && similarData.similar.length > 0 && (
+        {similarData?.similar?.length > 0 && (
           <>
             <h3>Similar Samples</h3>
             <table style={{ marginTop: "1rem" }}>
@@ -159,8 +172,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
               <tbody>
                 {similarData.similar
                   .filter(
-                    (similarSample) =>
-                      similarSample.ID !== rowData.properties.ID,
+                    (similarSample) => similarSample?.ID !== properties.ID,
                   )
                   .map((similarSample) => {
                     const similarPostcode = findPostcodeById(similarSample.ID);
