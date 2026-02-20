@@ -22,6 +22,7 @@
 - Normalised file handling and encoding across upload helpers
 - Inconsistent filter behaviour when switching analysis profiles
 - Minor validation and UI state issues in the samples dashboard
+- Fix table row editing targeting wrong sample when filtered by using sample ID instead of row index
 
 ## [v0.3.0]
 
