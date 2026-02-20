@@ -103,18 +103,27 @@ export default function SamplesPage() {
   });
 
   const onRowEditInit = (e) => {
-    const row = tableSamples[e.index];
+    const row = e.data;
+    const sampleId = row.properties.ID;
+
     setEditingOriginalRow({ ...row });
     setOriginalPropertiesSnapshot({ ...row.properties });
-    setFieldErrors((prev) => ({ ...prev, [e.index]: {} }));
+
+    setFieldErrors((prev) => ({
+      ...prev,
+      [sampleId]: {},
+    }));
   };
 
   const onRowEditCancel = (e) => {
+    const sampleId = e.data.properties.ID;
+
     setEditingOriginalRow(null);
     setOriginalPropertiesSnapshot(null);
+
     setFieldErrors((prev) => {
       const updated = { ...prev };
-      delete updated[e.index];
+      delete updated[sampleId];
       return updated;
     });
   };
@@ -265,7 +274,8 @@ export default function SamplesPage() {
 
   const textEditor = useCallback(
     (field) => (options) => {
-      const rowErrors = fieldErrorsRef.current?.[options.rowIndex] || {};
+      const sampleId = options.rowData.properties.ID;
+      const rowErrors = fieldErrorsRef.current?.[sampleId] || {};
       const error = rowErrors[field] || "";
 
       const handleChange = (e) => {
@@ -279,14 +289,13 @@ export default function SamplesPage() {
 
         setFieldErrors((prev) => {
           const updated = { ...prev };
-          const row = { ...(updated[options.rowIndex] || {}) };
+          const row = { ...(updated[sampleId] || {}) };
 
           if (errorMsg) row[field] = errorMsg;
           else delete row[field];
 
-          if (Object.keys(row).length > 0) updated[options.rowIndex] = row;
-          else delete updated[options.rowIndex];
-
+          if (Object.keys(row).length > 0) updated[sampleId] = row;
+          else delete updated[sampleId];
           return updated;
         });
 
@@ -371,10 +380,8 @@ export default function SamplesPage() {
         scrollHeight="500px"
         tableStyle={{ minWidth: "40rem" }}
         rowEditValidator={(rowData) => {
-          const rowIndex = tableSamples.findIndex(
-            (s) => s.properties.ID === rowData.properties.ID,
-          );
-          const rowErrors = fieldErrorsRef.current?.[rowIndex] || {};
+          const sampleId = rowData.properties.ID;
+          const rowErrors = fieldErrorsRef.current?.[sampleId] || {};
           return !Object.values(rowErrors).some(Boolean);
         }}
       >
