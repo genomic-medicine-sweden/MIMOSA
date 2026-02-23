@@ -16,7 +16,6 @@ from upload import (
     upload_clustering,
     upload_distance,
 )
-
 from mimosa_runner import run_stage
 from mimosa_state import Status
 
@@ -26,7 +25,16 @@ if not dotenv_path:
 load_dotenv(dotenv_path)
 
 
-def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_token, state):
+def mimosa(
+    profile,
+    profile_dir,
+    args,
+    credentials,
+    token,
+    sample_ids,
+    upload_token,
+    state,
+):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
 
@@ -47,27 +55,34 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         state[profile]["prepare_metadata"]["status"] = Status.SKIPPED
         return
 
-    metadata_file = metadata_files[0]
+    metadata_entry = metadata_files[0]
+    full_metadata_file = metadata_entry["full"]
+    reportree_metadata_file = metadata_entry["reportree_safe"]
     cgmlst_file = cgmlst_files[0]
 
     if args.supplementary_metadata:
         from update_metadata import update_metadata_with_supplementary_metadata
+
         update_metadata_with_supplementary_metadata(
-            metadata_file,
+            full_metadata_file,
             args.supplementary_metadata,
         )
 
     if args.update:
-        features_json_path = os.path.join(profile_dir, f"features_{profile}.json")
+        features_json_path = os.path.join(
+            profile_dir,
+            f"features_{profile}.json",
+        )
 
         run_stage(
             state,
             profile,
             "process_features",
             process_tsv,
-            metadata_file,
+            metadata_partitions_tsv,
             features_json_path,
             save_files=True,
+            full_metadata_file=full_metadata_file,
             count=sample_count,
         )
 
@@ -93,7 +108,7 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         profile,
         "run_reportree",
         run_reportree,
-        metadata_file,
+        reportree_metadata_file,
         cgmlst_file,
         profile_dir,
         profile,
@@ -110,12 +125,27 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         f"{profile}_clusterComposition.tsv",
     )
 
-    features_json_path = os.path.join(profile_dir, f"features_{profile}.json")
-    clusters_json_path = os.path.join(profile_dir, f"clusters_{profile}.json")
+    features_json_path = os.path.join(
+        profile_dir,
+        f"features_{profile}.json",
+    )
+    clusters_json_path = os.path.join(
+        profile_dir,
+        f"clusters_{profile}.json",
+    )
 
-    dist_tsv = os.path.join(profile_dir, f"{profile}_dist_hamming.tsv")
-    nwk_path = os.path.join(profile_dir, f"{profile}.nwk")
-    distance_json_path = os.path.join(profile_dir, f"{profile}_distance.json")
+    dist_tsv = os.path.join(
+        profile_dir,
+        f"{profile}_dist_hamming.tsv",
+    )
+    nwk_path = os.path.join(
+        profile_dir,
+        f"{profile}.nwk",
+    )
+    distance_json_path = os.path.join(
+        profile_dir,
+        f"{profile}_distance.json",
+    )
 
     run_stage(
         state,
@@ -123,6 +153,7 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         "process_features",
         process_tsv,
         metadata_partitions_tsv,
+        full_metadata_file,
         features_json_path,
         save_files=True,
         count=sample_count,
@@ -137,8 +168,6 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
     with open(clusters_json_path, "w", encoding="utf-8") as f:
         json.dump(clustering_result, f, indent=2)
 
-    show_log = args.update or len(sample_ids) == 0
-
     run_stage(
         state,
         profile,
@@ -146,7 +175,7 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
         upload_features,
         features_json_path,
         overwrite=args.update,
-        show_log=show_log,
+        show_log=args.update or not sample_ids,
         upload_token=upload_token,
         count=sample_count,
     )
@@ -187,4 +216,3 @@ def mimosa(profile, profile_dir, args, credentials, token, sample_ids, upload_to
     else:
         print("Distance matrix or Newick file missing — skipping distance upload.")
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
-
