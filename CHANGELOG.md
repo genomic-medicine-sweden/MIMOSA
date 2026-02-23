@@ -5,6 +5,8 @@
 - `--skip_similarity` flag to explicitly skip similarity computation and uploads
 - Bulk sample editing via Excel upload, including validation and preview
 - Markdown- and JSON-driven sidebar content
+- Generation of ReporTree-specific metadata files containing only required columns for ReporTree execution.
+- Restoration of full metadata  during feature generation.
 
 ### Changed
 - Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
@@ -16,6 +18,8 @@
 - Fix crash in table row expansion when metadata fields are missing.
 - Simplified My County view initialisation and fallback rendering when no home county is set
 - Improved handling of missing or invalid homeCounty in localStorage
+- ReporTree now runs on restricted metadata instead of full metadata files
+- Fetch all available samples dynamically from Bonsai instead of a hardcoded limit
 
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
