@@ -133,13 +133,26 @@ def process_cluster_composition(
 
     with open(clusterComposition_tsv, newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile, delimiter="\t")
+
         for row in reader:
+            cluster_raw = row["cluster"].strip()
+
+            if cluster_raw.lower().startswith("cluster_"):
+                parts = cluster_raw.split("_", 1)
+                if len(parts) > 1 and parts[1].isdigit():
+                    cluster_id = int(parts[1])
+                else:
+                    cluster_id = cluster_raw
+            else:
+                cluster_id = cluster_raw
+
             sample_list = [s.strip() for s in row["samples"].split(",")]
+
             for sample in sample_list:
                 clustering.append(
                     {
                         "ID": sample,
-                        "Cluster_ID": row["cluster"].strip(),
+                        "Cluster_ID": cluster_id,
                         "Partition": row["#partition"].strip(),
                     }
                 )
