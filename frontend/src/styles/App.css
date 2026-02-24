@@ -78,18 +78,6 @@
   padding: 10px;
 }
 
-.outbreak-message {
-  position: absolute;
-  margin-left: 150px;
-  margin-top: 5px;
-  padding: 2px;
-  max-width: 300px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  color: black;
-  background-color: white;
-  border-radius: 5px;
-}
-
 .leaflet-interactive {
   shape-rendering: geometricPrecision;
   image-rendering: pixelated;

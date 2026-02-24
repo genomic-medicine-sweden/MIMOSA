@@ -6,6 +6,7 @@ import generateLegendItems from "@/components/Legend";
 import { Slider } from "primereact/slider";
 import { colorOptions } from "@/utils/MapColor";
 import boundariesData from "@/assets/sweden-with-regions";
+import OutbreakAlert from "@/components/OutbreakAlert";
 
 const SidePanel = ({
   activeTab,
@@ -18,6 +19,7 @@ const SidePanel = ({
   selectedCounty,
   setSelectedCounty,
   onCountySelect,
+  outbreaks,
 }) => {
   const [selectedColor, setSelectedColor] = useState("Green");
 
@@ -25,10 +27,6 @@ const SidePanel = ({
     { label: "Legend", value: "legend" },
     { label: "Map Settings", value: "MapSettings" },
   ];
-  const panelStyles = {
-    width: isOpen ? "200px" : "0",
-    transition: "width 0.3s ease",
-  };
 
   const counties = [
     { label: "All", value: "All" },
@@ -56,10 +54,12 @@ const SidePanel = ({
             ))}
           </div>
         );
+
       case "MapSettings":
         return (
           <div className="panel-content">
             <h3>Map Settings</h3>
+
             <p>Map Color</p>
             <Dropdown
               value={selectedColor}
@@ -70,6 +70,7 @@ const SidePanel = ({
               }}
               placeholder={selectedColor}
             />
+
             <p>Marker Size</p>
             <Slider
               value={markerSize}
@@ -77,6 +78,7 @@ const SidePanel = ({
               min={3}
               max={8}
             />
+
             <p>County</p>
             <Dropdown
               value={selectedCounty}
@@ -90,6 +92,7 @@ const SidePanel = ({
             />
           </div>
         );
+
       default:
         return null;
     }
@@ -97,23 +100,27 @@ const SidePanel = ({
 
   return (
     <div className="side-panel-container">
-      <div className="tab-buttons">
-        <SelectButton
-          value={activeTab}
-          options={options}
-          onChange={(e) => toggleTab(e.value)}
-          className="p-button-sm"
-        />
+      <div className="outbreak-container">
+        <OutbreakAlert outbreaks={outbreaks} />
       </div>
-      <div
-        className={`side-panel ${isOpen ? "open" : "closed"}`}
-        style={panelStyles}
-      >
-        {renderContent()}
-        <div
-          className="resize-handle"
-          onMouseDown={(e) => e.preventDefault()}
-        ></div>
+
+      <div className="side-panel-body">
+        <div className="tab-buttons">
+          <SelectButton
+            value={activeTab}
+            options={options}
+            onChange={(e) => toggleTab(e.value)}
+            className="p-button-sm"
+          />
+        </div>
+
+        <div className={`side-panel ${isOpen ? "open" : "closed"}`}>
+          {renderContent()}
+          <div
+            className="resize-handle"
+            onMouseDown={(e) => e.preventDefault()}
+          ></div>
+        </div>
       </div>
     </div>
   );

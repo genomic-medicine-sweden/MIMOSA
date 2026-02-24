@@ -1,50 +1,61 @@
 .side-panel-container {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  position: relative;
 }
 
-.side-panel {
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background-color: transparent;
-  z-index: 1000;
-  transition: width 0.3s ease;
-  width: 0;
+.outbreak-container {
+  margin-top: clamp(10px, 2vh, 20px);
+  margin-left: 0;
+
+  height: clamp(140px, 26vh, 180px);
+  display: flex;
 }
 
-.side-panel.open {
-  width: 100%;
-}
-
-.panel-content {
-  padding: 20px;
-  display: none;
-  margin: 120px 0 0 40px;
-}
-
-.side-panel.open .panel-content {
-  display: block;
+.side-panel-body {
+  display: flex;
+  align-items: flex-start;
+  margin-top: clamp(15px, 4vh, 40px);
 }
 
 .tab-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0;
+  justify-content: flex-start;
+  width: 40px;
+  min-width: 40px;
+  gap: clamp(4px, 1vh, 8px);
 }
-
 .tab-buttons .p-button {
-  margin-bottom: 5px;
   writing-mode: vertical-rl;
   display: flex;
   align-items: center;
   border: 1px solid #ccc;
-  width: 100%;
+  width: 40px;
 }
 
+.side-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: transparent;
+  transition: width 0.3s ease;
+  width: 0;
+}
+.side-panel.open {
+  width: clamp(120px, 15vw, 150px);
+}
+.panel-content {
+  padding: 0px 12px 12px 12px;
+  display: none;
+}
+.side-panel.open .panel-content {
+  display: block;
+}
+.panel-content h3 {
+  margin-top: 0;
+}
 .legend-circle {
   width: 16px;
   height: 16px;
@@ -53,17 +64,14 @@
   background-color: #000;
   margin-right: 8px;
 }
-
 .legend-item {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
 }
-
 .county-dropdown .p-dropdown-label {
   font-size: 12px;
 }
-
 .county-dropdown .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
   font-size: 12px;
 }
