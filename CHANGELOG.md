@@ -7,6 +7,8 @@
 - Markdown- and JSON-driven sidebar content
 - Generation of ReporTree-specific metadata files containing only required columns for ReporTree execution.
 - Restoration of full metadata  during feature generation.
+- Structured outbreak detection and a dedicated OutbreakAlert in the side panel.
+
 
 ### Changed
 - Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
@@ -20,6 +22,7 @@
 - Improved handling of missing or invalid homeCounty in localStorage
 - ReporTree now runs on restricted metadata instead of full metadata files
 - Fetch all available samples dynamically from Bonsai instead of a hardcoded limit
+- Refactored outbreak logic to remove HTML message generation and reworked side panel layout.
 
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
@@ -27,6 +30,7 @@
 - Inconsistent filter behaviour when switching analysis profiles
 - Minor validation and UI state issues in the samples dashboard
 - Fix table row editing targeting wrong sample when filtered by using sample ID instead of row index
+- Normalised Cluster ID parsing from TSV input and improved defensive cluster counting.
 
 ## [v0.3.0]
 
