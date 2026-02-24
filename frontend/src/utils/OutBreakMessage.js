@@ -1,33 +1,32 @@
 export function generateOutbreakMessage(countyCounts) {
-  const Cluster_IDOccurrences = {};
+  const clusterMap = {};
 
   Object.entries(countyCounts).forEach(([countyName, countyData]) => {
     Object.entries(countyData.Cluster_ID || {}).forEach(
       ([Cluster_ID, count]) => {
-        if (Cluster_ID !== "Unknown") {
-          // Exclude "Unknown" Cluster_ID
-          Cluster_IDOccurrences[Cluster_ID] =
-            (Cluster_IDOccurrences[Cluster_ID] || 0) + count;
+        if (Cluster_ID !== "Unknown" && count > 0) {
+          if (!clusterMap[Cluster_ID]) {
+            clusterMap[Cluster_ID] = {
+              total: 0,
+              counties: [],
+            };
+          }
+
+          clusterMap[Cluster_ID].total += count;
+          clusterMap[Cluster_ID].counties.push({
+            county: countyName,
+            count,
+          });
         }
       },
     );
   });
 
-  const outbreakCluster_IDs = Object.entries(Cluster_IDOccurrences).filter(
-    ([Cluster_ID, count]) => count >= 2,
-  );
-
-  if (outbreakCluster_IDs.length > 0) {
-    return `<div style="color: black; padding: 4px; border-radius: 2px;">
-                <h2>Outbreak Alert!</h2>
-                ${outbreakCluster_IDs
-                  .map(
-                    ([Cluster_ID, count]) =>
-                      `<p>There are multiple occurrences of ${Cluster_ID} with a total of ${count} cases.</p>`,
-                  )
-                  .join("")}
-              </div>`;
-  }
-
-  return "";
+  return Object.entries(clusterMap)
+    .filter(([_, data]) => data.total >= 2)
+    .map(([Cluster_ID, data]) => ({
+      clusterId: Cluster_ID,
+      total: data.total,
+      counties: data.counties,
+    }));
 }
