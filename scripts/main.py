@@ -80,6 +80,8 @@ def parse_args():
 
     if not target_profiles:
         raise SystemExit("No valid profiles selected. Exiting.")
+    if args.update:
+        args.skip_similarity = True
 
     return args, target_profiles
 
@@ -101,7 +103,8 @@ def main():
     args, target_profiles = parse_args()
 
     GLOBAL_PROFILE = "__global__"
-    pipeline_state = init_pipeline_state(target_profiles + [GLOBAL_PROFILE])
+    mode = "update" if args.update else "full"
+    pipeline_state = init_pipeline_state(target_profiles + [GLOBAL_PROFILE], mode=mode)
 
     for stage in (
         "prepare_metadata",
@@ -178,6 +181,9 @@ def main():
             )
 
         run_similarity = True
+
+        if args.update:
+            run_similarity = False
 
         if args.skip_similarity or not all_target_ids:
             run_similarity = False

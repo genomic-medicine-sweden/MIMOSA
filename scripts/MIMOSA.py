@@ -68,21 +68,26 @@ def mimosa(
             args.supplementary_metadata,
         )
 
-    if args.update:
-        features_json_path = os.path.join(
-            profile_dir,
-            f"features_{profile}.json",
-        )
+    metadata_partitions_tsv = os.path.join(
+        profile_dir,
+        f"{profile}_metadata_w_partitions.tsv",
+    )
 
+    features_json_path = os.path.join(
+        profile_dir,
+        f"features_{profile}.json",
+    )
+
+    if args.update:
         run_stage(
             state,
             profile,
             "process_features",
             process_tsv,
-            metadata_partitions_tsv,
+            full_metadata_file,
+            full_metadata_file,
             features_json_path,
             save_files=True,
-            full_metadata_file=full_metadata_file,
             count=sample_count,
         )
 
@@ -116,19 +121,11 @@ def mimosa(
         count=sample_count,
     )
 
-    metadata_partitions_tsv = os.path.join(
-        profile_dir,
-        f"{profile}_metadata_w_partitions.tsv",
-    )
     cluster_composition_tsv = os.path.join(
         profile_dir,
         f"{profile}_clusterComposition.tsv",
     )
 
-    features_json_path = os.path.join(
-        profile_dir,
-        f"features_{profile}.json",
-    )
     clusters_json_path = os.path.join(
         profile_dir,
         f"clusters_{profile}.json",
@@ -138,10 +135,12 @@ def mimosa(
         profile_dir,
         f"{profile}_dist_hamming.tsv",
     )
+
     nwk_path = os.path.join(
         profile_dir,
         f"{profile}.nwk",
     )
+
     distance_json_path = os.path.join(
         profile_dir,
         f"{profile}_distance.json",

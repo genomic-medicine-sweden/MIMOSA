@@ -64,8 +64,8 @@ _STATUS_ORDER = {
 GLOBAL_PROFILE = "__global__"
 
 
-def init_pipeline_state(profiles):
-    return {
+def init_pipeline_state(profiles, mode="full"):
+    state = {
         profile: {
             stage: {
                 "status": Status.PENDING,
@@ -80,6 +80,9 @@ def init_pipeline_state(profiles):
         }
         for profile in profiles
     }
+
+    state["_mode"] = mode
+    return state
 
 
 def _aggregate_status(stages):
@@ -112,17 +115,31 @@ LABEL_WIDTH = 26
 def render_pipeline_state(state):
     os.system("clear")
 
+    mode = state.get("_mode", "full")
+
     print("MIMOSA\n")
 
     for profile, stages in state.items():
-        if profile == GLOBAL_PROFILE:
+        if profile in (GLOBAL_PROFILE, "_mode"):
             continue
 
         sample_count = stages["fetch_samples"]["count"]
-        if sample_count:
-            print(f"{profile} ({sample_count} samples)")
-        else:
-            print(profile)
+        header = f"{profile} ({sample_count} samples)" if sample_count else profile
+        print(header)
+
+        if mode == "update":
+            prep_status = _aggregate_status(
+                [stages["fetch_samples"], stages["prepare_metadata"]]
+            ).value
+
+            update_status = _aggregate_status(
+                [stages["process_features"], stages["upload_features"]]
+            ).value
+
+            print(f"  {'Sample preparation':<{LABEL_WIDTH}}{prep_status}")
+            print(f"  {'Update metadata':<{LABEL_WIDTH}}{update_status}")
+            print()
+            continue
 
         for label, internal in PROFILE_DISPLAY_PIPELINE:
             entries = [stages[s] for s in internal]
@@ -142,31 +159,36 @@ def render_pipeline_state(state):
 
         print()
 
+    if mode == "update":
+        return
+
     global_state = state.get(GLOBAL_PROFILE)
-    if global_state:
-        similarity_stages = (
-            global_state["run_similarity"],
-            global_state["upload_similarity"],
-        )
+    if not global_state:
+        return
 
-        if all(s["status"] == Status.SKIPPED for s in similarity_stages):
-            print("Similarity skipped\n")
-            return
+    similarity_stages = (
+        global_state["run_similarity"],
+        global_state["upload_similarity"],
+    )
 
-        print("Similarity")
+    if all(s["status"] == Status.SKIPPED for s in similarity_stages):
+        print("Similarity skipped\n")
+        return
 
-        for label, internal in GLOBAL_DISPLAY_PIPELINE:
-            entries = [global_state[s] for s in internal]
-            status = _aggregate_status(entries).value
+    print("Similarity")
 
-            if label == "Similarity analysis":
-                done, total = _aggregate_progress(entries)
-                suffix = f" ({done}/{total})" if total else ""
-                print(f"  {label:<{LABEL_WIDTH}}" f"{status}{suffix}")
-            else:
-                print(f"  {label:<{LABEL_WIDTH}}" f"{status}")
+    for label, internal in GLOBAL_DISPLAY_PIPELINE:
+        entries = [global_state[s] for s in internal]
+        status = _aggregate_status(entries).value
 
-        print()
+        if label == "Similarity analysis":
+            done, total = _aggregate_progress(entries)
+            suffix = f" ({done}/{total})" if total else ""
+            print(f"  {label:<{LABEL_WIDTH}}{status}{suffix}")
+        else:
+            print(f"  {label:<{LABEL_WIDTH}}{status}")
+
+    print()
 
 
 def render_runtime_summary(state):
@@ -175,7 +197,7 @@ def render_runtime_summary(state):
     total_run_time = 0.0
 
     for profile, stages in state.items():
-        if profile == GLOBAL_PROFILE:
+        if profile in (GLOBAL_PROFILE, "_mode"):
             continue
 
         duration = _sum_duration(stages.values())

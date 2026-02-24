@@ -99,9 +99,16 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                     )
 
                 if overwrite:
-                    changed_fields = get_changed_fields(existing, item)
+                    changed_fields = [
+                        f
+                        for f in get_changed_fields(existing, item)
+                        if f != "QC_Status"
+                    ]
                     if changed_fields:
-                        collection.replace_one({"_id": existing["_id"]}, item)
+                        collection.update_one(
+                            {"_id": existing["_id"]},
+                            {"$set": {"properties": new_props}},
+                        )
                         updated_count += 1
 
                         diff_dict = {}

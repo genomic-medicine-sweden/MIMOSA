@@ -11,6 +11,22 @@ REPORTREE_SAFE_COLUMNS = [
 ]
 
 
+def normalise_missing(value):
+    """
+    Convert placeholder API values to proper missing values (None).
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+        if value == "" or value.lower() == "unknown":
+            return None
+        return value
+
+    return value
+
+
 def process_samples_by_profile(
     bonsai_api_url,
     token,
@@ -27,7 +43,7 @@ def process_samples_by_profile(
     profiles = {}
 
     for sample in samples:
-        profile = sample.get("profile", "Unknown")
+        profile = sample.get("profile")
         sample_id = sample.get("sample_id")
 
         if not sample_id or not profile:
@@ -52,35 +68,41 @@ def process_samples_by_profile(
         for sample_id in sample_ids:
             sample_data = fetch_sample_details(bonsai_api_url, token, sample_id)
 
-            sequencing_date = sample_data.get("sequencing_date", "Unknown")
-            date_part, time_part = (
-                sequencing_date.split("T")
-                if "T" in sequencing_date
-                else (sequencing_date, "Unknown")
-            )
+            sequencing_date = sample_data.get("sequencing_date")
+
+            if sequencing_date and "T" in sequencing_date:
+                date_part, time_part = sequencing_date.split("T")
+            else:
+                date_part = sequencing_date
+                time_part = None
 
             pipeline = sample_data.get("pipeline", {})
-            pipeline_version = pipeline.get("version", "Unknown")
-            pipeline_date_full = pipeline.get("date", "")
-            pipeline_date = (
-                pipeline_date_full.split("T")[0]
-                if "T" in pipeline_date_full
-                else pipeline_date_full
-            )
-            analysis_profile = pipeline.get("analysis_profile", "Unknown")
+
+            pipeline_version = pipeline.get("version")
+
+            pipeline_date_full = pipeline.get("date")
+
+            if pipeline_date_full and "T" in pipeline_date_full:
+                pipeline_date = pipeline_date_full.split("T")[0]
+            else:
+                pipeline_date = pipeline_date_full
+
+            analysis_profile = pipeline.get("analysis_profile")
 
             metadata_row = {
                 "sample": sample_id,
-                "lims_id": sample_data.get("lims_id", "Unknown"),
-                "Date": date_part,
-                "Time": time_part,
-                "Pipeline_Version": pipeline_version,
-                "Pipeline_Date": pipeline_date,
-                "Profile": analysis_profile,
-                "QC_Status": sample_data.get("qc_status", {}).get("status", "Unknown"),
+                "lims_id": normalise_missing(sample_data.get("lims_id")),
+                "Date": normalise_missing(date_part),
+                "Time": normalise_missing(time_part),
+                "Pipeline_Version": normalise_missing(pipeline_version),
+                "Pipeline_Date": normalise_missing(pipeline_date),
+                "Profile": normalise_missing(analysis_profile),
+                "QC_Status": normalise_missing(
+                    sample_data.get("qc_status", {}).get("status")
+                ),
             }
 
-            if analysis_profile.lower() in {
+            if (analysis_profile or "").lower() in {
                 "staphylococcus_aureus",
                 "klebsiella_pneumoniae",
             }:
@@ -92,9 +114,11 @@ def process_samples_by_profile(
                     ),
                     {},
                 )
-                metadata_row["ST"] = mlst.get("result", {}).get(
-                    "sequence_type", "Unknown"
+
+                metadata_row["ST"] = normalise_missing(
+                    mlst.get("result", {}).get("sequence_type")
                 )
+
                 for gene, allele in mlst.get("result", {}).get("alleles", {}).items():
                     metadata_row[gene] = allele
 
