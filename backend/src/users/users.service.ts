@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './users.schema';
 import * as bcrypt from 'bcrypt';
+import { parseCounty } from './county';
 
 @Injectable()
 export class UsersService {
@@ -16,7 +17,38 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
+  /**
+   * Validates + canonicalises homeCounty in-place.
+   * - undefined => untouched
+   * - null / '' => cleared (set to undefined)
+   * - otherwise => must match allowed counties via parseCounty()
+   */
+  private normaliseHomeCounty<T extends { homeCounty?: unknown }>(obj: T): T {
+    if (!('homeCounty' in obj)) return obj;
+
+    const value = obj.homeCounty;
+
+    // Allow "clear"
+    if (value === null || value === '') {
+      // delete so mongoose $set doesn't store null/empty string
+      delete (obj as any).homeCounty;
+      return obj;
+    }
+
+    // Validate + canonicalise if provided
+    if (value !== undefined) {
+      const parsed = parseCounty(value);
+      if (!parsed) {
+        throw new BadRequestException(`Invalid homeCounty: ${String(value)}`);
+      }
+      (obj as any).homeCounty = parsed;
+    }
+
+    return obj;
+  }
+
   async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+    this.normaliseHomeCounty(updates);
     return this.userModel.findByIdAndUpdate(id, updates, { new: true }).exec();
   }
 
@@ -30,11 +62,12 @@ export class UsersService {
       .exec();
     if (!existingUser) return null;
 
+    this.normaliseHomeCounty(updates);
     if (
       'homeCounty' in updates &&
       updates.homeCounty === existingUser.homeCounty
     ) {
-      const { homeCounty, ...rest } = updates;
+      const { homeCounty, ...rest } = updates as any;
       updates = rest;
     }
 
@@ -71,10 +104,13 @@ export class UsersService {
     role?: string;
     passwordHash: string;
   }): Promise<User> {
+    this.normaliseHomeCounty(data);
+
     const user = new this.userModel({
       ...data,
       email: data.email.toLowerCase(),
     });
+
     return user.save();
   }
 

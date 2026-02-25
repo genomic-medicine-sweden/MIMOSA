@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { UsersService } from '../src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import minimist from 'minimist';
+import { counties, parseCounty } from '../src/users/county';
 
 async function bootstrap() {
   const args = minimist(process.argv.slice(2));
@@ -15,7 +16,7 @@ async function bootstrap() {
     lname: lastName,
     m: email,
     r: role,
-    county: homeCounty,
+    county,
   } = args;
 
   const missing: string[] = [];
@@ -37,6 +38,18 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  let homeCounty: string | undefined;
+  if (county !== undefined && county !== null && String(county).trim() !== '') {
+    const parsed = parseCounty(county);
+    if (!parsed) {
+      console.error(`Invalid --county value: ${String(county)}`);
+      console.error('Allowed values are:');
+      (counties as string[]).forEach((c) => console.error(`  - ${c}`));
+      process.exit(1);
+    }
+    homeCounty = parsed;
+  }
+
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
@@ -52,14 +65,20 @@ async function bootstrap() {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await usersService.create({
-    firstName,
-    lastName,
-    email,
-    role,
-    homeCounty,
-    passwordHash,
-  });
+  try {
+    await usersService.create({
+      firstName,
+      lastName,
+      email,
+      role,
+      homeCounty,
+      passwordHash,
+    });
+  } catch (err: any) {
+    console.error(err?.message ?? err);
+    await app.close();
+    process.exit(1);
+  }
 
   console.log(`User ${email} created successfully.`);
   await app.close();
