@@ -314,46 +314,48 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {sampleLog.updates.map((update, index) =>
-                        Object.entries(update.changes).map(
-                          ([field, change]) => (
-                            <tr key={`${index}-${field}`}>
-                              <td
-                                style={{
-                                  borderBottom: "1px solid #eee",
-                                  padding: "8px",
-                                }}
-                              >
-                                {new Date(update.date).toLocaleString()}
-                              </td>
-                              <td
-                                style={{
-                                  borderBottom: "1px solid #eee",
-                                  padding: "8px",
-                                }}
-                              >
-                                {field}
-                              </td>
-                              <td
-                                style={{
-                                  borderBottom: "1px solid #eee",
-                                  padding: "8px",
-                                }}
-                              >
-                                {change.old}
-                              </td>
-                              <td
-                                style={{
-                                  borderBottom: "1px solid #eee",
-                                  padding: "8px",
-                                }}
-                              >
-                                {change.new}
-                              </td>
-                            </tr>
+                      {[...sampleLog.updates]
+                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                        .map((update, index) =>
+                          Object.entries(update.changes).map(
+                            ([field, change]) => (
+                              <tr key={`${index}-${field}`}>
+                                <td
+                                  style={{
+                                    borderBottom: "1px solid #eee",
+                                    padding: "8px",
+                                  }}
+                                >
+                                  {new Date(update.date).toLocaleString()}
+                                </td>
+                                <td
+                                  style={{
+                                    borderBottom: "1px solid #eee",
+                                    padding: "8px",
+                                  }}
+                                >
+                                  {field}
+                                </td>
+                                <td
+                                  style={{
+                                    borderBottom: "1px solid #eee",
+                                    padding: "8px",
+                                  }}
+                                >
+                                  {change.old}
+                                </td>
+                                <td
+                                  style={{
+                                    borderBottom: "1px solid #eee",
+                                    padding: "8px",
+                                  }}
+                                >
+                                  {change.new}
+                                </td>
+                              </tr>
+                            ),
                           ),
-                        ),
-                      )}
+                        )}
                     </tbody>
                   </table>
                 )}
