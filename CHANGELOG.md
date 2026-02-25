@@ -35,6 +35,8 @@
 - Fix table row editing targeting wrong sample when filtered by using sample ID instead of row index
 - Normalised Cluster ID parsing from TSV input and improved defensive cluster counting.
 - Fix crash in --update mode due to undefined metadata_partitions_tsv
+- Prevent invalid homeCounty values from being stored by enforcing canonical validation in the backend and CLI.
+
 
 ## [v0.3.0]
 
