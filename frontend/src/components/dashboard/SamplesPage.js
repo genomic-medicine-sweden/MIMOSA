@@ -7,7 +7,7 @@ import { InputText } from "primereact/inputtext";
 import { Toast } from "primereact/toast";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
-
+import { Tooltip } from "primereact/tooltip";
 import {
   handleTextFilterChange,
   handleDropdownFilterChange,
@@ -21,6 +21,7 @@ import useSampleManagement from "@/hooks/useSampleManagement";
 import FeatureEditDialog from "./samples/FeatureEditDialog";
 import BulkEditDialog from "./samples/BulkEditDialog";
 import ExcelDropzone from "./samples/ExcelDropzone";
+import DownloadSamplesTemplateButton from "./samples/DownloadSamplesTemplateButton";
 
 import { fieldFeaturesMeta, hospitalOptions } from "./samples/sampleUtils";
 import { fieldValidators } from "./samples/samplesValidation";
@@ -48,12 +49,12 @@ export default function SamplesPage() {
         "properties.Hospital",
         "properties.Date",
         "properties.PostCode",
-        "isIncomplete",
+        "statusFilter",
       ],
       {
         "properties.Hospital": "equals",
         "properties.PostCode": "contains",
-        isIncomplete: "equals",
+        statusFilter: "contains",
       },
     ),
   );
@@ -76,12 +77,12 @@ export default function SamplesPage() {
           "properties.Hospital",
           "properties.Date",
           "properties.PostCode",
-          "isIncomplete",
+          "statusFilter",
         ],
         {
           "properties.Hospital": "equals",
           "properties.PostCode": "contains",
-          isIncomplete: "equals",
+          statusFilter: "contains",
         },
       ),
     );
@@ -91,17 +92,36 @@ export default function SamplesPage() {
     new Set(samples.map((s) => s.properties.Hospital).filter(Boolean)),
   ).map((hospital) => ({ label: hospital, value: hospital }));
 
+  const availableAnalysisProfileOptions = Array.from(
+    new Set(samples.map((s) => s.properties.analysis_profile).filter(Boolean)),
+  ).map((profile) => ({
+    label: profile,
+    value: profile,
+  }));
+
   const tableSamples = samples.map((sample) => {
     const props = { ...sample.properties };
-    const requiredFields = ["Hospital", "PostCode", "Date"];
-    const isIncomplete = requiredFields.some((key) => !props[key]?.trim());
+
+    const isIncomplete = ["Hospital", "PostCode", "Date"].some(
+      (key) => !props[key]?.trim(),
+    );
+
+    const missingLocation = ["Hospital", "PostCode"].every(
+      (key) => !props[key]?.trim(),
+    );
+    let statusFilter = "";
+
+    if (missingLocation) statusFilter += "missingLocation ";
+    if (isIncomplete) statusFilter += "incomplete";
+
     return {
       ...sample,
       properties: props,
       isIncomplete,
+      missingLocation,
+      statusFilter: statusFilter.trim(),
     };
   });
-
   const onRowEditInit = (e) => {
     const row = e.data;
     const sampleId = row.properties.ID;
@@ -346,7 +366,19 @@ export default function SamplesPage() {
       <h1 className="text-2xl font-bold mb-2">Samples</h1>
       <Toast ref={toastRef} position="bottom-right" />
 
+      <div className="w-full flex mb-3">
+        <div className="ml-auto">
+          <DownloadSamplesTemplateButton samples={tableSamples} />
+        </div>
+      </div>
+
       <ExcelDropzone onParsed={handleParsedExcel} />
+
+      <Tooltip
+        target=".status-tag"
+        position="right"
+        appendTo={() => document.body}
+      />
 
       <div className="w-full flex mb-2">
         <button
@@ -398,6 +430,28 @@ export default function SamplesPage() {
           )}
           showFilterMenu={false}
         />
+        <Column
+          field="properties.analysis_profile"
+          style={{ minWidth: "8rem" }}
+          body={(rowData) => {
+            const raw = rowData.properties.analysis_profile;
+            if (!raw) return "";
+
+            const formatted = raw.replace(/_/g, " ");
+            return <em>{formatted}</em>;
+          }}
+          filter
+          filterField="properties.analysis_profile"
+          filterElement={renderDropdownFilter(
+            filters,
+            "properties.analysis_profile",
+            "Analysis Profile",
+            availableAnalysisProfileOptions,
+            dropdownFilterChange,
+          )}
+          showFilterMenu={false}
+        />
+
         <Column
           field="properties.Hospital"
           editor={dropdownEditor("Hospital", hospitalOptions)}
@@ -451,34 +505,75 @@ export default function SamplesPage() {
           showFilterMenu={false}
         />
         <Column
-          field="isIncomplete"
-          body={(rowData) =>
-            rowData.isIncomplete ? (
-              <Tag severity="warning" value="Incomplete" rounded />
-            ) : null
-          }
+          field="statusFilter"
           filter
-          filterField="isIncomplete"
-          dataType="boolean"
-          filterFunction={(value, filter) => {
-            if (filter === null || filter === undefined) return true;
-            return value === true;
-          }}
-          filterElement={renderDropdownFilter(
-            filters,
-            "isIncomplete",
-            "Status",
-            [{ label: "Incomplete", value: true }],
-            dropdownFilterChange,
-          )}
+          filterField="statusFilter"
+          filterMatchMode="contains"
           showFilterMenu={false}
-          style={{ width: "8rem", textAlign: "center" }}
+          filterElement={(options) => (
+            <Dropdown
+              value={options.value || null}
+              options={[
+                { label: "Missing location", value: "missingLocation" },
+                { label: "Incomplete", value: "incomplete" },
+              ]}
+              onChange={(e) => options.filterApplyCallback(e.value)}
+              placeholder="Select"
+              className="p-column-filter"
+              showClear
+            />
+          )}
+          body={(rowData) => {
+            const tags = [];
+
+            if (rowData.missingLocation) {
+              tags.push(
+                <span
+                  key="missingLocation"
+                  className="status-tag"
+                  data-pr-tooltip="Hospital or postCode required for map visualisation"
+                >
+                  <Tag
+                    severity="danger"
+                    value="Missing location"
+                    rounded
+                    className="text-xs px-2 py-1"
+                    style={{ minWidth: "5rem", textAlign: "center" }}
+                  />
+                </span>,
+              );
+            }
+            if (rowData.isIncomplete) {
+              tags.push(
+                <Tag
+                  key="incomplete"
+                  severity="warning"
+                  value="Incomplete"
+                  rounded
+                  className="text-xs px-2 py-1"
+                  style={{ minWidth: "5rem", textAlign: "center" }}
+                />,
+              );
+            }
+
+            if (tags.length === 0) return null;
+
+            return (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                {tags}
+              </div>
+            );
+          }}
+          style={{ width: "10rem", textAlign: "center" }}
         />
-        <Column
-          rowEditor
-          headerStyle={{ width: "5rem" }}
-          bodyStyle={{ textAlign: "center" }}
-        />
+        <Column rowEditor bodyStyle={{ textAlign: "center" }} />
       </DataTable>
 
       <FeatureEditDialog
