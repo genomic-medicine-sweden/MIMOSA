@@ -1,4 +1,4 @@
-## [unreleased]
+## [v0.4.0]
 
 ### Added
 - Pipeline execution state tracking with per-stage status, counts, and runtime summary
@@ -8,6 +8,9 @@
 - Generation of ReporTree-specific metadata files containing only required columns for ReporTree execution.
 - Restoration of full metadata  during feature generation.
 - Structured outbreak detection and a dedicated OutbreakAlert in the side panel.
+- Analysis profile column and filtering in Samples dashboard
+- Missing-location status and extended status filtering in Samples dashboard
+- Downloadable bulk metadata editing templates
 
 
 ### Changed
