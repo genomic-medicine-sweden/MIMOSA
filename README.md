@@ -75,7 +75,14 @@ python scripts/prepare_supplementary_metadata.py \
     --profile staphylococcus_aureus
 ```
 
-Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **samples** page, either through inline editing or by uploading an excel (`.xlsx`) file for bulk updates
+Alternatively, supplementary metadata (e.g. `PostCode`, `Hospital`, `Date`) can also be added by admin users via the **Samples** page, either through inline editing or by uploading an Excel (`.xlsx`) file for bulk updates.
+
+From the **Samples** page, a pre-formatted Excel template for bulk correction can be downloaded with three export options:
+- **Missing location** – Samples lacking both `Hospital` and `PostCode` (required for map visualisation)
+- **Incomplete samples** – Samples missing one or more required metadata fields
+- **All samples**
+
+The downloaded file can be edited and re-uploaded via the existing Excel bulk update functionality.
 
 #### conda environment
 
