@@ -99,9 +99,16 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                     )
 
                 if overwrite:
-                    changed_fields = get_changed_fields(existing, item)
+                    changed_fields = [
+                        f
+                        for f in get_changed_fields(existing, item)
+                        if f != "QC_Status"
+                    ]
                     if changed_fields:
-                        collection.replace_one({"_id": existing["_id"]}, item)
+                        collection.update_one(
+                            {"_id": existing["_id"]},
+                            {"$set": {"properties": new_props}},
+                        )
                         updated_count += 1
 
                         diff_dict = {}
@@ -109,9 +116,19 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                             if field == "ST":
                                 old_val = old_props.get("typing", {}).get("ST")
                                 new_val = new_props.get("typing", {}).get("ST")
-                            elif field in new_props.get("typing", {}).get("alleles", {}):
-                                old_val = old_props.get("typing", {}).get("alleles", {}).get(field)
-                                new_val = new_props.get("typing", {}).get("alleles", {}).get(field)
+                            elif field in new_props.get("typing", {}).get(
+                                "alleles", {}
+                            ):
+                                old_val = (
+                                    old_props.get("typing", {})
+                                    .get("alleles", {})
+                                    .get(field)
+                                )
+                                new_val = (
+                                    new_props.get("typing", {})
+                                    .get("alleles", {})
+                                    .get(field)
+                                )
                             else:
                                 old_val = old_props.get(field)
                                 new_val = new_props.get(field)
@@ -234,4 +251,3 @@ def upload_similarity(data_file_path, upload_token=None):
         print("Error uploading similarity data:", err)
     finally:
         client.close()
-

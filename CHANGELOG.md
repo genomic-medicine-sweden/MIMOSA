@@ -1,21 +1,42 @@
-## [unreleased]
+## [v0.4.0]
 
 ### Added
 - Pipeline execution state tracking with per-stage status, counts, and runtime summary
 - `--skip_similarity` flag to explicitly skip similarity computation and uploads
 - Bulk sample editing via Excel upload, including validation and preview
 - Markdown- and JSON-driven sidebar content
+- Generation of ReporTree-specific metadata files containing only required columns for ReporTree execution.
+- Restoration of full metadata  during feature generation.
+- Structured outbreak detection and a dedicated OutbreakAlert in the side panel.
+- Analysis profile column and filtering in Samples dashboard
+- Missing-location status and extended status filtering in Samples dashboard
+- Downloadable bulk metadata editing templates
+
 
 ### Changed
 - Similarity execution flow consolidated under a stage-based runner to reduce unnecessary recomputation
 - Similarity uploads now overwrite existing records by sample ID
 - Refactored frontend filtering logic to stabilise analysis profile–based filtering
 - Sidebar content management simplified and externalised
+- `role` and `homeCounty `fields are now optional when creating users (role defaults to `user `if omitted)
+- Improved `mimosa create-user` CLI validation and usage output
+- Fix crash in table row expansion when metadata fields are missing.
+- Simplified My County view initialisation and fallback rendering when no home county is set
+- Improved handling of missing or invalid homeCounty in localStorage
+- ReporTree now runs on restricted metadata instead of full metadata files
+- Fetch all available samples dynamically from Bonsai instead of a hardcoded limit
+- Refactored outbreak logic to remove HTML message generation and reworked side panel layout.
+
 ### Fixed
 - Normalised hospital names in the hospital coordinates list
 - Normalised file handling and encoding across upload helpers
 - Inconsistent filter behaviour when switching analysis profiles
 - Minor validation and UI state issues in the samples dashboard
+- Fix table row editing targeting wrong sample when filtered by using sample ID instead of row index
+- Normalised Cluster ID parsing from TSV input and improved defensive cluster counting.
+- Fix crash in --update mode due to undefined metadata_partitions_tsv
+- Prevent invalid homeCounty values from being stored by enforcing canonical validation in the backend and CLI.
+
 
 ## [v0.3.0]
 

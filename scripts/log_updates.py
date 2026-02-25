@@ -1,6 +1,9 @@
 import datetime
 
-def log_sample_event(db, sample_id, profile, is_insert=False, changes_dict=None, changed_by=None):
+
+def log_sample_event(
+    db, sample_id, profile, is_insert=False, changes_dict=None, changed_by=None
+):
     """
     Insert or update a sample entry in the 'logs' collection.
     """
@@ -14,7 +17,7 @@ def log_sample_event(db, sample_id, profile, is_insert=False, changes_dict=None,
             "sample_id": sample_id,
             "profile": profile,
             "added_at": now,
-            "updates": []
+            "updates": [],
         }
         collection.insert_one(doc)
 
@@ -22,7 +25,7 @@ def log_sample_event(db, sample_id, profile, is_insert=False, changes_dict=None,
         update_entry = {
             "date": now,
             "updated_fields": list(changes_dict.keys()),
-            "changes": changes_dict
+            "changes": changes_dict,
         }
 
         if changed_by:
@@ -30,15 +33,13 @@ def log_sample_event(db, sample_id, profile, is_insert=False, changes_dict=None,
 
         if existing:
             collection.update_one(
-                {"_id": existing["_id"]},
-                {"$push": {"updates": update_entry}}
+                {"_id": existing["_id"]}, {"$push": {"updates": update_entry}}
             )
         else:
             doc = {
                 "sample_id": sample_id,
                 "profile": profile,
                 "added_at": now,
-                "updates": [update_entry]
+                "updates": [update_entry],
             }
             collection.insert_one(doc)
-

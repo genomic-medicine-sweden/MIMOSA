@@ -11,39 +11,42 @@ export default function MyCountyView({ data }) {
   const [hospitalView, setHospitalView] = useState(false);
   const [mapColor, setMapColor] = useState("green");
   const [markerSize, setMarkerSize] = useState(6);
-  const [showFallback, setShowFallback] = useState(false);
 
   const infoRef = useRef(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        const county = parsed.homeCounty;
+    if (!storedUser) return;
+
+    try {
+      const parsed = JSON.parse(storedUser);
+      const county = parsed?.homeCounty;
+
+      if (typeof county === "string" && county.trim() !== "") {
         setSelectedCounty(county);
         setCountyFilter([county]);
-      } catch (err) {
-        console.warn("Could not parse user from localStorage:", err);
+      } else {
+        setSelectedCounty(null);
+        setCountyFilter([]);
       }
+    } catch (err) {
+      console.warn("Could not parse user from localStorage:", err);
+      setSelectedCounty(null);
+      setCountyFilter([]);
     }
-    const timer = setTimeout(() => {
-      setShowFallback(true);
-    }, 3000);
-
-    return () => clearTimeout(timer);
   }, []);
 
-  if (!selectedCounty && showFallback) {
+  if (selectedCounty === null) {
     return (
-      <p className="text-lg font-semibold text-red-700">
-        No home county set. Please go to Settings to select one.
-      </p>
+      <div className="p-4">
+        <p className="text-lg font-semibold text-red-700">
+          No home county set.
+        </p>
+        <p className="text-lg font-semibold text-red-700">
+          Please go to Settings to select one.
+        </p>
+      </div>
     );
-  }
-
-  if (!selectedCounty) {
-    return null;
   }
 
   return (

@@ -10,7 +10,7 @@ case "$COMMAND" in
   *)
     echo "Unknown command: $COMMAND"
     echo "Available commands:"
-    echo "  mimosa create-user --p=<password> --fname=<First> --lname=<Last> --m=<email> --r=<role> --county=<HomeCounty>"
+    echo "  mimosa create-user --p=<password> --fname=<First> --lname=<Last> --m=<email> [--r=<role>] [--county=<HomeCounty>]"
     exit 1
     ;;
 esac

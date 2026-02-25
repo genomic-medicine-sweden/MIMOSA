@@ -6,13 +6,12 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import postcodeCoordinates from "@/assets/postcode-coordinates";
 import boundariesData from "@/assets/sweden-with-regions";
-import { getColor } from "@/utils/ColorAssignment";
 import HospitalCoordinates from "@/assets/hospital-coordinates";
 import * as turf from "@turf/turf";
 import createPieChartSVG from "@/utils/PieChart";
 import { colorMapping } from "@/utils/MapColor";
 import { generateInfoContent } from "@/utils/info";
-import { generateOutbreakMessage } from "@/utils/OutBreakMessage";
+import { getColor, countOccurrences } from "@/utils/ColorAssignment";
 
 const Map = ({
   filteredData,
@@ -20,10 +19,10 @@ const Map = ({
   mapColor,
   markerSize,
   onInfoUpdate,
-  onOutbreakUpdate,
   selectedCounties,
   infoRef,
   countyFilter,
+  onVisualisedDataChange,
   staticView = false,
 }) => {
   const mapRef = useRef(null);
@@ -32,6 +31,8 @@ const Map = ({
   const selectedMarkerRef = useRef(null);
   const geojsonLayerRef = useRef(null);
   const currentZoomRef = useRef(null);
+
+  const previousVisualisedRef = useRef([]);
 
   const defaultStyle = useMemo(
     () => ({
@@ -64,14 +65,14 @@ const Map = ({
   const createPieClusterIcon = useCallback((cluster, markerSize) => {
     const childMarkers = cluster.getAllChildMarkers();
     const count = cluster.getChildCount();
-    const filteredData = {};
+    const grouped = {};
 
     childMarkers.forEach((marker) => {
       const category = marker.options.fillColor;
-      filteredData[category] = (filteredData[category] || 0) + 1;
+      grouped[category] = (grouped[category] || 0) + 1;
     });
 
-    const chartData = Object.entries(filteredData).map(([color, value]) => [
+    const chartData = Object.entries(grouped).map(([color, value]) => [
       value,
       color,
     ]);
@@ -105,9 +106,40 @@ const Map = ({
 
     if (!Array.isArray(filteredData) || filteredData.length === 0) return;
 
-    filteredData.forEach((item) => {
+    const visualisedItems = filteredData.filter((item) => {
+      const { PostCode, Hospital } = item.properties;
+
+      if (!hospitalView && postcodeCoordinates[PostCode]) {
+        return true;
+      }
+
+      if (hospitalView && HospitalCoordinates[Hospital]) {
+        const postCode = HospitalCoordinates[Hospital].PostCode;
+        return !!postcodeCoordinates[postCode];
+      }
+
+      return false;
+    });
+
+    if (onVisualisedDataChange) {
+      const previous = previousVisualisedRef.current;
+
+      const hasChanged =
+        previous.length !== visualisedItems.length ||
+        previous.some((item, index) => item !== visualisedItems[index]);
+
+      if (hasChanged) {
+        previousVisualisedRef.current = visualisedItems;
+        onVisualisedDataChange(visualisedItems);
+      }
+    }
+
+    countOccurrences(visualisedItems);
+
+    visualisedItems.forEach((item) => {
       const { PostCode, Date, ID, Hospital, Cluster_ID, analysis_profile } =
         item.properties;
+
       let coordinates, County;
 
       if (!hospitalView && postcodeCoordinates[PostCode]) {
@@ -145,6 +177,7 @@ const Map = ({
       });
 
       const color = getColor(Cluster_ID, analysis_profile);
+
       const marker = L.circleMarker(coordinates, {
         color: "black",
         fillColor: color,
@@ -190,17 +223,7 @@ const Map = ({
     if (infoRef.current) {
       infoRef.current.countyCounts = countyCounts;
     }
-
-    const outbreakMessage = generateOutbreakMessage(countyCounts);
-    onOutbreakUpdate(outbreakMessage);
-  }, [
-    filteredData,
-    hospitalView,
-    markerSize,
-    createPieClusterIcon,
-    onOutbreakUpdate,
-    infoRef,
-  ]);
+  }, [filteredData, hospitalView, markerSize, createPieClusterIcon, infoRef]);
 
   const updateGeoJsonLayer = useCallback(() => {
     if (!mapInstance.current) return;

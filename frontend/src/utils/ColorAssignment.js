@@ -16,6 +16,7 @@ const hashCluster_IDToColorIndex = (Cluster_ID, analysis_profile) => {
 export const countOccurrences = (data) => {
   Cluster_IDProfileCountMap.clear();
   data.forEach((item) => {
+    if (!item?.properties) return;
     const { Cluster_ID, analysis_profile } = item.properties;
     if (Cluster_ID && analysis_profile) {
       const key = `${Cluster_ID}-${analysis_profile}`;

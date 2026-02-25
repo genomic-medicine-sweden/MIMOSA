@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import FilteringLogic from "@/components/FilteringLogic";
 import Table from "@/components/Table";
@@ -9,6 +9,7 @@ import "@/styles/App.css";
 import SidePanel from "@/components/SidePanel";
 import ImageExport from "@/components/export/ImageExport";
 import { generateInfoContent } from "@/utils/info";
+import { computeOutbreaks } from "@/utils/outbreakDetection";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -20,6 +21,8 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
   const [activeTab, setActiveTab] = useState(null);
   const [infoContent, setInfoContent] = useState("");
   const [selectedCounty, setSelectedCounty] = useState("All");
+  const [countyFilter, setCountyFilter] = useState([]);
+  const [visualisedData, setVisualisedData] = useState([]);
 
   const mainContentRef = useRef(null);
   const infoRef = useRef({ countyCounts: {} });
@@ -40,24 +43,23 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
     setInfoContent(content);
   };
 
-  const [outbreakMessage, setOutbreakMessage] = useState("");
-
-  const handleOutbreakUpdate = (message) => {
-    setOutbreakMessage(message);
-  };
-
   const handleCountySelect = (county) => {
     setSelectedCounty(county);
+
     const countyData = infoRef.current?.countyCounts?.[county] || {
       total: 0,
       Cluster_ID: {},
     };
+
     const content =
       county === "All" ? "" : generateInfoContent(county, countyData);
+
     setInfoContent(content);
   };
 
-  const [countyFilter, setCountyFilter] = useState([]);
+  const outbreaks = useMemo(() => {
+    return computeOutbreaks(filteredData, hospitalView);
+  }, [filteredData, hospitalView]);
 
   return (
     <div className="container">
@@ -96,13 +98,14 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
           activeTab={activeTab}
           isOpen={activeTab !== null}
           toggleTab={toggleTab}
-          filteredData={filteredData}
+          filteredData={visualisedData}
           handleColorChange={handleColorChange}
           markerSize={markerSize}
           setMarkerSize={setMarkerSize}
           selectedCounty={selectedCounty}
           setSelectedCounty={setSelectedCounty}
           onCountySelect={handleCountySelect}
+          outbreaks={outbreaks} // ← added
         />
       </aside>
 
@@ -110,25 +113,16 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
         <Map
           key={typeof window !== "undefined" ? window.innerWidth : "static"}
           filteredData={filteredData}
+          onVisualisedDataChange={setVisualisedData}
           hospitalView={hospitalView}
           mapColor={mapColor}
           markerSize={markerSize}
           onInfoUpdate={handleInfoUpdate}
-          onOutbreakUpdate={handleOutbreakUpdate}
           selectedCounties={selectedCounty ? [selectedCounty] : []}
           infoRef={infoRef}
           countyFilter={countyFilter}
         />
       </main>
-
-      <aside className="left-side-content">
-        {outbreakMessage && (
-          <div
-            className="outbreak-message"
-            dangerouslySetInnerHTML={{ __html: outbreakMessage }}
-          />
-        )}
-      </aside>
 
       <aside className="right-side-content">
         <ImageExport mainContentRef={mainContentRef} />
@@ -149,6 +143,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
             />
           </Fieldset>
         </div>
+
         <div className="card pt-1">
           <Fieldset legend="Timeline" toggleable collapsed={true}>
             <Timeline filteredData={filteredData} />

@@ -4,11 +4,11 @@ import requests
 from requests.exceptions import ConnectionError
 from dotenv import load_dotenv, find_dotenv
 
-
 dotenv_path = find_dotenv(filename=".env", usecwd=True)
 if not dotenv_path:
     raise FileNotFoundError("Could not find project-root .env file.")
 load_dotenv(dotenv_path)
+
 
 def normalise_scalar(value, default="Unknown"):
     """
@@ -25,6 +25,7 @@ def auth_headers(token):
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
     }
+
 
 def load_credentials(credentials_file):
     """
@@ -49,6 +50,7 @@ def load_credentials(credentials_file):
         "mimosa_username": user_credentials["mimosa_username"],
         "mimosa_password": user_credentials["mimosa_password"],
     }
+
 
 def get_access_token(credentials):
     """Retrieve access token from the Bonsai API."""
@@ -75,9 +77,8 @@ def get_access_token(credentials):
         )
 
     except requests.HTTPError as e:
-        raise RuntimeError(
-            f"Failed to get access token: {e.response.text}"
-        ) from e
+        raise RuntimeError(f"Failed to get access token: {e.response.text}") from e
+
 
 def authenticate_mimosa_user(credentials):
     """Authenticate the uploader as a MIMOSA user."""
@@ -112,10 +113,24 @@ def authenticate_mimosa_user(credentials):
             f"Failed to authenticate MIMOSA user: {e.response.text}"
         ) from e
 
+
 def fetch_samples(bonsai_api_url, token):
-    """Fetch samples from the Bonsai API and normalise profile fields."""
+    """Fetch all samples from the Bonsai API and normalise profile fields."""
+
+    count_response = requests.get(
+        f"{bonsai_api_url}/samples/?limit=1",
+        headers=auth_headers(token),
+    )
+    count_response.raise_for_status()
+
+    payload = count_response.json()
+    total = payload.get("records_total", 0)
+
+    if total == 0:
+        return []
+
     response = requests.get(
-        f"{bonsai_api_url}/samples/?limit=1000",
+        f"{bonsai_api_url}/samples/?limit={total}",
         headers=auth_headers(token),
     )
     response.raise_for_status()
