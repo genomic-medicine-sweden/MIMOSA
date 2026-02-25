@@ -17,25 +17,16 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
-  /**
-   * Validates + canonicalises homeCounty in-place.
-   * - undefined => untouched
-   * - null / '' => cleared (set to undefined)
-   * - otherwise => must match allowed counties via parseCounty()
-   */
   private normaliseHomeCounty<T extends { homeCounty?: unknown }>(obj: T): T {
     if (!('homeCounty' in obj)) return obj;
 
     const value = obj.homeCounty;
 
-    // Allow "clear"
     if (value === null || value === '') {
-      // delete so mongoose $set doesn't store null/empty string
       delete (obj as any).homeCounty;
       return obj;
     }
 
-    // Validate + canonicalise if provided
     if (value !== undefined) {
       const parsed = parseCounty(value);
       if (!parsed) {
