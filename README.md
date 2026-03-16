@@ -1,7 +1,7 @@
 
 ![MIMOSA Logo](frontend/public/MIMOSA_Full_Logo.svg)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18770177.svg)](https://doi.org/10.5281/zenodo.18770177)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18770176.svg)](https://doi.org/10.5281/zenodo.18770176)
 
 **MIMOSA** is a system for genomic surveillance and outbreak investigation of microbial pathogens, developed within [_Genomic Medicine Sweden_](https://genomicmedicine.se/en/).  
 It supports the identification, monitoring, and visualisation of genetically related cases across regions by combining whole-genome sequencing data with epidemiological and geographic metadata.
@@ -97,7 +97,7 @@ The downloaded file can be edited and re-uploaded via the existing Excel bulk up
 
 ```
 ## Citation
-If you use MIMOSA, please cite the Zenodo record for the specific version used, using the following DOI:https://zenodo.org/records/18770177
+If you use MIMOSA, please cite the Zenodo record for the version used. The DOI https://doi.org/10.5281/zenodo.18770176 always resolves to the latest release.
 
 ##### Links
 
