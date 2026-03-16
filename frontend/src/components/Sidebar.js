@@ -124,7 +124,15 @@ const SidebarComponent = () => {
           </Fieldset>
         </div>
 
-        <div className="fixed-area">
+        <div
+          className="fixed-area"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+          }}
+        >
           <a
             className="navbar-brand"
             href="https://github.com/genomic-medicine-sweden/MIMOSA"
@@ -132,6 +140,17 @@ const SidebarComponent = () => {
             rel="noopener noreferrer"
           >
             <BsGithub size={30} style={{ color: "black" }} />
+          </a>
+          <a
+            href="https://doi.org/10.5281/zenodo.18770176"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://zenodo.org/badge/DOI/10.5281/zenodo.18770176.svg"
+              alt="DOI"
+              style={{ height: "20px" }}
+            />
           </a>
         </div>
       </Sidebar>
