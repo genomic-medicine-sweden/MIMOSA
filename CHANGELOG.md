@@ -1,3 +1,14 @@
+## [Unreleased]
+
+### Added
+- Optional SMTP-based email notification support via configurable MailModule
+- Test email API endpoint  to validate SMTP configuration
+- Environment-based configuration for SMTP settings and notification toggling
+
+### Changed
+
+### Fixed
+
 ## [v0.4.0]
 
 ### Added
