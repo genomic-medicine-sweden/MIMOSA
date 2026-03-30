@@ -9,6 +9,7 @@ import { SimilarityModule } from './similarity/similarity.module';
 import { LogsModule } from './logs/logs.module';
 import { ClusteringModule } from './clustering/clustering.module';
 import { DistanceModule } from './distance/distance.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { DistanceModule } from './distance/distance.module';
     LogsModule,
     ClusteringModule,
     DistanceModule,
+    MailModule,
   ],
 })
 export class AppModule {}
