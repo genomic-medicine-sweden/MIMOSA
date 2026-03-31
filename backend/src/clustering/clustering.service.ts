@@ -22,4 +22,8 @@ export class ClusteringService {
       .sort({ createdAt: -1 })
       .exec();
   }
+
+  watch() {
+    return this.model.watch();
+  }
 }

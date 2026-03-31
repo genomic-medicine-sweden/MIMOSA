@@ -20,6 +20,10 @@ export class FeaturesService {
     return this.featureModel.findOne({ 'properties.ID': sampleId }).exec();
   }
 
+  async findByIds(ids: string[]): Promise<Feature[]> {
+    return this.featureModel.find({ 'properties.ID': { $in: ids } }).exec();
+  }
+
   async updateBySampleId(
     sampleId: string,
     updatedProps: Partial<Feature['properties']>,
