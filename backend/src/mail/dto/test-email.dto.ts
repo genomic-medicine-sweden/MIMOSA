@@ -3,7 +3,8 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class TestEmailDto {
   @ApiPropertyOptional({
-    description: 'Recipient email address (leave empty to send to authenticated user)',
+    description:
+      'Recipient email address (leave empty to send to authenticated user)',
   })
   @IsOptional()
   @IsEmail()

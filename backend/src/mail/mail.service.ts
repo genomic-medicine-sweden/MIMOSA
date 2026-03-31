@@ -31,7 +31,7 @@ export class MailService {
 
   async sendMail(to: string[], subject: string, text: string) {
     if (!this.isEnabled()) {
-      this.logger.warn('Notifications disabled — skipping email');
+      console.warn('Notifications disabled — skipping email');
       return { skipped: true };
     }
 
@@ -44,7 +44,7 @@ export class MailService {
       text,
     });
 
-    this.logger.log(`Email sent to: ${to.join(', ')}`);
+    console.log(`Email sent to: ${to.join(', ')}`);
     return { sent: true };
   }
 }
