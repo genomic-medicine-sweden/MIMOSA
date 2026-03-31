@@ -10,6 +10,7 @@ import { LogsModule } from './logs/logs.module';
 import { ClusteringModule } from './clustering/clustering.module';
 import { DistanceModule } from './distance/distance.module';
 import { MailModule } from './mail/mail.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MailModule } from './mail/mail.module';
     ClusteringModule,
     DistanceModule,
     MailModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
