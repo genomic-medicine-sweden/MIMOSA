@@ -4,9 +4,11 @@
 - Optional SMTP-based email notification support via configurable MailModule
 - Test email API endpoint  to validate SMTP configuration
 - Environment-based configuration for SMTP settings and notification toggling
+- Notifications module with outbreak detection and outbreak alerts
+- API endpoints for retrieving outbreaks and notification history
 
 ### Changed
-
+- Configure MongoDB as a replica set to support change streams
 ### Fixed
 
 ## [v0.4.0]
