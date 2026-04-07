@@ -8,6 +8,8 @@ RUN npm install
 
 COPY backend/ .
 
+COPY shared /app/shared
+
 RUN npm run build
 
 EXPOSE 5000
