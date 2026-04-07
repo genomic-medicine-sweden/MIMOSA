@@ -3,13 +3,13 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Tooltip } from "primereact/tooltip";
-import postcodeData from "@/assets/postcode-coordinates.js";
+import postcodeData from "@shared/postcode-coordinates";
 import ExportButton from "@/components/export/ExportButton";
 import "primereact/resources/themes/saga-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import calculateDistance from "@/utils/distance.js";
-import HospitalCoordinates from "@/assets/hospital-coordinates";
+import HospitalCoordinates from "@shared/hospital-coordinates";
 
 const isModifiedRecently = (sampleId, logs) => {
   const log = logs.find((log) => log.sample_id === sampleId);
