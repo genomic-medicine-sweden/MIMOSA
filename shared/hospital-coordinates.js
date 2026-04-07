@@ -295,4 +295,4 @@ const HospitalCoordinates = {
   },
 };
 
-export default HospitalCoordinates;
+module.exports =  HospitalCoordinates;
