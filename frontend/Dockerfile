@@ -7,6 +7,8 @@ RUN npm install
 
 COPY frontend/ .
 
+COPY shared /app/shared
+
 COPY .env /app/.env
 
 ARG DOMAIN
