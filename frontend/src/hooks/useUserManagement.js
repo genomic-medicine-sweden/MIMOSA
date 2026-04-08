@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/apiFetch";
 
 export default function useUserManagement() {
   const [users, setUsers] = useState([]);
@@ -11,9 +12,9 @@ export default function useUserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users`,
+      );
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
       setUsers(data);
@@ -25,12 +26,12 @@ export default function useUserManagement() {
   };
 
   const createUser = async (newUser) => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify(newUser),
     });
+
     if (!res.ok) throw new Error(await res.text());
     const created = await res.json();
     setUsers((prev) => [...prev, created]);
@@ -38,7 +39,7 @@ export default function useUserManagement() {
   };
 
   const updateUser = async (originalEmail, updatedFields, index) => {
-    const res = await fetch(
+    const res = await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(originalEmail)}`,
       {
         method: "PATCH",
@@ -46,7 +47,6 @@ export default function useUserManagement() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        credentials: "include",
         body: JSON.stringify(updatedFields),
       },
     );
@@ -61,11 +61,10 @@ export default function useUserManagement() {
   };
 
   const deleteUser = async (email) => {
-    const res = await fetch(
+    const res = await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(email)}`,
       {
         method: "DELETE",
-        credentials: "include",
       },
     );
     if (!res.ok) throw new Error(await res.text());
@@ -73,12 +72,11 @@ export default function useUserManagement() {
   };
 
   const updatePassword = async (email, newPassword) => {
-    const res = await fetch(
+    const res = await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(email)}/password`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ newPassword }),
       },
     );

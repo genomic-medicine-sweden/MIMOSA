@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/apiFetch";
 
 export default function useSampleManagement() {
   const [samples, setSamples] = useState([]);
@@ -15,9 +16,8 @@ export default function useSampleManagement() {
   const fetchSamples = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${apiBase}/api/features`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`${apiBase}/api/features`);
+
       if (!res.ok) throw new Error("Failed to fetch samples");
       const data = await res.json();
       setSamples(data);
@@ -29,12 +29,9 @@ export default function useSampleManagement() {
   };
 
   const updateSample = async (sampleId, updatedProperties) => {
-    const res = await fetch(`${apiBase}/api/features/${sampleId}`, {
+    const res = await apiFetch(`${apiBase}/api/features/${sampleId}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedProperties),
     });
 
