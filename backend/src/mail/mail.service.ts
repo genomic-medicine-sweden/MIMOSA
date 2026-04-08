@@ -1,10 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
 
   constructor(private configService: ConfigService) {}
@@ -29,7 +28,7 @@ export class MailService {
     return this.transporter;
   }
 
-  async sendMail(to: string[], subject: string, text: string) {
+  async sendMail(to: string[], subject: string, html: string, text: string) {
     if (!this.isEnabled()) {
       console.warn('Notifications disabled — skipping email');
       return { skipped: true };
@@ -41,6 +40,7 @@ export class MailService {
       from: this.configService.get<string>('SMTP_FROM'),
       to: to.join(','),
       subject,
+      html,
       text,
     });
 
