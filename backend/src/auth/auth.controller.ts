@@ -3,6 +3,9 @@ import { ApiTags, ApiOAuth2, ApiExcludeController } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
+import { Get, Req } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from './jwt.guard';
 
 @ApiExcludeController()
 @ApiOAuth2(['password'])
@@ -27,6 +30,12 @@ export class AuthController {
       ...result,
       user: result.user,
     };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(@Req() req) {
+    return req.user;
   }
 
   @Post('logout')
