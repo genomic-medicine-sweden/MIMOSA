@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import FilteringLogic from "@/components/FilteringLogic";
 import Map from "@/components/Map";
+import { Dropdown } from "primereact/dropdown";
 
 export default function MyCountyView({ data }) {
   const [filteredData, setFilteredData] = useState([]);
@@ -12,7 +13,24 @@ export default function MyCountyView({ data }) {
   const [mapColor, setMapColor] = useState("green");
   const [markerSize, setMarkerSize] = useState(6);
 
+  const [analysisProfile, setAnalysisProfile] = useState(null);
+
   const infoRef = useRef(null);
+
+  const analysisProfiles = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    return [
+      ...new Set(
+        data.map((item) => item?.properties?.analysis_profile).filter(Boolean),
+      ),
+    ];
+  }, [data]);
+
+  useEffect(() => {
+    if (!analysisProfile && analysisProfiles.length > 0) {
+      setAnalysisProfile(analysisProfiles[0]);
+    }
+  }, [analysisProfiles, analysisProfile]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -51,6 +69,21 @@ export default function MyCountyView({ data }) {
 
   return (
     <>
+      {analysisProfiles.length > 0 && (
+        <div style={{ marginBottom: "0.5rem" }}>
+          <Dropdown
+            value={analysisProfile}
+            options={analysisProfiles.map((p) => ({
+              label: p.replace(/_/g, " "),
+              value: p,
+            }))}
+            onChange={(e) => setAnalysisProfile(e.value)}
+            placeholder="Select analysis profile"
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
+
       <div style={{ display: "none" }}>
         <FilteringLogic
           data={data}
@@ -62,6 +95,8 @@ export default function MyCountyView({ data }) {
           setCountyFilter={setCountyFilter}
           dateRange={null}
           setDateRange={() => {}}
+          analysisProfile={analysisProfile}
+          setAnalysisProfile={setAnalysisProfile}
         />
       </div>
 
