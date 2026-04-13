@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -10,22 +12,21 @@ import { LogsModule } from './logs/logs.module';
 import { ClusteringModule } from './clustering/clustering.module';
 import { DistanceModule } from './distance/distance.module';
 import { MailModule } from './mail/mail.module';
+import { OutbreaksModule } from './outbreaks/outbreaks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGO_URI_DOCKER', {
-          infer: true,
-        }),
+        uri: configService.get<string>('MONGO_URI_DOCKER', { infer: true }),
       }),
       inject: [ConfigService],
     }),
-
+    ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     AuthModule,
     UsersModule,
     FeaturesModule,
@@ -34,6 +35,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ClusteringModule,
     DistanceModule,
     MailModule,
+    OutbreaksModule,
     NotificationsModule,
   ],
 })
