@@ -1,179 +1,64 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Cron } from '@nestjs/schedule';
+import { OnEvent } from '@nestjs/event-emitter';
 
-import { Feature } from '../features/features.schema';
 import { Notification } from './notification.schema';
 import { User } from '../users/users.schema';
+import { PendingNotification } from './pending-notification.schema';
 
-import { ClusteringService } from '../clustering/clustering.service';
-import { OutbreaksService } from './outbreaks.service';
 import { MailService } from '../mail/mail.service';
+import { OutbreakDetectedEvent } from '../outbreaks/outbreak-detected.event';
+import outbreakRules from '../config/outbreak-rules.json';
+
+import {
+  buildAlertEmail,
+  buildDailySummaryEmail,
+  buildWeeklySummaryEmail,
+  buildAlertText,
+  buildDailySummaryText,
+  buildWeeklySummaryText,
+} from '../mail/templates/email-templates';
 
 @Injectable()
-export class NotificationsService implements OnModuleInit {
-  private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
-
+export class NotificationsService {
   constructor(
-    @InjectModel(Feature.name)
-    private readonly featureModel: Model<Feature>,
-
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
 
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
 
-    private readonly clusteringService: ClusteringService,
-    private readonly outbreaksService: OutbreaksService,
+    @InjectModel(PendingNotification.name)
+    private readonly pendingNotificationModel: Model<PendingNotification>,
+
     private readonly mailService: MailService,
   ) {}
 
-  private scheduleOutbreakCheck(analysis_profile: string) {
-    const existing = this.debounceTimers.get(analysis_profile);
-    if (existing) clearTimeout(existing);
+  @OnEvent('outbreaks.detected')
+  async handleOutbreakDetected(event: OutbreakDetectedEvent) {
+    const { analysis_profile, outbreaks } = event;
 
-    const timer = setTimeout(() => {
-      this.debounceTimers.delete(analysis_profile);
-      this.handleNewClustering(analysis_profile).catch((err) =>
-        console.error(
-          `[Notifications] Error in outbreak check for ${analysis_profile}:`,
-          err,
-        ),
-      );
-    }, 5000);
+    await this.notificationModel.deleteMany({
+      analysis_profile,
+      clusterId: { $nin: outbreaks.map((o) => o.clusterId) },
+    });
 
-    this.debounceTimers.set(analysis_profile, timer);
-  }
+    const alreadySent = await this.notificationModel.find({
+      clusterId: { $in: outbreaks.map((o) => o.clusterId) },
+      analysis_profile,
+    });
 
-  async onModuleInit() {
-    console.log(
-      '[Notifications] Service initializing, setting up change streams...',
+    const alreadySentIds = new Set(alreadySent.map((n) => n.clusterId));
+
+    const newOutbreaks = outbreaks.filter(
+      (o) => !alreadySentIds.has(o.clusterId),
     );
 
-    const clusteringStream = this.clusteringService.watch();
-
-    clusteringStream.on('change', (change) => {
-      try {
-        if (change.operationType !== 'insert') return;
-
-        const analysis_profile = change.fullDocument?.analysis_profile;
-        if (!analysis_profile) {
-          console.warn(
-            '[Notifications] Clustering insert has no analysis_profile, skipping',
-          );
-          return;
-        }
-
-        console.log(
-          `[Notifications] New clustering inserted for profile: ${analysis_profile}, scheduling outbreak check in 5s...`,
-        );
-        this.scheduleOutbreakCheck(analysis_profile);
-      } catch (err) {
-        console.error(
-          '[Notifications] Error handling clustering change event:',
-          err,
-        );
-      }
-    });
-
-    clusteringStream.on('error', (err) => {
-      console.error('[Notifications] Clustering change stream error:', err);
-    });
-
-    const featureStream = this.featureModel.watch();
-
-    featureStream.on('change', async (change) => {
-      try {
-        if (!['insert', 'update', 'replace'].includes(change.operationType))
-          return;
-
-        const docId = change.documentKey?._id;
-        if (!docId) {
-          console.warn(
-            '[Notifications] Feature change has no documentKey, skipping',
-          );
-          return;
-        }
-
-        const feature = await this.featureModel.findById(docId);
-        if (!feature) {
-          console.warn(
-            `[Notifications] Feature ${docId} not found after change, skipping`,
-          );
-          return;
-        }
-
-        const analysis_profile = feature.properties?.analysis_profile;
-        if (!analysis_profile) {
-          console.warn(
-            `[Notifications] Feature ${docId} has no analysis_profile, skipping`,
-          );
-          return;
-        }
-
-        console.log(
-          `[Notifications] Feature ${docId} updated for profile: ${analysis_profile}, scheduling outbreak check in 5s...`,
-        );
-        this.scheduleOutbreakCheck(analysis_profile);
-      } catch (err) {
-        console.error(
-          '[Notifications] Error handling feature change event:',
-          err,
-        );
-      }
-    });
-
-    featureStream.on('error', (err) => {
-      console.error('[Notifications] Feature change stream error:', err);
-    });
-
-    console.log(
-      '[Notifications] Change streams ready — watching clustering and features collections',
-    );
-  }
-
-  private async handleNewClustering(analysis_profile: string) {
-    console.log(
-      `[Notifications] Running outbreak check for profile: ${analysis_profile}`,
-    );
-
-    const outbreaks =
-      await this.outbreaksService.getLatestOutbreaks(analysis_profile);
-
-    if (!outbreaks || outbreaks.length === 0) {
+    if (!newOutbreaks.length) {
       console.log(
-        `[Notifications] No outbreaks detected for ${analysis_profile} — no email sent`,
-      );
-      return;
-    }
-
-    console.log(
-      `[Notifications] ${outbreaks.length} outbreak(s) detected for ${analysis_profile}, checking for new ones...`,
-    );
-
-    const newOutbreaks: typeof outbreaks = [];
-
-    for (const o of outbreaks) {
-      const exists = await this.notificationModel.findOne({
-        clusterId: o.clusterId,
-      });
-
-      if (!exists) {
-        newOutbreaks.push(o);
-
-        await this.notificationModel.create({
-          clusterId: o.clusterId,
-          total: o.total,
-          counties: o.counties,
-          analysis_profile: o.analysis_profile,
-        });
-      }
-    }
-
-    if (newOutbreaks.length === 0) {
-      console.log(
-        `[Notifications] All outbreaks for ${analysis_profile} have already been notified — no email sent`,
+        `[Notifications] All clusters already notified for ${analysis_profile}, skipping`,
       );
       return;
     }
@@ -182,53 +67,139 @@ export class NotificationsService implements OnModuleInit {
       'notificationPreferences.outbreakAlerts': true,
     });
 
-    if (!users.length) {
-      console.log('[Notifications] No users configured for alerts');
-      return;
-    }
+    const profiles = outbreakRules.profiles as Record<
+      string,
+      { detectionThreshold: number }
+    >;
 
     let totalSent = 0;
 
     for (const user of users) {
       const prefs = user.notificationPreferences || {};
-
       const frequency = prefs.frequency || 'immediate';
-      const minSize = prefs.minClusterSize ?? 1;
+      const alertThresholds = (prefs.alertThreshold as unknown as Record<string, number>) ?? {};
       const counties = prefs.counties || [];
 
-      const relevantOutbreaks = newOutbreaks.filter((o) => {
-        if (o.total < minSize) return false;
+      const userOutbreaks = newOutbreaks.filter((o) => {
+        const detectionThreshold =
+          profiles[o.analysis_profile]?.detectionThreshold ??
+          outbreakRules.default.detectionThreshold;
 
+        const alertThreshold =
+          alertThresholds[o.analysis_profile] ??
+          alertThresholds['default'] ??
+          detectionThreshold;
+
+        if (o.total < alertThreshold) return false;
         if (counties.length > 0) {
           return o.counties.some((c) => counties.includes(c));
         }
-
         return true;
       });
 
-      if (!relevantOutbreaks.length) continue;
-
-      const message = relevantOutbreaks
-        .map(
-          (o) =>
-            `Cluster ${o.clusterId}: ${o.total} cases across ${o.counties.join(', ')}`,
-        )
-        .join('\n');
+      if (!userOutbreaks.length) continue;
 
       if (frequency === 'immediate') {
+        const html = buildAlertEmail(userOutbreaks);
+        const text = buildAlertText(userOutbreaks);
+
         await this.mailService.sendMail(
           [user.email],
           'MIMOSA Outbreak Alert',
-          message,
+          html,
+          text,
         );
+
         totalSent++;
       } else {
-        // TODO: queue for daily/weekly notifications
+        for (const o of userOutbreaks) {
+          await this.pendingNotificationModel.findOneAndUpdate(
+            { userId: user._id, clusterId: o.clusterId },
+            {
+              $set: {
+                total: o.total,
+                counties: o.counties,
+                analysis_profile: o.analysis_profile,
+                createdAt: new Date(),
+              },
+            },
+            { upsert: true, new: true },
+          );
+        }
       }
     }
 
-    console.log(
-      `[Notifications] Sent alerts to ${totalSent} user(s) for ${analysis_profile}`,
+    await this.notificationModel.insertMany(
+      newOutbreaks.map((o) => ({
+        clusterId: o.clusterId,
+        total: o.total,
+        counties: o.counties,
+        sampleIds: o.sampleIds,
+        analysis_profile: o.analysis_profile,
+        sentAt: new Date(),
+      })),
     );
+
+    console.log(
+      `[Notifications] Sent ${totalSent} immediate alert(s) for ${analysis_profile}`,
+    );
+  }
+
+  @Cron('0 8 * * *')
+  async sendDailyNotifications() {
+    const users = await this.userModel.find({
+      'notificationPreferences.outbreakAlerts': true,
+      'notificationPreferences.frequency': 'daily',
+    });
+
+    for (const user of users) {
+      const pending = await this.pendingNotificationModel.find({
+        userId: user._id,
+      });
+      if (!pending.length) continue;
+
+      const html = buildDailySummaryEmail(pending);
+      const text = buildDailySummaryText(pending);
+
+      await this.mailService.sendMail(
+        [user.email],
+        'MIMOSA Daily Outbreak Summary',
+        html,
+        text,
+      );
+
+      await this.pendingNotificationModel.deleteMany({ userId: user._id });
+    }
+
+    console.log('[Notifications] Daily notifications sent');
+  }
+
+  @Cron('0 8 * * 1')
+  async sendWeeklyNotifications() {
+    const users = await this.userModel.find({
+      'notificationPreferences.outbreakAlerts': true,
+      'notificationPreferences.frequency': 'weekly',
+    });
+
+    for (const user of users) {
+      const pending = await this.pendingNotificationModel.find({
+        userId: user._id,
+      });
+      if (!pending.length) continue;
+
+      const html = buildWeeklySummaryEmail(pending);
+      const text = buildWeeklySummaryText(pending);
+
+      await this.mailService.sendMail(
+        [user.email],
+        'MIMOSA Weekly Outbreak Summary',
+        html,
+        text,
+      );
+
+      await this.pendingNotificationModel.deleteMany({ userId: user._id });
+    }
+
+    console.log('[Notifications] Weekly notifications sent');
   }
 }
