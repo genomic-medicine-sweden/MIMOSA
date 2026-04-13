@@ -1,29 +1,58 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEmail } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEmail,
+  IsBoolean,
+  IsEnum,
+  Min,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
+class NotificationPreferencesDto {
+  @IsOptional()
+  @IsBoolean()
+  outbreakAlerts?: boolean;
+
+  @IsOptional()
+  @IsEnum(['immediate', 'daily', 'weekly'])
+  frequency?: 'immediate' | 'daily' | 'weekly';
+
+  @IsOptional()
+  @IsObject()
+  alertThreshold?: Record<string, number>;
+}
 export class UpdateUserFieldsDto {
-  @ApiPropertyOptional({ description: 'Email address' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   newEmail?: string;
 
-  @ApiPropertyOptional({ description: 'First name' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   firstName?: string;
 
-  @ApiPropertyOptional({ description: 'Last name' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   lastName?: string;
 
-  @ApiPropertyOptional({ description: 'Home county' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   homeCounty?: string;
 
-  @ApiPropertyOptional({ description: 'Role (admin, user)' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   role?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NotificationPreferencesDto)
+  notificationPreferences?: NotificationPreferencesDto;
 }

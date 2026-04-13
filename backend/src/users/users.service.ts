@@ -19,14 +19,11 @@ export class UsersService {
 
   private normaliseHomeCounty<T extends { homeCounty?: unknown }>(obj: T): T {
     if (!('homeCounty' in obj)) return obj;
-
     const value = obj.homeCounty;
-
     if (value === null || value === '') {
       delete (obj as any).homeCounty;
       return obj;
     }
-
     if (value !== undefined) {
       const parsed = parseCounty(value);
       if (!parsed) {
@@ -34,7 +31,6 @@ export class UsersService {
       }
       (obj as any).homeCounty = parsed;
     }
-
     return obj;
   }
 
@@ -54,6 +50,7 @@ export class UsersService {
     if (!existingUser) return null;
 
     this.normaliseHomeCounty(updates);
+
     if (
       'homeCounty' in updates &&
       updates.homeCounty === existingUser.homeCounty
@@ -62,12 +59,27 @@ export class UsersService {
       updates = rest;
     }
 
-    if (Object.keys(updates).length === 0) {
+    const mongoUpdate: any = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (key === 'notificationPreferences' && typeof value === 'object') {
+        for (const [prefKey, prefValue] of Object.entries(value)) {
+          mongoUpdate[`notificationPreferences.${prefKey}`] = prefValue;
+        }
+      } else {
+        mongoUpdate[key] = value;
+      }
+    }
+
+    if (Object.keys(mongoUpdate).length === 0) {
       return this.userModel.findOne({ email: lowerEmail }).exec();
     }
 
     return this.userModel
-      .findOneAndUpdate({ email: lowerEmail }, updates, { new: true })
+      .findOneAndUpdate(
+        { email: lowerEmail },
+        { $set: mongoUpdate },
+        { new: true },
+      )
       .exec();
   }
 
@@ -96,17 +108,16 @@ export class UsersService {
     passwordHash: string;
   }): Promise<User> {
     this.normaliseHomeCounty(data);
-
     const user = new this.userModel({
       ...data,
       email: data.email.toLowerCase(),
     });
-
     return user.save();
   }
 
   async findAll(): Promise<Omit<User, 'passwordHash' | '__v' | '_id'>[]> {
     const users = await this.userModel.find().lean();
+
     return users.map(({ passwordHash, __v, _id, ...rest }) => rest) as Omit<
       User,
       'passwordHash' | '__v' | '_id'
@@ -118,7 +129,6 @@ export class UsersService {
   ): Promise<Omit<User, 'passwordHash' | '__v' | '_id'> | null> {
     const user = await this.userModel.findById(userId).lean();
     if (!user) return null;
-
     const { passwordHash, __v, _id, ...rest } = user;
     return rest as Omit<User, 'passwordHash' | '__v' | '_id'>;
   }

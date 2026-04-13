@@ -19,17 +19,17 @@ export class User extends Document {
 
   @Prop({
     type: {
-      outbreakAlerts: { type: Boolean, default: true },
+      outbreakAlerts: { type: Boolean, default: false },
 
       frequency: {
         type: String,
         enum: ['immediate', 'daily', 'weekly'],
-        default: 'immediate',
+        default: 'daily',
       },
 
-      counties: { type: [String], default: [] }, 
+      counties: { type: [String], default: [] },
 
-      minClusterSize: { type: Number, default: 1 },
+      alertThreshold: { type: Map, of: Number, default: {} },
     },
     default: {},
   })
@@ -37,7 +37,7 @@ export class User extends Document {
     outbreakAlerts: boolean;
     frequency: 'immediate' | 'daily' | 'weekly';
     counties: string[];
-    minClusterSize: number;
+    alertThreshold: Record<string, number>;
   };
 
   @Prop({ default: Date.now })
