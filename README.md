@@ -20,7 +20,48 @@ vi .env #edit Domain and JWT_SECRET
 docker compose up -d
 
 ```
+
 MIMOSA can then be viewed in the browser at localhost:3000
+
+
+> Note: MIMOSA requires MongoDB to be running as a replica set in order to detect new outbreaks and dispatch notifications.
+> The provided `docker-compose.yml` handles this automatically.
+> If connecting to an external MongoDB instance, ensure it is configured with `--replSet rs0`.
+
+## Email Notifications (optional)
+
+MIMOSA can send outbreak alert emails when clusters exceed configured thresholds.
+Notifications are disabled by default and require an SMTP server.
+
+Set the following variables in your `.env` file:
+```
+NOTIFICATIONS_ENABLED=true
+SMTP_HOST=your.smtp.server
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_REJECT_UNAUTHORIZED=false
+SMTP_FROM=no-reply@example.com
+```
+
+### Outbreak thresholds vs notification thresholds
+
+These are two separate concepts:
+
+- **Outbreak threshold** — the minimum number of cases in a cluster for MIMOSA to *consider it an outbreak at all*. This is a system-wide setting defined, and may be specified per analysis profile in `backend/src/config/outbreak-rules.json`. Clusters below this threshold are never surfaced, regardless of user preferences.
+
+- **Notification threshold** — the minimum number of cases a cluster must have before *a specific user* is notified. This is configured per user in the **Settings** page and can be set equal to or higher than the outbreak threshold, but never lower.
+
+In practice: if the outbreak threshold for a profile is 5, a cluster of 3 will never trigger any notifications. If a user sets their notification threshold to 8, they will only be notified once a cluster reaches 8 cases.
+
+### User preferences
+
+Once notifications are enabled, each user can configure their preferences from the **Settings** page:
+
+- **Outbreak Alerts** — enable or disable email notifications entirely
+- **Frequency** — receive alerts immediately, or as a daily (08:00) or weekly (Monday 08:00) digest
+- **Alert Threshold** — per-profile minimum case count required to notify that user
+
+To verify that your SMTP configuration is working, send a test email via `GET /api/mail/test`.
 
 ## Create user
 ```
