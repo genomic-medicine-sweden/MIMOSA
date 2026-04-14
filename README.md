@@ -28,7 +28,33 @@ MIMOSA can then be viewed in the browser at localhost:3000
 > The provided `docker-compose.yml` handles this automatically.
 > If connecting to an external MongoDB instance, ensure it is configured with `--replSet rs0`.
 
-## Email Notifications (optional)
+
+### Deployment Behind Reverse Proxy / Subpath 
+
+MIMOSA can be deployed behind a reverse proxy and/or served from a subpath (e.g. `/mimosa`).
+
+#### Configuration
+
+To enable this, update the following variables in your `.env` file:
+
+```
+MIMOSA_RELATIVE_URL_BASE=
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_BONSAI_URL=
+PUBLIC_ORIGIN=
+BONSAI_API_PRIVATE_URL=
+MIMOSA_API_PRIVATE_URL_BASE=
+```
+Leave all values empty for standard local or direct deployments.
+
+
+- In most cases, you only need to set:
+  - `PUBLIC_ORIGIN` (e.g. `https://your-domain`)
+  - `MIMOSA_RELATIVE_URL_BASE` (only if using a subpath, e.g. `/mimosa`)
+- The remaining variables are optional and intended for advanced setups (e.g. separate internal/external routing).
+
+
+## Email Notifications
 
 MIMOSA can send outbreak alert emails when clusters exceed configured thresholds.
 Notifications are disabled by default and require an SMTP server.
