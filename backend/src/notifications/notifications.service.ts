@@ -77,7 +77,8 @@ export class NotificationsService {
     for (const user of users) {
       const prefs = user.notificationPreferences || {};
       const frequency = prefs.frequency || 'immediate';
-      const alertThresholds = (prefs.alertThreshold as unknown as Record<string, number>) ?? {};
+      const alertThresholds =
+        (prefs.alertThreshold as unknown as Record<string, number>) ?? {};
       const counties = prefs.counties || [];
 
       const userOutbreaks = newOutbreaks.filter((o) => {
