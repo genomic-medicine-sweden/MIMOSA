@@ -11,16 +11,17 @@ const SidebarComponent = () => {
   const [mimosaInfo, setMimosaInfo] = useState("");
   const [resources, setResources] = useState([]);
   const [collapsedState, setCollapsedState] = useState([]);
+  const basePath = process.env.basePath || "";
 
   useEffect(() => {
-    fetch("/mimosa-info.md")
+    fetch(`${basePath}/mimosa-info.md`)
       .then((response) => response.text())
       .then(setMimosaInfo)
       .catch((err) => console.error("Failed to load mimosa-info.md", err));
   }, []);
 
   useEffect(() => {
-    fetch("/resources.json")
+    fetch(`${basePath}/resources.json`)
       .then((response) => response.json())
       .then(setResources)
       .catch((err) => console.error("Failed to load resources.json", err));
@@ -62,7 +63,7 @@ const SidebarComponent = () => {
       >
         <div className="sidebar-header">
           <img
-            src="/MIMOSA_Full_Logo.svg"
+            src={`${basePath}/MIMOSA_Full_Logo.svg`}
             alt="MIMOSA logo"
             style={{
               display: "block",

@@ -22,9 +22,14 @@ def validate_upload_token(token):
     """
     Validate that the provided token corresponds to an actual user in MIMOSA.
     """
+    mimosa_api_base = (
+        os.getenv("MIMOSA_API_PRIVATE_URL_BASE")
+        or f"http://{mimosa_domain}:{backend_port}"
+    )
+
     try:
         resp = requests.get(
-            f"http://{mimosa_domain}:{backend_port}/api/users/me",
+            f"{mimosa_api_base}/api/users/me",
             headers={"Authorization": f"Bearer {token}"},
             timeout=10,
         )

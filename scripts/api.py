@@ -41,7 +41,9 @@ def load_credentials(credentials_file):
     if not domain or not bonsai_port:
         raise ValueError("DOMAIN and BONSAI_API_PORT must be set in the .env file.")
 
-    bonsai_api_url = f"http://{domain}:{bonsai_port}"
+    bonsai_api_url = (
+        os.getenv("BONSAI_API_PRIVATE_URL") or f"http://{domain}:{bonsai_port}"
+    )
 
     return {
         "bonsai_api_url": bonsai_api_url,
@@ -88,7 +90,11 @@ def authenticate_mimosa_user(credentials):
     if not domain or not backend_port:
         raise ValueError("DOMAIN and BACKEND_PORT must be set in the .env file.")
 
-    mimosa_api_url = f"http://{domain}:{backend_port}/api/auth/login"
+    mimosa_api_base = (
+        os.getenv("MIMOSA_API_PRIVATE_URL_BASE") or f"http://{domain}:{backend_port}"
+    )
+
+    mimosa_api_url = f"{mimosa_api_base}/api/auth/login"
 
     try:
         response = requests.post(
