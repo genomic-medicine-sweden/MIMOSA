@@ -9,7 +9,7 @@ import "@/styles/App.css";
 import SidePanel from "@/components/SidePanel";
 import ImageExport from "@/components/export/ImageExport";
 import { generateInfoContent } from "@/utils/info";
-import { computeOutbreaks } from "@/utils/outbreakDetection";
+import useOutbreaks from "@/hooks/useOutbreaks";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -23,6 +23,9 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
   const [selectedCounty, setSelectedCounty] = useState("All");
   const [countyFilter, setCountyFilter] = useState([]);
   const [visualisedData, setVisualisedData] = useState([]);
+  const [analysisProfile, setAnalysisProfile] = useState(
+    "staphylococcus_aureus",
+  );
 
   const mainContentRef = useRef(null);
   const infoRef = useRef({ countyCounts: {} });
@@ -57,10 +60,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
     setInfoContent(content);
   };
 
-  const outbreaks = useMemo(() => {
-    return computeOutbreaks(filteredData, hospitalView);
-  }, [filteredData, hospitalView]);
-
+  const { outbreaks } = useOutbreaks(analysisProfile);
   return (
     <div className="container">
       <header className="header">
@@ -89,6 +89,8 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
             setCountyFilter={setCountyFilter}
             dateRange={dateRange}
             setDateRange={setDateRange}
+            analysisProfile={analysisProfile}
+            setAnalysisProfile={setAnalysisProfile}
           />
         </div>
       </nav>

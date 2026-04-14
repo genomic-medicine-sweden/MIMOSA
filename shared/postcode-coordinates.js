@@ -94075,4 +94075,4 @@ const postcodeCoordinates = {
     County: "Uppsala",
   },
 };
-export default postcodeCoordinates;
+module.exports =  postcodeCoordinates;

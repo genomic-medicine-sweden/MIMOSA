@@ -1,0 +1,12 @@
+{
+  "default": {
+    "detectionThreshold": 2,
+    "requireCountyResolution": true
+  },
+  "profiles": {
+    "staphylococcus_aureus": {
+      "detectionThreshold": 2,
+      "requireCountyResolution": true
+    }
+  }
+}

@@ -11,16 +11,17 @@ const SidebarComponent = () => {
   const [mimosaInfo, setMimosaInfo] = useState("");
   const [resources, setResources] = useState([]);
   const [collapsedState, setCollapsedState] = useState([]);
+  const basePath = process.env.basePath || "";
 
   useEffect(() => {
-    fetch("/mimosa-info.md")
+    fetch(`${basePath}/mimosa-info.md`)
       .then((response) => response.text())
       .then(setMimosaInfo)
       .catch((err) => console.error("Failed to load mimosa-info.md", err));
   }, []);
 
   useEffect(() => {
-    fetch("/resources.json")
+    fetch(`${basePath}/resources.json`)
       .then((response) => response.json())
       .then(setResources)
       .catch((err) => console.error("Failed to load resources.json", err));
@@ -62,7 +63,7 @@ const SidebarComponent = () => {
       >
         <div className="sidebar-header">
           <img
-            src="/MIMOSA_Full_Logo.svg"
+            src={`${basePath}/MIMOSA_Full_Logo.svg`}
             alt="MIMOSA logo"
             style={{
               display: "block",
@@ -124,7 +125,15 @@ const SidebarComponent = () => {
           </Fieldset>
         </div>
 
-        <div className="fixed-area">
+        <div
+          className="fixed-area"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+          }}
+        >
           <a
             className="navbar-brand"
             href="https://github.com/genomic-medicine-sweden/MIMOSA"
@@ -132,6 +141,17 @@ const SidebarComponent = () => {
             rel="noopener noreferrer"
           >
             <BsGithub size={30} style={{ color: "black" }} />
+          </a>
+          <a
+            href="https://doi.org/10.5281/zenodo.18770176"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://zenodo.org/badge/DOI/10.5281/zenodo.18770176.svg"
+              alt="DOI"
+              style={{ height: "20px" }}
+            />
           </a>
         </div>
       </Sidebar>

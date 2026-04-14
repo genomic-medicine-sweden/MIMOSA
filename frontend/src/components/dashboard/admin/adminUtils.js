@@ -1,4 +1,4 @@
-import postcodeCoordinates from "@/assets/postcode-coordinates";
+import postcodeCoordinates from "@shared/postcode-coordinates";
 
 export const fieldMeta = {
   firstName: { label: "First Name" },

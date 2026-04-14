@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
+import { apiFetch } from "@/utils/apiFetch";
 
 export default function useAppData() {
   const [data, setData] = useState([]);
@@ -17,10 +18,10 @@ export default function useAppData() {
 
         const [featuresRes, similarityRes, logsRes, clusteringRes] =
           await Promise.all([
-            fetch(`${apiBase}/api/features`, { credentials: "include" }),
-            fetch(`${apiBase}/api/similarity`, { credentials: "include" }),
-            fetch(`${apiBase}/api/logs`, { credentials: "include" }),
-            fetch(`${apiBase}/api/clustering`, { credentials: "include" }),
+            apiFetch(`${apiBase}/api/features`),
+            apiFetch(`${apiBase}/api/similarity`),
+            apiFetch(`${apiBase}/api/logs`),
+            apiFetch(`${apiBase}/api/clustering`),
           ]);
 
         const features = await featuresRes.json();

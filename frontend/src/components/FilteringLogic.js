@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import postcodeCoordinates from "@/assets/postcode-coordinates";
+import postcodeCoordinates from "@shared/postcode-coordinates";
 import { MultiSelect } from "primereact/multiselect";
 import { FloatLabel } from "primereact/floatlabel";
 import "primeicons/primeicons.css";
@@ -21,14 +21,16 @@ const FilteringLogic = ({
   setCountyFilter,
   dateRange,
   setDateRange,
+  analysisProfile,
+  setAnalysisProfile,
 }) => {
   const [postcodeFilter, setPostcodeFilter] = useState([]);
   const [idFilter, setIdFilter] = useState([]);
   const [hospitalFilter, setHospitalFilter] = useState([]);
   const [Cluster_IDFilter, setCluster_IDFilter] = useState([]);
-  const [analysisProfileFilter, setAnalysisProfileFilter] = useState(
-    "staphylococcus_aureus",
-  );
+
+  const [analysisProfileFilter, setAnalysisProfileFilter] =
+    useState(analysisProfile);
 
   const [Cluster_ID, setCluster_ID] = useState([]);
   const [analysisProfiles, setAnalysisProfiles] = useState([]);
@@ -38,6 +40,14 @@ const FilteringLogic = ({
   const [postalTownFilter, setPostalTownFilter] = useState([]);
   const [postalTowns, setPostalTowns] = useState([]);
   const [counties, setCounties] = useState([]);
+
+  useEffect(() => {
+    setAnalysisProfileFilter(analysisProfile);
+  }, [analysisProfile]);
+
+  useEffect(() => {
+    setAnalysisProfile(analysisProfileFilter);
+  }, [analysisProfileFilter, setAnalysisProfile]);
 
   useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) return;
@@ -190,7 +200,6 @@ const FilteringLogic = ({
       setCountyFilter([]);
     }
   };
-
   return (
     <div className="card">
       <div className="card flex flex-wrap justify-content-center gap-3">

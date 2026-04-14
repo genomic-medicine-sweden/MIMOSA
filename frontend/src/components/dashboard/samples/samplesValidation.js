@@ -1,5 +1,5 @@
-import postcodeCoordinates from "@/assets/postcode-coordinates";
-import HospitalCoordinates from "@/assets/hospital-coordinates";
+import postcodeCoordinates from "@shared/postcode-coordinates";
+import HospitalCoordinates from "@shared/hospital-coordinates";
 
 export const validatePostCode = (value) => {
   if (!value?.trim()) return "";

@@ -31,7 +31,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const domain = this.configService.get<string>('DOMAIN');
     const port = this.configService.get<string>('FRONTEND_PORT');
-    const frontendOrigin = `http://${domain}:${port}`;
+    const frontendOrigin =
+      this.configService.get<string>('PUBLIC_ORIGIN') ||
+      `http://${domain}:${port}`;
 
     const allowedUnauthenticatedGETs = [
       '/api/similarity',

@@ -12,5 +12,6 @@ import { Clustering, ClusteringSchema } from './clustering.schema';
   ],
   controllers: [ClusteringController],
   providers: [ClusteringService],
+  exports: [ClusteringService],
 })
 export class ClusteringModule {}

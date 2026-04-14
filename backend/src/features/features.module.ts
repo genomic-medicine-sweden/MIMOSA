@@ -12,5 +12,6 @@ import { LogsModule } from '../logs/logs.module';
   ],
   controllers: [FeaturesController],
   providers: [FeaturesService],
+  exports: [FeaturesService],
 })
 export class FeaturesModule {}

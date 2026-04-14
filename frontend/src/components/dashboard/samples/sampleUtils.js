@@ -1,4 +1,4 @@
-import HospitalCoordinates from "@/assets/hospital-coordinates";
+import HospitalCoordinates from "@shared/hospital-coordinates";
 
 export const hospitalOptions = [
   { label: "", value: "" },

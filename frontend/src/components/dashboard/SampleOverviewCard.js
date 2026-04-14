@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useAppData from "@/hooks/useAppData";
-import postcodeData from "@/assets/postcode-coordinates";
+import postcodeData from "@shared/postcode-coordinates";
 
 export default function SampleOverviewCard() {
   const { data: enrichedSamples } = useAppData();

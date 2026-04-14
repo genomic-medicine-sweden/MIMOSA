@@ -6,7 +6,6 @@ const OutbreakAlert = ({ outbreaks }) => {
   const [isMinimised, setIsMinimised] = useState(false);
 
   const hasOutbreaks = Array.isArray(outbreaks) && outbreaks.length > 0;
-
   if (!hasOutbreaks) {
     return (
       <Button
@@ -82,60 +81,29 @@ const OutbreakAlert = ({ outbreaks }) => {
         style={{
           flex: 1,
           minHeight: 0,
-
           overflowY: "auto",
         }}
       >
-        {outbreaks.map((cluster) => {
-          const counties = cluster.counties.map((c) => c.county);
-          const countyCount = counties.length;
-
-          const renderCountyList = () => {
-            if (countyCount === 1) {
-              return (
-                <>
-                  in <strong>{counties[0]}</strong>
-                </>
-              );
-            }
-
-            if (countyCount === 2) {
-              return (
-                <>
-                  in <strong>{counties[0]}</strong> and{" "}
-                  <strong>{counties[1]}</strong>
-                </>
-              );
-            }
-
-            if (countyCount <= 3) {
-              return (
-                <>
-                  in{" "}
-                  {counties.slice(0, -1).map((county, idx) => (
-                    <React.Fragment key={`${county}-${idx}`}>
-                      <strong>{county}</strong>
-                      {idx < countyCount - 2 ? ", " : " "}
-                    </React.Fragment>
-                  ))}
-                  and <strong>{counties[countyCount - 1]}</strong>
-                </>
-              );
-            }
-
-            return <>across {countyCount} counties</>;
-          };
-
-          return (
-            <div
-              key={cluster.clusterId}
-              style={{ marginBottom: "0.5rem", lineHeight: 1.3 }}
-            >
-              <strong>Cluster {cluster.clusterId}</strong> — {cluster.total}{" "}
-              case{cluster.total !== 1 ? "s" : ""} {renderCountyList()}
-            </div>
-          );
-        })}
+        {outbreaks.map((cluster) => (
+          <div
+            key={cluster.clusterId}
+            style={{ marginBottom: "0.5rem", lineHeight: 1.3 }}
+          >
+            {cluster.summary || (
+              <>
+                <strong>Cluster {cluster.clusterId}</strong> — {cluster.total}{" "}
+                case
+                {cluster.total !== 1 ? "s" : ""} in{" "}
+                {cluster.counties.map((c, i) => (
+                  <span key={i}>
+                    {typeof c === "string" ? c : c.county}
+                    {i < cluster.counties.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </Card>
   );

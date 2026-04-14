@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/apiFetch";
 
 export default function useDistance(analysisProfile) {
   const [samples, setSamples] = useState([]);
@@ -19,9 +20,9 @@ export default function useDistance(analysisProfile) {
       setError(null);
 
       try {
-        const res = await fetch(`${apiBase}/api/distance/${analysisProfile}`, {
-          credentials: "include",
-        });
+        const res = await apiFetch(
+          `${apiBase}/api/distance/${analysisProfile}`,
+        );
 
         if (!res.ok) {
           throw new Error("Failed to fetch distance matrix");

@@ -1,3 +1,36 @@
+## [Unreleased]
+
+### Added
+
+- Optional SMTP-based email notification support via configurable MailModule
+- Test email API endpoint to validate SMTP configuration
+- Environment-based configuration for SMTP settings and notification toggling
+- Outbreak detection with configurable rules per analysis profile
+- User notification preferences:
+  - Enable/disable alerts
+  - Delivery frequency (immediate, daily, weekly)
+  - Per-profile alert threshold
+- Notification history displayed in the dashboard notification page
+- Notification preferences section added to dashboard Settings
+- Shared coordinate data (hospital and postcode) used by both backend and frontend
+- Session validity polling with automatic redirect to login on expiry
+- Support for running MIMOSA behind a reverse proxy or at a subpath
+- Ability to configure external and internal API endpoints for more flexible deployments
+
+
+### Changed
+- Outbreak detection moved from client-side to backend service
+- Frontend now uses centralised apiFetch utility for authenticated API calls
+- MongoDB configured as a replica set to support real-time processing
+- Docker Compose updated to ensure backend waits for healthy MongoDB
+- FilteringLogic and MyCountyView now support controlled analysisProfile
+- Improved handling of application URLs, CORS, and authentication redirects
+- Frontend routing updated to work correctly when hosted under a subpath
+- Backend and scripts now better support non-local deployments
+	
+
+### Fixed
+
 ## [v0.4.0]
 
 ### Added

@@ -18,8 +18,12 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
+  const origin =
+    config.get<string>('PUBLIC_ORIGIN') || `http://${domain}:${frontendPort}`;
+  const publicApiBase = `${origin}/api`;
+
   app.enableCors({
-    origin: `http://${domain}:${frontendPort}`,
+    origin,
     credentials: true,
   });
 
@@ -51,7 +55,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
-      oauth2RedirectUrl: `http://${domain}:${port}/api/docs/oauth2-redirect.html`,
+      oauth2RedirectUrl: `${publicApiBase}/docs/oauth2-redirect.html`,
       initOAuth: {
         scopes: [],
         useBasicAuthenticationWithAccessCodeGrant: false,
@@ -60,7 +64,7 @@ async function bootstrap() {
   });
 
   await app.listen(port, '0.0.0.0');
-  console.log(`mimosa-backend server running at http://${domain}:${port}`);
+  console.log(`mimosa-backend server running at ${origin}`);
 }
 
 bootstrap();
