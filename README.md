@@ -125,6 +125,7 @@ Optional flags:
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
 * `--skip_similarity`: Skip similarity computation via Bonsai and related uploads.
+* `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s).
 
 ### supplementary-metadata
 Example of `supplementary_metadata.csv`:

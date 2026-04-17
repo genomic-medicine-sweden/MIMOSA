@@ -10,6 +10,7 @@ from api import (
     load_credentials,
     get_access_token,
     fetch_samples,
+    fetch_group,
     authenticate_mimosa_user,
 )
 from upload import upload_similarity
@@ -66,6 +67,12 @@ def parse_args():
         "--skip_similarity",
         action="store_true",
         help="Skip similarity and related uploads",
+    )
+    parser.add_argument(
+        "--groups",
+        required=False,
+        nargs="+",
+        help="Only process samples belonging to these Bonsai group IDs.",
     )
 
     args = parser.parse_args()
@@ -139,6 +146,16 @@ def main():
         analyzed_ids = get_analyzed_sample_ids()
         any_new_samples = False
 
+        group_sample_ids = None
+        if args.groups:
+            group_sample_ids = set()
+            for group_id in args.groups:
+                ids = fetch_group(credentials["bonsai_api_url"], token, group_id)
+                group_sample_ids.update(ids)
+                print(
+                    f"Group filter active: {len(group_sample_ids)} samples across {len(args.groups)} group(s)."
+                )
+
         for profile in target_profiles:
             pipeline_state[profile]["fetch_samples"]["status"] = Status.DONE
         pipeline_state[GLOBAL_PROFILE]["fetch_samples"]["status"] = Status.DONE
@@ -164,6 +181,13 @@ def main():
                 else:
                     target_ids = new_ids
                     any_new_samples = True
+            if group_sample_ids is not None:
+                target_ids = target_ids & group_sample_ids
+                if not target_ids:
+                    print(
+                        f"No samples remain for profile '{profile}' after group filter. Skipping."
+                    )
+                    continue
 
             pipeline_state[profile]["fetch_samples"]["count"] = len(target_ids)
             all_target_ids.update(target_ids)

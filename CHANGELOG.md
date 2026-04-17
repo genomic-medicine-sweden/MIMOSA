@@ -16,7 +16,7 @@
 - Session validity polling with automatic redirect to login on expiry
 - Support for running MIMOSA behind a reverse proxy or at a subpath
 - Ability to configure external and internal API endpoints for more flexible deployments
-
+- Support for filtering samples by Bonsai group IDs via `--groups`
 
 ### Changed
 - Outbreak detection moved from client-side to backend service

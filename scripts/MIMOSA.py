@@ -49,6 +49,7 @@ def mimosa(
         target_profiles=[profile],
         user_selected_profiles=args.profile,
         count=sample_count,
+        sample_ids=sample_ids,
     )
 
     if not metadata_files or not cgmlst_files:

@@ -166,3 +166,13 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
         )
 
     return data
+
+
+def fetch_group(bonsai_api_url, token, group_id):
+    """Fetch a specific group by ID and return its included sample IDs."""
+    response = requests.get(
+        f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
+        headers=auth_headers(token),
+    )
+    response.raise_for_status()
+    return response.json().get("included_samples", [])

@@ -33,6 +33,7 @@ def process_samples_by_profile(
     output_folder,
     target_profiles=None,
     user_selected_profiles=None,
+    sample_ids=None,
 ):
     """
     Process samples grouped by their profiles, filtering based on target_profiles.
@@ -50,7 +51,8 @@ def process_samples_by_profile(
             continue
 
         if target_profiles is None or profile in target_profiles:
-            profiles.setdefault(profile, []).append(sample_id)
+            if sample_ids is None or sample_id in sample_ids:
+                profiles.setdefault(profile, []).append(sample_id)
 
     if not profiles:
         print("No samples match the specified profiles. Exiting.")
