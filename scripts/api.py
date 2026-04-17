@@ -168,11 +168,35 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
     return data
 
 
+def validate_groups(bonsai_api_url, token, group_ids):
+    """
+    Validate that all provided group IDs exist in Bonsai before processing.
+    """
+    invalid = []
+
+    for group_id in group_ids:
+        try:
+            fetch_group(bonsai_api_url, token, group_id)
+        except ValueError:
+            invalid.append(group_id)
+
+    if invalid:
+        listed = ", ".join(f"'{g}'" for g in invalid)
+        raise SystemExit(
+            f"Error: The following group ID(s) were not found in Bonsai: {listed}\n"
+            "Please check the group IDs and try again."
+        )
+
+
 def fetch_group(bonsai_api_url, token, group_id):
     """Fetch a specific group by ID and return its included sample IDs."""
     response = requests.get(
         f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
         headers=auth_headers(token),
     )
+
+    if response.status_code == 404:
+        raise ValueError(f"Group '{group_id}' was not found in Bonsai.")
+
     response.raise_for_status()
     return response.json().get("included_samples", [])

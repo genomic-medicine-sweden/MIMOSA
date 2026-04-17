@@ -11,6 +11,7 @@ from api import (
     get_access_token,
     fetch_samples,
     fetch_group,
+    validate_groups,
     authenticate_mimosa_user,
 )
 from upload import upload_similarity
@@ -109,6 +110,14 @@ def get_analyzed_sample_ids():
 def main():
     args, target_profiles = parse_args()
 
+    credentials = load_credentials(args.credentials)
+    token = get_access_token(credentials)
+
+    if args.groups:
+        validate_groups(credentials["bonsai_api_url"], token, args.groups)
+
+    upload_token = authenticate_mimosa_user(credentials)
+
     GLOBAL_PROFILE = "__global__"
     mode = "update" if args.update else "full"
     pipeline_state = init_pipeline_state(target_profiles + [GLOBAL_PROFILE], mode=mode)
@@ -129,10 +138,6 @@ def main():
 
     render_pipeline_state(pipeline_state)
 
-    credentials = load_credentials(args.credentials)
-    token = get_access_token(credentials)
-    upload_token = authenticate_mimosa_user(credentials)
-
     base_dir = (
         args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
     )
@@ -152,9 +157,9 @@ def main():
             for group_id in args.groups:
                 ids = fetch_group(credentials["bonsai_api_url"], token, group_id)
                 group_sample_ids.update(ids)
-                print(
-                    f"Group filter active: {len(group_sample_ids)} samples across {len(args.groups)} group(s)."
-                )
+            print(
+                f"Group filter active: {len(group_sample_ids)} samples across {len(args.groups)} group(s)."
+            )
 
         for profile in target_profiles:
             pipeline_state[profile]["fetch_samples"]["status"] = Status.DONE
