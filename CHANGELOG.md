@@ -27,7 +27,8 @@
 - Improved handling of application URLs, CORS, and authentication redirects
 - Frontend routing updated to work correctly when hosted under a subpath
 - Backend and scripts now better support non-local deployments
-	
+- Validate Bonsai group IDs before execution and improve error handling for missing groups
+
 
 ### Fixed
 
