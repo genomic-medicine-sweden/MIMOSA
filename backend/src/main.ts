@@ -64,7 +64,7 @@ async function bootstrap() {
   });
 
   await app.listen(port, '0.0.0.0');
-  console.log(`mimosa-backend server running at ${origin}`);
+  console.log(`mimosa-backend server running at ${domain}:${port}`);
 }
 
 bootstrap();
