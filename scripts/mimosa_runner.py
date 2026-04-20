@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-
+import logging
 import time
-from mimosa_state import Status, render_pipeline_state
+
+from mimosa_state import Status, render_pipeline_state, format_duration
+
+log = logging.getLogger(__name__)
 
 
 def run_stage(
@@ -14,9 +17,10 @@ def run_stage(
     **kwargs,
 ):
     entry = pipeline_state[profile][stage]
-
     entry["status"] = Status.RUNNING
     entry["started_at"] = time.monotonic()
+
+    log.info(f"[{profile}] {stage} — starting...")
     render_pipeline_state(pipeline_state)
 
     try:
@@ -30,6 +34,7 @@ def run_stage(
         entry["finished_at"] = end
         entry["duration"] = end - entry["started_at"]
 
+        log.info(f"[{profile}] {stage} — done ({format_duration(entry['duration'])})")
         render_pipeline_state(pipeline_state)
         return result
 
@@ -40,5 +45,6 @@ def run_stage(
         entry["finished_at"] = end
         entry["duration"] = end - entry["started_at"]
 
+        log.error(f"[{profile}] {stage} — failed")
         render_pipeline_state(pipeline_state)
         raise

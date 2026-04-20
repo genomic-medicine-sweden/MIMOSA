@@ -8,7 +8,8 @@ def run_reportree(
     metadata_file, cgmlst_file, output_folder, analysis_profile, save_files=False
 ):
     """
-    ReporTree.
+    Run ReporTree.
+
     """
     os.makedirs(output_folder, exist_ok=True)
 
@@ -27,28 +28,56 @@ def run_reportree(
     method = "MSTreeV2"
     analysis = "grapetree"
 
-    docker_command = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{os.path.abspath(output_folder)}:/data",
-        "insapathogenomics/reportree:v2.5.4",
-        "bash",
-        "-c",
-        f"mkdir -p /data && reportree.py "
-        f"-m /data/{metadata_basename} "
-        f"-a /data/{cgmlst_basename} "
-        f"-out /data/{analysis_profile} "
-        f"--analysis {analysis} --method {method} -thr {thr}",
-    ]
+    output_prefix = os.path.join(output_folder, analysis_profile)
 
-    print(f"Running ReporTree for {analysis_profile}…")
-    result = subprocess.run(docker_command, capture_output=True, text=True)
+    print(f"Running ReporTree for {analysis_profile}...")
+
+    if shutil.which("reportree.py"):
+
+        command = [
+            "reportree.py",
+            "-m",
+            local_metadata,
+            "-a",
+            local_cgmlst,
+            "-out",
+            output_prefix,
+            "--analysis",
+            analysis,
+            "--method",
+            method,
+            "-thr",
+            str(thr),
+        ]
+
+    else:
+
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{os.path.abspath(output_folder)}:/data",
+            "insapathogenomics/reportree:v2.5.4",
+            "bash",
+            "-c",
+            f"reportree.py "
+            f"-m /data/{metadata_basename} "
+            f"-a /data/{cgmlst_basename} "
+            f"-out /data/{analysis_profile} "
+            f"--analysis {analysis} --method {method} -thr {thr}",
+        ]
+
+    result = subprocess.run(command, capture_output=True, text=True)
 
     if result.returncode == 0:
         print(f"ReporTree completed for {analysis_profile}")
+        if result.stdout:
+            print(result.stdout)
     else:
         print(f"ReporTree failed for {analysis_profile}:\n{result.stderr}")
+        raise subprocess.CalledProcessError(
+            result.returncode, command, output=result.stdout, stderr=result.stderr
+        )
 
     return output_folder

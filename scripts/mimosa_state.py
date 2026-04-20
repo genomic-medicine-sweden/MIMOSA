@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 from enum import Enum
+import sys
 
 
 class Status(str, Enum):
@@ -113,7 +114,12 @@ LABEL_WIDTH = 26
 
 
 def render_pipeline_state(state):
-    os.system("clear")
+    try:
+        is_tty = os.isatty(sys.stdout.fileno())
+    except Exception:
+        is_tty = False
+    if is_tty:
+        os.system("clear")
 
     mode = state.get("_mode", "full")
 
