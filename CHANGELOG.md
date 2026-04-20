@@ -19,6 +19,7 @@
 - Support for filtering samples by Bonsai group IDs via `--groups`
 - Phylogenetic tree view with cluster and detail display modes, supporting linear/radial/unrooted layouts, cluster collapsing with sized bubbles, and metadata-based node coloring with legend
 - useClustering hook to fetch cluster assignments from API
+- Automation service (`mimosa-automation`) for scheduled Bonsai sample ingestion
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
@@ -32,9 +33,15 @@
 - Validate Bonsai group IDs before execution and improve error handling for missing groups
 - Cluster color assignment now uses evenly-spaced stepped indexing (GCD-based) instead of hashing, improving visual distinction between clusters
 - Color palette expanded and reordered for greater perceptual variety
+- Renamed `MONGO_URI_DOCKER` to `MONGO_URI_INTERNAL` for clarity
+- Pipeline runner now logs stage start, duration, and failure per profile
+- Terminal clear in pipeline state renderer is now guarded against non-TTY environment -load_credentials()` accepts env-based credentials when no credentials file is provided
+
 
 ### Fixed
 - Backend startup log now correctly displays domain and port
+
+
 ## [v0.4.0]
 
 ### Added
