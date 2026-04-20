@@ -2,12 +2,12 @@ import json
 import os
 import requests
 from requests.exceptions import ConnectionError
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+# Load base .env (docker-compose injects env vars as well)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def normalise_scalar(value, default="Unknown"):
@@ -27,13 +27,10 @@ def auth_headers(token):
     }
 
 
-def load_credentials(credentials_file):
+def load_credentials(credentials_file=None):
     """
-    Load Bonsai and MIMOSA credentials from a user-specific JSON file.
-    Constructs bonsai_api_url from .env values.
+    Load Bonsai and MIMOSA credentials.
     """
-    with open(credentials_file, "r") as file:
-        user_credentials = json.load(file)
 
     domain = os.getenv("DOMAIN")
     bonsai_port = os.getenv("BONSAI_API_PORT")
@@ -41,16 +38,55 @@ def load_credentials(credentials_file):
     if not domain or not bonsai_port:
         raise ValueError("DOMAIN and BONSAI_API_PORT must be set in the .env file.")
 
-    bonsai_api_url = (
-        os.getenv("BONSAI_API_PRIVATE_URL") or f"http://{domain}:{bonsai_port}"
-    )
+    bonsai_api_internal = os.getenv("BONSAI_API_INTERNAL")
+    bonsai_api_private = os.getenv("BONSAI_API_PRIVATE_URL")
+
+    if bonsai_api_internal:
+        bonsai_api_url = f"{bonsai_api_internal}:{bonsai_port}"
+    elif bonsai_api_private:
+        bonsai_api_url = bonsai_api_private
+    else:
+        bonsai_api_url = f"http://{domain}:{bonsai_port}"
+
+    if credentials_file:
+        with open(credentials_file, "r") as file:
+            user_credentials = json.load(file)
+
+        return {
+            "bonsai_api_url": bonsai_api_url,
+            "bonsai_username": user_credentials["bonsai_username"],
+            "bonsai_password": user_credentials["bonsai_password"],
+            "mimosa_username": user_credentials["mimosa_username"],
+            "mimosa_password": user_credentials["mimosa_password"],
+        }
+
+    bonsai_username = os.getenv("AUTOMATION_BONSAI_USERNAME")
+    bonsai_password = os.getenv("AUTOMATION_BONSAI_PASSWORD")
+    mimosa_username = os.getenv("AUTOMATION_MIMOSA_USERNAME")
+    mimosa_password = os.getenv("AUTOMATION_MIMOSA_PASSWORD")
+
+    missing = [
+        name
+        for name, val in {
+            "AUTOMATION_BONSAI_USERNAME": bonsai_username,
+            "AUTOMATION_BONSAI_PASSWORD": bonsai_password,
+            "AUTOMATION_MIMOSA_USERNAME": mimosa_username,
+            "AUTOMATION_MIMOSA_PASSWORD": mimosa_password,
+        }.items()
+        if not val
+    ]
+
+    if missing:
+        raise ValueError(
+            f"Missing required environment variables: {', '.join(missing)}"
+        )
 
     return {
         "bonsai_api_url": bonsai_api_url,
-        "bonsai_username": user_credentials["bonsai_username"],
-        "bonsai_password": user_credentials["bonsai_password"],
-        "mimosa_username": user_credentials["mimosa_username"],
-        "mimosa_password": user_credentials["mimosa_password"],
+        "bonsai_username": bonsai_username,
+        "bonsai_password": bonsai_password,
+        "mimosa_username": mimosa_username,
+        "mimosa_password": mimosa_password,
     }
 
 
@@ -84,6 +120,7 @@ def get_access_token(credentials):
 
 def authenticate_mimosa_user(credentials):
     """Authenticate the uploader as a MIMOSA user."""
+
     domain = os.getenv("DOMAIN")
     backend_port = os.getenv("BACKEND_PORT")
 
@@ -91,7 +128,9 @@ def authenticate_mimosa_user(credentials):
         raise ValueError("DOMAIN and BACKEND_PORT must be set in the .env file.")
 
     mimosa_api_base = (
-        os.getenv("MIMOSA_API_PRIVATE_URL_BASE") or f"http://{domain}:{backend_port}"
+        os.getenv("MIMOSA_API_INTERNAL")
+        or os.getenv("MIMOSA_API_PRIVATE_URL_BASE")
+        or f"http://{domain}:{backend_port}"
     )
 
     mimosa_api_url = f"{mimosa_api_base}/api/auth/login"
@@ -151,6 +190,7 @@ def fetch_samples(bonsai_api_url, token):
 
 def fetch_sample_details(bonsai_api_url, token, sample_id):
     """Fetch details of a specific sample by ID from the Bonsai API."""
+
     response = requests.get(
         f"{bonsai_api_url}/samples/{sample_id}",
         headers=auth_headers(token),
@@ -172,6 +212,7 @@ def validate_groups(bonsai_api_url, token, group_ids):
     """
     Validate that all provided group IDs exist in Bonsai before processing.
     """
+
     invalid = []
 
     for group_id in group_ids:
@@ -190,6 +231,7 @@ def validate_groups(bonsai_api_url, token, group_ids):
 
 def fetch_group(bonsai_api_url, token, group_id):
     """Fetch a specific group by ID and return its included sample IDs."""
+
     response = requests.get(
         f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
         headers=auth_headers(token),
