@@ -65,7 +65,7 @@ services:
       - DOMAIN=${DOMAIN}
       - BACKEND_PORT=${BACKEND_PORT}
       - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-}
-      - MONGO_URI=${MONGO_URI_DOCKER}
+      - MONGO_URI=${MONGO_URI_INTERNAL}
     networks:
       - mimosa-net
 
@@ -93,6 +93,30 @@ services:
     networks:
       - mimosa-net
 
+  mimosa-automation:
+    build:
+      context: .
+      dockerfile: "./automation/Dockerfile"
+    env_file: 
+      - .env
+      - .env.automation
+    volumes:
+      - ./volumes/automation_tmp:/tmp/mimosa_automation
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+      mimosa-backend:
+        condition: service_started
+    environment:
+      - MONGO_URI=${MONGO_URI_INTERNAL}
+      - MIMOSA_API_INTERNAL=http://mimosa-backend:${BACKEND_PORT}
+    restart: unless-stopped
+    networks:
+      - mimosa-net
 
   reportree:
     image: insapathogenomics/reportree:v2.5.4
