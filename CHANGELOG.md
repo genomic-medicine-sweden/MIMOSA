@@ -17,6 +17,8 @@
 - Support for running MIMOSA behind a reverse proxy or at a subpath
 - Ability to configure external and internal API endpoints for more flexible deployments
 - Support for filtering samples by Bonsai group IDs via `--groups`
+- Phylogenetic tree view with cluster and detail display modes, supporting linear/radial/unrooted layouts, cluster collapsing with sized bubbles, and metadata-based node coloring with legend
+- useClustering hook to fetch cluster assignments from API
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
@@ -28,10 +30,11 @@
 - Frontend routing updated to work correctly when hosted under a subpath
 - Backend and scripts now better support non-local deployments
 - Validate Bonsai group IDs before execution and improve error handling for missing groups
-
+- Cluster color assignment now uses evenly-spaced stepped indexing (GCD-based) instead of hashing, improving visual distinction between clusters
+- Color palette expanded and reordered for greater perceptual variety
 
 ### Fixed
-
+- Backend startup log now correctly displays domain and port
 ## [v0.4.0]
 
 ### Added
