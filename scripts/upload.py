@@ -3,16 +3,19 @@ import json
 import os
 import requests
 from pymongo import MongoClient
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 from log_updates import log_sample_event
 from requests.exceptions import RequestException
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
-mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
+mongo_uri = os.getenv("MONGO_URI")
+if not mongo_uri:
+    raise RuntimeError("MONGO_URI is not set")
+
+
 db_name = os.getenv("MONGO_DB_NAME")
 mimosa_domain = os.getenv("DOMAIN")
 backend_port = os.getenv("BACKEND_PORT")

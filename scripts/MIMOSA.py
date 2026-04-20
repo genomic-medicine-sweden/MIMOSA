@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import json
-from dotenv import load_dotenv, find_dotenv
-
+from dotenv import load_dotenv
+from pathlib import Path
 from process_samples import process_samples_by_profile
 from run_reportree import run_reportree
 from process_tsv import (
@@ -19,10 +19,8 @@ from upload import (
 from mimosa_runner import run_stage
 from mimosa_state import Status
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def mimosa(

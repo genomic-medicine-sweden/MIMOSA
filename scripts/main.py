@@ -3,7 +3,8 @@ import argparse
 import os
 import tempfile
 import shutil
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 from pymongo import MongoClient
 
 from api import (
@@ -27,10 +28,8 @@ from mimosa_state import (
 )
 from mimosa_runner import run_stage
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 AVAILABLE_PROFILES = [
     "staphylococcus_aureus",
@@ -95,7 +94,10 @@ def parse_args():
 
 
 def get_analyzed_sample_ids():
-    mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
+    mongo_uri = os.getenv("MONGO_URI")
+    if not mongo_uri:
+        raise RuntimeError("MONGO_URI is not set")
+
     db_name = os.getenv("MONGO_DB_NAME")
     client = MongoClient(mongo_uri)
     db = client[db_name]
