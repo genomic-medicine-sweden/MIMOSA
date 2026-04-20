@@ -34,6 +34,10 @@ const MatrixPage = dynamic(() => import("@/components/dashboard/MatrixPage"), {
   ssr: false,
 });
 
+const TreePage = dynamic(() => import("@/components/dashboard/TreePage"), {
+  ssr: false,
+});
+
 export default function DashboardPage() {
   const { viewMode } = useViewMode();
   const { data } = useAppData();
@@ -45,6 +49,7 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.SAMPLES) return <SamplesPage />;
   if (viewMode === ViewModes.LOGS) return <LogsPage />;
   if (viewMode === ViewModes.MATRIX) return <MatrixPage />;
+  if (viewMode === ViewModes.TREE) return <TreePage />;
 
   return (
     <>

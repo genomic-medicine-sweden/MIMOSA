@@ -1,0 +1,40 @@
+.treeContainer :global(.phylotree-node-menu),
+.treeContainer :global(.phylotree-context-menu),
+.treeContainer :global(.dropdown-menu) {
+  z-index: 9999;
+
+  font-size: 12px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 160px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.treeContainer :global(.phylotree-context-menu .dropdown-item),
+.treeContainer :global(.phylotree-context-menu .phylotree-menu-item),
+.treeContainer :global(.dropdown-menu .dropdown-item) {
+  width: 100%;
+  padding: 6px 12px;
+  margin: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.treeContainer :global(.phylotree-context-menu .dropdown-item:hover),
+.treeContainer :global(.phylotree-context-menu .phylotree-menu-item:hover) {
+  background: #f0f0f0;
+}
+
+.treeContainer :global(.phylotree-context-menu .dropdown-divider) {
+  height: 1px;
+  margin: 4px 0;
+  background: #ddd;
+}
+
+.treeContainer :global(.phylotree-context-menu .dropdown-header) {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #666;
+}
