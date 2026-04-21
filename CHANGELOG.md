@@ -42,11 +42,14 @@
 - load_credentials()` accepts env-based credentials when no credentials file is provided
 - `--update` renamed to `--update-only`; `--skip_similarity` replaced by opt-in `--run-similarity`
 - Pipeline state rendering suppressed in automation mode
+- Script constants centralised in `constants.py`; ReporTree params now profile-configurable
+- `prepare_supplementary_metadata.py` accepts multiple profiles and optional `--groups` filtering, with retry logic on server errors
 
 
 ### Fixed
 - Backend startup log now correctly displays domain and port
 - `get_analyzed_sample_ids()` now queries `features` collection only
+- `fetch_group` now raises on HTTP 500 in addition to 404
 
 ## [v0.4.0]
 
