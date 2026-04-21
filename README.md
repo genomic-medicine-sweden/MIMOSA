@@ -61,7 +61,7 @@ Set the following variables in your `.env` file:
 ```
 NOTIFICATIONS_ENABLED=true
 SMTP_HOST=your.smtp.server
-SMTP_PORT=587
+SMTP_PORT=smtp.port
 SMTP_SECURE=false
 SMTP_REJECT_UNAUTHORIZED=false
 SMTP_FROM=no-reply@example.com
