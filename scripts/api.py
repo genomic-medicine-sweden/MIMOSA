@@ -1,11 +1,11 @@
 import json
 import os
+import time
 import requests
 from requests.exceptions import ConnectionError
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Load base .env (docker-compose injects env vars as well)
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
@@ -91,7 +91,9 @@ def load_credentials(credentials_file=None):
 
 
 def get_access_token(credentials):
-    """Retrieve access token from the Bonsai API."""
+    """
+    Retrieve access token from the Bonsai API.
+    """
     try:
         response = requests.post(
             f"{credentials['bonsai_api_url']}/token",
@@ -119,7 +121,9 @@ def get_access_token(credentials):
 
 
 def authenticate_mimosa_user(credentials):
-    """Authenticate the uploader as a MIMOSA user."""
+    """
+    Authenticate the uploader as a MIMOSA user.
+    """
 
     domain = os.getenv("DOMAIN")
     backend_port = os.getenv("BACKEND_PORT")
@@ -160,36 +164,69 @@ def authenticate_mimosa_user(credentials):
 
 
 def fetch_samples(bonsai_api_url, token):
-    """Fetch all samples from the Bonsai API and normalise profile fields."""
+    """
+    Fetch all samples from the Bonsai API and normalise profile fields.
+    Retries up to 3 times on transient failures.
+    """
+    max_retries = 3
+    retry_delay = 2
 
-    count_response = requests.get(
-        f"{bonsai_api_url}/samples/?limit=1",
-        headers=auth_headers(token),
-    )
-    count_response.raise_for_status()
+    for attempt in range(max_retries):
+        try:
+            count_response = requests.get(
+                f"{bonsai_api_url}/samples/?limit=1",
+                headers=auth_headers(token),
+            )
+            count_response.raise_for_status()
 
-    payload = count_response.json()
-    total = payload.get("records_total", 0)
+            payload = count_response.json()
+            total = payload.get("records_total", 0)
 
-    if total == 0:
-        return []
+            if total == 0:
+                return []
 
-    response = requests.get(
-        f"{bonsai_api_url}/samples/?limit={total}",
-        headers=auth_headers(token),
-    )
-    response.raise_for_status()
+            response = requests.get(
+                f"{bonsai_api_url}/samples/?limit={total}",
+                headers=auth_headers(token),
+            )
+            response.raise_for_status()
 
-    samples = response.json().get("data", [])
+            samples = response.json().get("data", [])
 
-    for sample in samples:
-        sample["profile"] = normalise_scalar(sample.get("profile"))
+            for sample in samples:
+                sample["profile"] = normalise_scalar(sample.get("profile"))
 
-    return samples
+            return samples
+
+        except requests.exceptions.HTTPError as e:
+            if attempt < max_retries - 1:
+                print(
+                    f"Bonsai API error (attempt {attempt + 1}/{max_retries}): {e.response.status_code} {e.response.reason}. Retrying in {retry_delay}s...",
+                    flush=True,
+                )
+                time.sleep(retry_delay)
+            else:
+                raise RuntimeError(
+                    f"Failed to fetch samples after {max_retries} attempts: {e}"
+                ) from e
+
+        except (ConnectionError, requests.exceptions.RequestException) as e:
+            if attempt < max_retries - 1:
+                print(
+                    f"Connection error (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...",
+                    flush=True,
+                )
+                time.sleep(retry_delay)
+            else:
+                raise RuntimeError(
+                    f"Failed to fetch samples after {max_retries} attempts: {e}"
+                ) from e
 
 
 def fetch_sample_details(bonsai_api_url, token, sample_id):
-    """Fetch details of a specific sample by ID from the Bonsai API."""
+    """
+    Fetch details of a specific sample by ID from the Bonsai API.
+    """
 
     response = requests.get(
         f"{bonsai_api_url}/samples/{sample_id}",
@@ -210,9 +247,8 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
 
 def validate_groups(bonsai_api_url, token, group_ids):
     """
-    Validate that all provided group IDs exist in Bonsai before processing.
+    Validate that all provided group IDs exist in Bonsai.
     """
-
     invalid = []
 
     for group_id in group_ids:
@@ -223,14 +259,15 @@ def validate_groups(bonsai_api_url, token, group_ids):
 
     if invalid:
         listed = ", ".join(f"'{g}'" for g in invalid)
-        raise SystemExit(
-            f"Error: The following group ID(s) were not found in Bonsai: {listed}\n"
-            "Please check the group IDs and try again."
+        raise ValueError(
+            f"The following group ID(s) were not found in Bonsai: {listed}"
         )
 
 
 def fetch_group(bonsai_api_url, token, group_id):
-    """Fetch a specific group by ID and return its included sample IDs."""
+    """
+    Fetch a specific group by ID and return its included sample IDs.
+    """
 
     response = requests.get(
         f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",

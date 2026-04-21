@@ -32,6 +32,7 @@ def mimosa(
     sample_ids,
     upload_token,
     state,
+    run_clustering=True,
 ):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
@@ -48,18 +49,24 @@ def mimosa(
         user_selected_profiles=args.profile,
         count=sample_count,
         sample_ids=sample_ids,
+        run_clustering=run_clustering,
     )
 
-    if not metadata_files or not cgmlst_files:
+    if not metadata_files:
         state[profile]["prepare_metadata"]["status"] = Status.SKIPPED
-        return
+        return False
+
+    if run_clustering and not cgmlst_files:
+        raise RuntimeError(
+            f"[{profile}] Clustering requested but cgMLST data is missing."
+        )
 
     metadata_entry = metadata_files[0]
     full_metadata_file = metadata_entry["full"]
     reportree_metadata_file = metadata_entry["reportree_safe"]
-    cgmlst_file = cgmlst_files[0]
+    cgmlst_file = cgmlst_files[0] if cgmlst_files else None
 
-    if args.supplementary_metadata:
+    if getattr(args, "supplementary_metadata", None):
         from update_metadata import update_metadata_with_supplementary_metadata
 
         update_metadata_with_supplementary_metadata(
@@ -77,7 +84,7 @@ def mimosa(
         f"features_{profile}.json",
     )
 
-    if args.update:
+    if args.update_only:
         run_stage(
             state,
             profile,
@@ -105,7 +112,41 @@ def mimosa(
         state[profile]["run_reportree"]["status"] = Status.SKIPPED
         state[profile]["upload_clustering"]["status"] = Status.SKIPPED
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
-        return
+        return False
+
+    if not run_clustering:
+        print(
+            f"[{profile}] Clustering skipped — no new samples and re-cluster not requested"
+        )
+
+        run_stage(
+            state,
+            profile,
+            "process_features",
+            process_tsv,
+            full_metadata_file,
+            full_metadata_file,
+            features_json_path,
+            save_files=True,
+            count=sample_count,
+        )
+
+        run_stage(
+            state,
+            profile,
+            "upload_features",
+            upload_features,
+            features_json_path,
+            overwrite=True,
+            show_log=True,
+            upload_token=upload_token,
+            count=sample_count,
+        )
+
+        state[profile]["run_reportree"]["status"] = Status.SKIPPED
+        state[profile]["upload_clustering"]["status"] = Status.SKIPPED
+        state[profile]["upload_distance"]["status"] = Status.SKIPPED
+        return False
 
     run_stage(
         state,
@@ -172,8 +213,8 @@ def mimosa(
         "upload_features",
         upload_features,
         features_json_path,
-        overwrite=args.update,
-        show_log=args.update or not sample_ids,
+        overwrite=True,
+        show_log=False,
         upload_token=upload_token,
         count=sample_count,
     )
@@ -212,5 +253,7 @@ def mimosa(
             count=sample_count,
         )
     else:
-        print("Distance matrix or Newick file missing — skipping distance upload.")
+        print("Distance matrix or Newick missing — skipping")
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
+
+    return True

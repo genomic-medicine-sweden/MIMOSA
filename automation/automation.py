@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import io
 import logging
 import os
-import shutil
 import sys
 import time
 
@@ -11,9 +9,7 @@ import requests as http_requests
 from dotenv import load_dotenv
 from pathlib import Path
 
-from api import load_credentials, get_access_token, fetch_samples
-from main import main as run_pipeline, get_analyzed_sample_ids
-from sample_checks import get_new_sample_ids
+from main import main as run_pipeline
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -25,15 +21,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-OUTPUT_DIR = "/tmp/mimosa_automation"
-
 
 def wait_for_backend(timeout=300, interval=5):
-    """
-
-    Poll the backend until it responds or timeout is reached.
-
-    """
     base_url = os.getenv("MIMOSA_API_INTERNAL", "http://mimosa-backend:5000")
     url = f"{base_url}/api/users/me"
 
@@ -52,119 +41,81 @@ def wait_for_backend(timeout=300, interval=5):
     raise RuntimeError("Backend did not become ready within 5 minutes.")
 
 
-def get_target_profiles():
-    raw = os.getenv("AUTOMATION_PROFILES", "")
-    profiles = [p.strip() for p in raw.split(",") if p.strip()]
+def build_pipeline_argv():
+    raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
+    profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
 
-    if not profiles:
-        raise ValueError("AUTOMATION_PROFILES must be set")
+    argv = ["automation"]
 
-    return profiles
+    if profiles:
+        argv.extend(["--profile", *profiles])
 
+    use_update_only = os.getenv("AUTOMATION_UPDATE_ONLY", "false").lower() == "true"
+    use_re_cluster = os.getenv("AUTOMATION_RE_CLUSTER", "false").lower() == "true"
 
-def clear_output_dir():
-    """
+    if use_update_only and use_re_cluster:
+        raise ValueError(
+            "AUTOMATION_UPDATE_ONLY and AUTOMATION_RE_CLUSTER cannot both be true."
+        )
 
-    Clear contents of OUTPUT_DIR
-    without deleting the directory itself.
+    if use_update_only:
+        argv.append("--update-only")
+    elif use_re_cluster:
+        argv.append("--re-cluster")
 
-    """
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
-        return
+    raw_groups = os.getenv("AUTOMATION_GROUPS", "")
+    groups = [g.strip() for g in raw_groups.split(",") if g.strip()]
+    if groups:
+        argv += ["--groups", *groups]
 
-    for item in os.listdir(OUTPUT_DIR):
-        item_path = os.path.join(OUTPUT_DIR, item)
-        if os.path.isdir(item_path):
-            shutil.rmtree(item_path)
-        else:
-            os.remove(item_path)
+    if os.getenv("AUTOMATION_RUN_SIMILARITY", "false").lower() == "true":
+        argv.append("--run-similarity")
+
+    return argv
 
 
 def check_and_run():
-    log.info("Starting scheduled check for new samples...")
-    log.info("Fetching samples from Bonsai...")
+    log.info("Starting scheduled pipeline run...")
 
     try:
-        credentials = load_credentials()
-        token = get_access_token(credentials)
-
-    except Exception as e:
-        log.error(f"Authentication failed: {e}")
+        argv = build_pipeline_argv()
+    except ValueError as e:
+        log.error(f"Configuration error: {e}")
         return
 
-    target_profiles = get_target_profiles()
+    os.environ["MIMOSA_AUTOMATION_MODE"] = "true"
+    sys.argv = argv
 
-    try:
-        all_samples = fetch_samples(credentials["bonsai_api_url"], token)
-    except Exception as e:
-        log.error(f"Failed to fetch samples from Bonsai: {e}")
-        return
+    max_retries = 2
+    retry_delay = 30
 
-    try:
-        analyzed_ids = get_analyzed_sample_ids()
-    except Exception as e:
-        log.error(f"Failed to fetch analyzed sample IDs: {e}")
-        return
-
-    new_found = False
-
-    for profile in target_profiles:
-        new_ids = get_new_sample_ids(all_samples, analyzed_ids, profile)
-
-        if new_ids:
-            log.info(f"Found {len(new_ids)} new sample(s) for profile '{profile}'.")
-            new_found = True
-        else:
-            log.info(f"No new samples for profile '{profile}'.")
-
-    if not new_found:
-        log.info("No new samples detected across any profile. Skipping pipeline run.")
-        return
-
-    log.info("New samples detected — starting pipeline...")
-
-    clear_output_dir()
-
-    sys.argv = [
-        "automation",
-        "--credentials",
-        "",
-        "--profile",
-        *target_profiles,
-        "--output",
-        OUTPUT_DIR,
-        "--save_files",
-    ]
-
-    buffer = io.StringIO()
-    sys.stdout = buffer
-
-    try:
-        run_pipeline()
-        sys.stdout = sys.__stdout__
-        log.info("Pipeline run completed successfully.")
-
-    except SystemExit as e:
-        sys.stdout = sys.__stdout__
-        if str(e) != "0":
-            log.error(f"Pipeline exited with: {e}")
-            log.debug("Pipeline output:\n" + buffer.getvalue())
-
-    except Exception as e:
-        sys.stdout = sys.__stdout__
-        log.error(f"Pipeline run failed: {e}")
-        log.debug("Pipeline output:\n" + buffer.getvalue())
+    for attempt in range(max_retries):
+        try:
+            run_pipeline()
+            log.info("Pipeline completed successfully.")
+            return
+        except SystemExit as e:
+            code = str(e)
+            if code != "0":
+                log.error(f"Pipeline exited with code: {code}")
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                log.warning(
+                    f"Attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {retry_delay}s..."
+                )
+                time.sleep(retry_delay)
+            else:
+                log.error(
+                    f"Pipeline failed after {max_retries} attempts: {e}", exc_info=True
+                )
 
 
 def main():
-    schedule_hours = int(os.getenv("AUTOMATION_SCHEDULE_HOURS", "1"))
+    schedule_hours = float(os.getenv("AUTOMATION_SCHEDULE_HOURS", "1"))
     run_on_startup = os.getenv("AUTOMATION_RUN_ON_STARTUP", "false").lower() == "true"
 
-    log.info(
-        f"MIMOSA automation starting. Schedule: every {schedule_hours} hour(s) after each run."
-    )
-    log.info(f"Run on startup: {run_on_startup}")
+    log.info(f"MIMOSA automation starting. Schedule: every {schedule_hours} hour(s).")
 
     if run_on_startup:
         wait_for_backend()

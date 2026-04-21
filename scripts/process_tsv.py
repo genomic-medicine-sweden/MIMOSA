@@ -70,6 +70,7 @@ def process_tsv(
     try:
         with open(metadata_partitions_tsv, newline="", encoding="utf-8") as tsvfile:
             reader = csv.DictReader(tsvfile, delimiter="\t")
+            qc_values = {v["QC_Status"] for v in metadata_lookup.values()}
 
             for row in reader:
                 sample_id = row.get("sample", "").strip()
@@ -115,7 +116,6 @@ def process_tsv(
 
     except Exception as e:
         print(f"Error processing results: {e}")
-
     return features
 
 

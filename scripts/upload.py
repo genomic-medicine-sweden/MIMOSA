@@ -105,6 +105,7 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                         changes_dict={"QC_Status": {"old": old_qc, "new": new_qc}},
                         changed_by="bonsai",
                     )
+                    updated_count += 1
 
                 if overwrite:
                     changed_fields = [
@@ -168,8 +169,13 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
     finally:
         client.close()
 
-    if overwrite and show_log and updated_count == 0 and uploaded_count == 0:
-        print("No samples were updated or uploaded.")
+    if overwrite and show_log:
+        if uploaded_count > 0:
+            print(f"Uploaded {uploaded_count} new sample(s).")
+        if updated_count > 0:
+            print(f"Updated {updated_count} sample(s).")
+        if uploaded_count == 0 and updated_count == 0:
+            print("No samples were updated or uploaded.")
 
 
 def upload_clustering(data_file_path, upload_token=None):

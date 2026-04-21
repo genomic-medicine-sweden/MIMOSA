@@ -12,9 +12,6 @@ REPORTREE_SAFE_COLUMNS = [
 
 
 def normalise_missing(value):
-    """
-    Convert placeholder API values to proper missing values (None).
-    """
     if value is None:
         return None
 
@@ -34,10 +31,8 @@ def process_samples_by_profile(
     target_profiles=None,
     user_selected_profiles=None,
     sample_ids=None,
+    run_clustering=True,
 ):
-    """
-    Process samples grouped by their profiles, filtering based on target_profiles.
-    """
     os.makedirs(output_folder, exist_ok=True)
 
     samples = fetch_samples(bonsai_api_url, token)
@@ -55,14 +50,24 @@ def process_samples_by_profile(
                 profiles.setdefault(profile, []).append(sample_id)
 
     if not profiles:
-        print("No samples match the specified profiles. Exiting.")
+        print("No samples match the specified profiles. Exiting.", flush=True)
         return None, None
 
     metadata_files = []
     cgmlst_files = []
 
     for profile, sample_ids in profiles.items():
-        print(f"\nProcessing profile: {profile} with {len(sample_ids)} samples")
+
+        if run_clustering:
+            print(
+                f"\nProcessing profile: {profile} with {len(sample_ids)} samples",
+                flush=True,
+            )
+        else:
+            print(
+                f"\nChecking for metadata updates for {profile} with {len(sample_ids)} samples",
+                flush=True,
+            )
 
         metadata_rows = []
         cgmlst_frames = []
@@ -138,7 +143,7 @@ def process_samples_by_profile(
                 allele_row.update(cgmlst.get("result", {}).get("alleles", {}))
                 cgmlst_frames.append(pd.DataFrame([allele_row]))
             else:
-                print(f"No cgMLST data found for sample {sample_id}")
+                print(f"No cgMLST data found for sample {sample_id}", flush=True)
 
             metadata_rows.append(metadata_row)
 
@@ -152,7 +157,7 @@ def process_samples_by_profile(
 
         missing = set(REPORTREE_SAFE_COLUMNS) - set(metadata_df.columns)
         if missing:
-            raise RuntimeError(f"Missing required ReporTree-safe columns: {missing}")
+            raise RuntimeError(f"Missing required ReporTree columns: {missing}")
 
         reportree_safe_metadata_file = os.path.join(
             output_folder,
@@ -196,6 +201,6 @@ def process_samples_by_profile(
             cgmlst_df.to_csv(cgmlst_file, sep="\t", index=False)
             cgmlst_files.append(cgmlst_file)
         else:
-            print(f"No cgMLST data collected for profile {profile}")
+            print(f"No cgMLST data collected for profile {profile}", flush=True)
 
     return metadata_files, cgmlst_files
