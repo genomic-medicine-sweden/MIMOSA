@@ -274,7 +274,7 @@ def fetch_group(bonsai_api_url, token, group_id):
         headers=auth_headers(token),
     )
 
-    if response.status_code == 404:
+    if response.status_code in (404, 500):
         raise ValueError(f"Group '{group_id}' was not found in Bonsai.")
 
     response.raise_for_status()
