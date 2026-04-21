@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 from api import fetch_samples, fetch_sample_details
+from constants import AVAILABLE_PROFILES, CGMLST_MISSING_CODES
 
 REPORTREE_SAFE_COLUMNS = [
     "sample",
@@ -109,10 +110,7 @@ def process_samples_by_profile(
                 ),
             }
 
-            if (analysis_profile or "").lower() in {
-                "staphylococcus_aureus",
-                "klebsiella_pneumoniae",
-            }:
+            if (analysis_profile or "").lower() in set(AVAILABLE_PROFILES):
                 mlst = next(
                     (
                         r
@@ -178,21 +176,7 @@ def process_samples_by_profile(
 
         if cgmlst_frames:
             cgmlst_df = pd.concat(cgmlst_frames, ignore_index=True)
-            missing_codes = {
-                "ASM",
-                "EXC",
-                "INF",
-                "LNF",
-                "PLNF",
-                "PLOT3",
-                "PLOT5",
-                "LOTSC",
-                "NIPH",
-                "NIPHEM",
-                "PAMA",
-                "ALM",
-            }
-            cgmlst_df.replace(missing_codes, "0", inplace=True)
+            cgmlst_df.replace(CGMLST_MISSING_CODES, "0", inplace=True)
 
             cgmlst_file = os.path.join(
                 output_folder,

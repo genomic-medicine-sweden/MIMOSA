@@ -3,6 +3,8 @@ import csv
 import json
 import datetime
 
+from constants import BASE_METADATA_FIELDS
+
 
 def process_tsv(
     metadata_partitions_tsv,
@@ -25,21 +27,7 @@ def process_tsv(
         full_reader = csv.DictReader(full_file, delimiter="\t")
         full_fields = full_reader.fieldnames or []
 
-        base_fields = {
-            "PostCode",
-            "Hospital",
-            "Profile",
-            "Pipeline_Version",
-            "Pipeline_Date",
-            "Date",
-            "sample",
-            "QC_Status",
-            "ST",
-            "Time",
-            "lims_id",
-        }
-
-        allele_fields = set(full_fields) - base_fields
+        allele_fields = set(full_fields) - BASE_METADATA_FIELDS
 
         for row in full_reader:
             sample_id = row.get("sample", "").strip()
