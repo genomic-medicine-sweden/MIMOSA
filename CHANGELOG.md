@@ -20,6 +20,9 @@
 - Phylogenetic tree view with cluster and detail display modes, supporting linear/radial/unrooted layouts, cluster collapsing with sized bubbles, and metadata-based node coloring with legend
 - useClustering hook to fetch cluster assignments from API
 - Automation service (`mimosa-automation`) for scheduled Bonsai sample ingestion
+- `--re-cluster` flag to force clustering without new samples
+- Retry logic for `fetch_samples` and automation pipeline runner
+- Graceful fallback to metadata-only sync when clustering fails
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
@@ -35,12 +38,15 @@
 - Color palette expanded and reordered for greater perceptual variety
 - Renamed `MONGO_URI_DOCKER` to `MONGO_URI_INTERNAL` for clarity
 - Pipeline runner now logs stage start, duration, and failure per profile
-- Terminal clear in pipeline state renderer is now guarded against non-TTY environment -load_credentials()` accepts env-based credentials when no credentials file is provided
+- Terminal clear in pipeline state renderer is now guarded against non-TTY environment
+- load_credentials()` accepts env-based credentials when no credentials file is provided
+- `--update` renamed to `--update-only`; `--skip_similarity` replaced by opt-in `--run-similarity`
+- Pipeline state rendering suppressed in automation mode
 
 
 ### Fixed
 - Backend startup log now correctly displays domain and port
-
+- `get_analyzed_sample_ids()` now queries `features` collection only
 
 ## [v0.4.0]
 
