@@ -3,13 +3,14 @@ import os
 import shutil
 import subprocess
 
+from constants import get_reportree_params
+
 
 def run_reportree(
     metadata_file, cgmlst_file, output_folder, analysis_profile, save_files=False
 ):
     """
     Run ReporTree.
-
     """
     os.makedirs(output_folder, exist_ok=True)
 
@@ -24,16 +25,16 @@ def run_reportree(
     if os.path.abspath(cgmlst_file) != os.path.abspath(local_cgmlst):
         shutil.copy2(cgmlst_file, local_cgmlst)
 
-    thr = 9
-    method = "MSTreeV2"
-    analysis = "grapetree"
+    params = get_reportree_params(analysis_profile)
+    thr = params["threshold"]
+    method = params["method"]
+    analysis = params["analysis"]
 
     output_prefix = os.path.join(output_folder, analysis_profile)
 
     print(f"Running ReporTree for {analysis_profile}...")
 
     if shutil.which("reportree.py"):
-
         command = [
             "reportree.py",
             "-m",
@@ -49,9 +50,7 @@ def run_reportree(
             "-thr",
             str(thr),
         ]
-
     else:
-
         command = [
             "docker",
             "run",
