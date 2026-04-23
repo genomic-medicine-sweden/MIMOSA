@@ -21,20 +21,17 @@ from process_similarity import process_similarity
 from MIMOSA import mimosa
 
 from mimosa_state import (
+    GLOBAL_PROFILE,
     init_pipeline_state,
     render_pipeline_state,
     render_runtime_summary,
     set_profile_mode,
 )
 from mimosa_runner import run_stage
+from constants import AVAILABLE_PROFILES
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
-
-AVAILABLE_PROFILES = [
-    "staphylococcus_aureus",
-    "klebsiella_pneumoniae",
-]
 
 
 def parse_args():
@@ -132,8 +129,6 @@ def main():
             raise SystemExit(f"Error: {e}\nPlease check the group IDs and try again.")
 
     upload_token = authenticate_mimosa_user(credentials)
-
-    GLOBAL_PROFILE = "similarity"
 
     display_mode = "update" if args.update_only else "full"
 
@@ -287,11 +282,10 @@ def main():
                     token,
                     sorted(all_ids_for_similarity),
                     base_dir,
-                    "combined",
                     save_files=True,
                 )
 
-                similarity_path = os.path.join(base_dir, "combined_similarity.json")
+                similarity_path = os.path.join(base_dir, "similarity.json")
 
                 run_stage(
                     pipeline_state,
