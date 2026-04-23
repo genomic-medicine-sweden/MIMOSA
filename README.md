@@ -1,3 +1,4 @@
+README.md
 ![MIMOSA Logo](frontend/public/MIMOSA_Full_Logo.svg)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18770176.svg)](https://doi.org/10.5281/zenodo.18770176)
@@ -192,11 +193,12 @@ python scripts/main.py \
 ```
 
 Optional flags:
-* `--update`: Update existing sample metadata.
+* `--update-only`: Sync metadata for existing samples without re-running clustering.
+* `--run-similarity`: Run similarity analysis via Bonsai and upload the results.
+* `--re-cluster`: Force clustering to run even if no new samples are detected.
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
-* `--skip_similarity`: Skip similarity computation via Bonsai and related uploads.
-* `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s).
+* `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s). When clustering, previously analyzed samples for the same profile are automatically included to preserve cluster stability.
 
 ### Supplementary metadata
 
