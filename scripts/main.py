@@ -75,9 +75,10 @@ def parse_args():
     return args, target_profiles
 
 
-def get_analyzed_sample_ids():
+def get_analyzed_sample_ids(profile=None):
     """
     Fetch IDs of samples already analyzed in MIMOSA (from features collection).
+    Optionally scoped to a specific analysis profile.
     """
     mongo_uri = os.getenv("MONGO_URI")
     if not mongo_uri:
@@ -87,7 +88,8 @@ def get_analyzed_sample_ids():
     client = MongoClient(mongo_uri)
     db = client[db_name]
 
-    feature_ids = set(db["features"].distinct("properties.ID"))
+    query = {"properties.analysis_profile": profile} if profile else {}
+    feature_ids = set(db["features"].distinct("properties.ID", query))
 
     client.close()
     return feature_ids
@@ -144,8 +146,6 @@ def main():
 
     try:
         all_samples = fetch_samples(credentials["bonsai_api_url"], token)
-        analyzed_ids = get_analyzed_sample_ids()
-
         group_sample_ids = None
         if args.groups:
             group_sample_ids = set()
@@ -157,13 +157,20 @@ def main():
         filtered_scope = {}
         for profile in target_profiles:
             profile_samples = [s for s in all_samples if s.get("profile") == profile]
-            all_ids = {s["sample_id"] for s in profile_samples if "sample_id" in s}
+            profile_all_ids = {
+                s["sample_id"] for s in profile_samples if "sample_id" in s
+            }
 
             if group_sample_ids is not None:
-                all_ids = all_ids & group_sample_ids
+                group_ids = profile_all_ids & group_sample_ids
+            else:
+                group_ids = profile_all_ids
 
-            if all_ids:
-                filtered_scope[profile] = all_ids
+            if group_ids:
+                filtered_scope[profile] = {
+                    "group_ids": group_ids,
+                    "profile_all_ids": profile_all_ids,
+                }
 
         if filtered_scope:
             state_profiles = list(filtered_scope.keys())
@@ -175,7 +182,7 @@ def main():
             for profile in state_profiles:
                 if profile != GLOBAL_PROFILE and profile in filtered_scope:
                     pipeline_state[profile]["fetch_samples"]["count"] = len(
-                        filtered_scope[profile]
+                        filtered_scope[profile]["group_ids"]
                     )
 
             render_pipeline_state(pipeline_state)
@@ -183,10 +190,20 @@ def main():
             print("No samples found matching the specified filters.")
             return
 
-        for profile, all_ids in filtered_scope.items():
+        for profile, scope in filtered_scope.items():
+            group_ids = scope["group_ids"]
+            profile_all_ids = scope["profile_all_ids"]
 
-            new_ids = all_ids - analyzed_ids
-            existing_ids = all_ids & analyzed_ids
+            analyzed_ids = get_analyzed_sample_ids(profile=profile)
+
+            new_ids = group_ids - analyzed_ids
+            existing_ids = group_ids & analyzed_ids
+
+            if group_sample_ids is not None:
+                already_analyzed_for_profile = analyzed_ids & profile_all_ids
+                clustering_ids = group_ids | already_analyzed_for_profile
+            else:
+                clustering_ids = group_ids
 
             profile_dir = os.path.join(base_dir, profile)
 
@@ -219,7 +236,7 @@ def main():
                 render_pipeline_state(pipeline_state)
 
             if run_clustering:
-                target_ids = all_ids
+                target_ids = clustering_ids
             else:
                 target_ids = existing_ids
 
@@ -259,7 +276,7 @@ def main():
                 except Exception as metadata_error:
                     print(f"[{profile}] Metadata sync also failed: {metadata_error}")
 
-            all_ids_for_similarity.update(all_ids)
+            all_ids_for_similarity.update(group_ids)
 
         if args.run_similarity and all_ids_for_similarity:
             print("\n" + "=" * 70)
@@ -268,7 +285,7 @@ def main():
 
             if clustering_failed_profiles:
                 print(
-                    f"\n⚠️  WARNING: Clustering failed for profiles: {', '.join(sorted(clustering_failed_profiles))}"
+                    f"\nWARNING: Clustering failed for profiles: {', '.join(sorted(clustering_failed_profiles))}"
                 )
                 print("Similarity will run on available data.\n")
 
