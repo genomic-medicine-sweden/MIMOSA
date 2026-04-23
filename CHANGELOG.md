@@ -50,6 +50,8 @@
 - Backend startup log now correctly displays domain and port
 - `get_analyzed_sample_ids()` now queries `features` collection only
 - `fetch_group` now raises on HTTP 500 in addition to 404
+- Group-filtered clustering now includes previously analyzed samples, preventing existing cluster assignments from being lost when a new group is processed
+
 
 ## [v0.4.0]
 
