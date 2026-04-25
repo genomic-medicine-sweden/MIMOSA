@@ -10,6 +10,21 @@ import { OutbreakDetectedEvent } from './outbreak-detected.event';
 import { resolveToCounty } from '../utils/location-resolver';
 import outbreakRules from '../config/outbreak-rules.json';
 
+type OutbreakResult = {
+  clusterId: string;
+  total: number;
+  counties: string[];
+  sampleIds: string[];
+  analysis_profile: string;
+  summary: string;
+};
+
+type ClusterEntry = {
+  count: number;
+  counties: Set<string>;
+  sampleIds: string[];
+};
+
 @Injectable()
 export class OutbreaksService implements OnModuleInit {
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -23,6 +38,7 @@ export class OutbreaksService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (process.env.MIMOSA_SCRIPT_MODE === 'true') return;
     console.log('[Outbreaks] Initializing change streams...');
 
     const clusteringStream = this.clusteringService.watch();
@@ -38,9 +54,11 @@ export class OutbreaksService implements OnModuleInit {
       }
     });
 
-    clusteringStream.on('error', (err) =>
-      console.error('[Outbreaks] Clustering stream error:', err),
-    );
+    clusteringStream.on('error', (err) => {
+      if (err.name !== 'MongoClientClosedError') {
+        console.error('[Outbreaks] Clustering stream error:', err);
+      }
+    });
 
     const featureStream = this.featureModel.watch();
 
@@ -59,9 +77,11 @@ export class OutbreaksService implements OnModuleInit {
       }
     });
 
-    featureStream.on('error', (err) =>
-      console.error('[Outbreaks] Feature stream error:', err),
-    );
+    featureStream.on('error', (err) => {
+      if (err.name !== 'MongoClientClosedError') {
+        console.error('[Outbreaks] Feature stream error:', err);
+      }
+    });
 
     console.log('[Outbreaks] Change streams ready');
   }
@@ -97,17 +117,14 @@ export class OutbreaksService implements OnModuleInit {
     ids: string[],
   ): Promise<Record<string, string>> {
     const features = await this.featuresService.findByIds(ids);
-
     const map: Record<string, string> = {};
 
     for (const f of features) {
       const id = f.properties?.ID;
-
       const county = resolveToCounty({
         Hospital: f.properties?.Hospital,
         PostCode: f.properties?.PostCode,
       });
-
       if (id && county) {
         map[id] = county;
       }
@@ -138,11 +155,7 @@ export class OutbreaksService implements OnModuleInit {
     sampleIds: string[];
   }[] {
     const rules = this.getRules(analysis_profile);
-
-    const clusterMap: Record<
-      string,
-      { count: number; counties: Set<string>; sampleIds: string[] }
-    > = {};
+    const clusterMap: Record<string, ClusterEntry> = {};
 
     for (const r of results) {
       const clusterId = String(r.Cluster_ID);
@@ -179,42 +192,25 @@ export class OutbreaksService implements OnModuleInit {
     const countyCount = o.counties.length;
 
     const formatCounties = () => {
-      if (countyCount === 1) {
-        return `in ${o.counties[0]}`;
-      }
-      if (countyCount === 2) {
-        return `in ${o.counties[0]} and ${o.counties[1]}`;
-      }
-      if (countyCount <= 3) {
+      if (countyCount === 1) return `in ${o.counties[0]}`;
+      if (countyCount === 2) return `in ${o.counties[0]} and ${o.counties[1]}`;
+      if (countyCount <= 3)
         return `in ${o.counties.slice(0, -1).join(', ')} and ${o.counties[countyCount - 1]}`;
-      }
       return `across ${countyCount} counties`;
     };
 
-    return `Cluster ${o.clusterId} — ${o.total} case${
-      o.total !== 1 ? 's' : ''
-    } ${formatCounties()}`;
+    return `Cluster ${o.clusterId} — ${o.total} case${o.total !== 1 ? 's' : ''} ${formatCounties()}`;
   }
 
-  async getLatestOutbreaks(analysis_profile: string): Promise<
-    {
-      clusterId: string;
-      total: number;
-      counties: string[];
-      sampleIds: string[];
-      analysis_profile: string;
-      summary: string;
-    }[]
-  > {
+  async getLatestOutbreaks(
+    analysis_profile: string,
+  ): Promise<OutbreakResult[]> {
     const clustering =
       await this.clusteringService.findLatestByProfile(analysis_profile);
-
     if (!clustering) return [];
 
     const ids = clustering.results.map((r) => r.ID);
-
     const postCodeMap = await this.buildPostCodeMap(ids);
-
     const outbreaks = this.detectOutbreaks(
       clustering.results,
       postCodeMap,
