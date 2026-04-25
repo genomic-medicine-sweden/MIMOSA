@@ -99,6 +99,21 @@ docker compose exec mimosa-backend ./scripts/mimosa create-user \
 ```
 Additional users can also be created through the **admin** panel.
 
+## Create automation user
+
+```
+docker compose exec mimosa-backend ./scripts/mimosa create-automation-user 
+--p=<password> 
+--fname=<first-name> 
+--lname=<last-name> 
+--u=<username>
+
+```
+Use this to create a dedicated service account for the automation pipeline. 
+ At least one of `--u` (username) or `--m` (email) is required. 
+ Automation accounts can only authenticate via API and cannot log in through the browser.
+
+
 ## Testing
 The test suite in `test/` can be used to confirm that MIMOSA correctly handles uploads.
 Test data is defined in [`test/test_data.json`](test/test_data.json) and includes three artificial samples: `TEST1`, `TEST2`, and `TEST3`.
