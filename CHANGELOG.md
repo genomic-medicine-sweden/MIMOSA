@@ -23,6 +23,7 @@
 - `--re-cluster` flag to force clustering without new samples
 - Retry logic for `fetch_samples` and automation pipeline runner
 - Graceful fallback to metadata-only sync when clustering fails
+- Cluster naming stability across ReporTree runs via nomenclature file reconstructed from latest clustering document
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
