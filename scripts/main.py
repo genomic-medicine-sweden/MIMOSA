@@ -100,11 +100,11 @@ def decide_clustering(profile, new_ids, args, is_interactive):
     Decide whether to run clustering for a profile.
     """
     if new_ids:
-        print(f"[{profile}] New samples detected → clustering will run")
+        print(f"[{profile}] New samples detected")
         return True
 
     if args.re_cluster:
-        print(f"[{profile}] --re-cluster set → clustering will run")
+        print(f"[{profile}] --re-cluster set")
         return True
 
     if is_interactive:

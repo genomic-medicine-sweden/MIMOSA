@@ -96,8 +96,6 @@ def run_reportree(
 
     if result.returncode == 0:
         print(f"ReporTree completed for {analysis_profile}")
-        if result.stdout:
-            print(result.stdout)
     else:
         print(f"ReporTree failed for {analysis_profile}:\n{result.stderr}")
         raise subprocess.CalledProcessError(
