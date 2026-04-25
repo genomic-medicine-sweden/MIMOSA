@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import os
+import csv
 import json
 from dotenv import load_dotenv
 from pathlib import Path
+from pymongo import MongoClient
 from process_samples import process_samples_by_profile
 from run_reportree import run_reportree
 from process_tsv import (
@@ -18,9 +20,74 @@ from upload import (
 )
 from mimosa_runner import run_stage
 from mimosa_state import Status
+from constants import get_reportree_params
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
+
+
+def _get_nomenclature_file(profile, profile_dir, is_interactive):
+    """
+    Fetch the latest clustering document for this profile
+    """
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME")
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    clustering_doc = db["clustering"].find_one(
+        {"analysis_profile": profile},
+        sort=[("_id", -1)],
+    )
+    client.close()
+
+    if not clustering_doc:
+        return None
+
+    params = get_reportree_params(profile)
+    expected_partition = f"MST-{params['threshold']}x1.0"
+
+    results = clustering_doc.get("results", [])
+    stored_partition = results[0]["Partition"] if results else None
+
+    if stored_partition != expected_partition:
+        print(
+            f"[{profile}] WARNING: Stored partition column is '{stored_partition}' "
+            f"but the current run expects '{expected_partition}'."
+        )
+        print(f"[{profile}] This likely means the clustering threshold has changed.")
+
+        if is_interactive:
+            answer = (
+                input(
+                    f"[{profile}] Proceed without preserving cluster names? (yes/no): "
+                )
+                .strip()
+                .lower()
+            )
+            if answer not in ("yes", "y"):
+                raise RuntimeError(
+                    f"[{profile}] Aborted by user due to partition mismatch."
+                )
+        else:
+            print(f"[{profile}] skipping nomenclature file.")
+
+        return None
+
+    nomenclature_path = os.path.join(profile_dir, f"{profile}_nomenclature.tsv")
+    with open(nomenclature_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["sample", stored_partition])
+        for entry in results:
+            cluster_id = entry["Cluster_ID"]
+            label = (
+                f"cluster_{cluster_id}"
+                if isinstance(cluster_id, int)
+                else str(cluster_id)
+            )
+            writer.writerow([entry["ID"], label])
+
+    return nomenclature_path
 
 
 def mimosa(
@@ -33,6 +100,7 @@ def mimosa(
     upload_token,
     state,
     run_clustering=True,
+    is_interactive=False,
 ):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
@@ -148,6 +216,8 @@ def mimosa(
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
         return False
 
+    nomenclature_file = _get_nomenclature_file(profile, profile_dir, is_interactive)
+
     run_stage(
         state,
         profile,
@@ -159,6 +229,7 @@ def mimosa(
         profile,
         save_files=True,
         count=sample_count,
+        nomenclature_file=nomenclature_file,
     )
 
     cluster_composition_tsv = os.path.join(

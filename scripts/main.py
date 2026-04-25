@@ -251,6 +251,7 @@ def main():
                     upload_token,
                     pipeline_state,
                     run_clustering=run_clustering,
+                    is_interactive=is_interactive,
                 )
             except Exception as e:
                 print(f"\n[{profile}] *** CLUSTERING FAILED ***")

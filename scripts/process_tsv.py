@@ -6,6 +6,19 @@ import datetime
 from constants import BASE_METADATA_FIELDS
 
 
+def _clean_numeric_string(value):
+    """
+    Strip spurious float formatting
+    """
+    try:
+        f = float(value)
+        if f == int(f):
+            return str(int(f))
+    except (ValueError, TypeError):
+        pass
+    return value
+
+
 def process_tsv(
     metadata_partitions_tsv,
     full_metadata_file,
@@ -35,12 +48,12 @@ def process_tsv(
                 continue
 
             typing = {
-                "ST": row.get("ST", "").strip(),
+                "ST": _clean_numeric_string(row.get("ST", "").strip()),
                 "alleles": {},
             }
 
             for field in allele_fields:
-                value = row.get(field, "").strip()
+                value = _clean_numeric_string(row.get(field, "").strip())
                 if value:
                     typing["alleles"][field] = value
 

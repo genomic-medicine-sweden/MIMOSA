@@ -7,10 +7,16 @@ from constants import get_reportree_params
 
 
 def run_reportree(
-    metadata_file, cgmlst_file, output_folder, analysis_profile, save_files=False
+    metadata_file,
+    cgmlst_file,
+    output_folder,
+    analysis_profile,
+    save_files=False,
+    nomenclature_file=None,
 ):
     """
     Run ReporTree.
+
     """
     os.makedirs(output_folder, exist_ok=True)
 
@@ -50,7 +56,25 @@ def run_reportree(
             "-thr",
             str(thr),
         ]
+        if nomenclature_file:
+            command += ["--nomenclature-file", nomenclature_file]
     else:
+        nomenclature_basename = (
+            os.path.basename(nomenclature_file) if nomenclature_file else None
+        )
+        if nomenclature_file and nomenclature_basename:
+            local_nomenclature = os.path.join(output_folder, nomenclature_basename)
+            if os.path.abspath(nomenclature_file) != os.path.abspath(
+                local_nomenclature
+            ):
+                shutil.copy2(nomenclature_file, local_nomenclature)
+
+        nomenclature_arg = (
+            f" --nomenclature-file /data/{nomenclature_basename}"
+            if nomenclature_basename
+            else ""
+        )
+
         command = [
             "docker",
             "run",
@@ -64,7 +88,8 @@ def run_reportree(
             f"-m /data/{metadata_basename} "
             f"-a /data/{cgmlst_basename} "
             f"-out /data/{analysis_profile} "
-            f"--analysis {analysis} --method {method} -thr {thr}",
+            f"--analysis {analysis} --method {method} -thr {thr}"
+            f"{nomenclature_arg}",
         ]
 
     result = subprocess.run(command, capture_output=True, text=True)
