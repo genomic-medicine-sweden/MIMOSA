@@ -6,7 +6,6 @@ import { Column } from "primereact/column";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
-import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 
 import useCurrentUser from "@/hooks/useCurrentUser";
@@ -20,14 +19,7 @@ import {
   generateCountyFilterOptions,
 } from "./admin/adminUtils";
 
-import {
-  handleTextFilterChange,
-  handleDropdownFilterChange,
-  renderTextFilter,
-  renderDropdownFilter,
-  getInitialFilterState,
-  toast,
-} from "./utils/Utils";
+import { getInitialFilterState, toast } from "./utils/Utils";
 
 import EmailEditor from "./admin/EmailEditor";
 import AddUserDialog from "./admin/AddUserDialog";
@@ -156,10 +148,6 @@ export default function AdminPage() {
     />
   );
 
-  const onRowEditInit = (e) => {
-    setEditingOriginalData({ ...users[e.index] });
-  };
-
   const onRowEditComplete = (e) => {
     const { newData, index } = e;
     const originalEmail = editingOriginalData?.email;
@@ -198,6 +186,7 @@ export default function AdminPage() {
       setShowConfirmDialog(true);
     }
   };
+
   const confirmChanges = async () => {
     const { newData, index } = pendingEditData;
     const updateFields = { ...newData };
@@ -208,7 +197,6 @@ export default function AdminPage() {
 
     try {
       await updateUser(editingOriginalData.email, updateFields, index);
-
       toast.success(
         toastRef,
         "Success",
@@ -256,13 +244,13 @@ export default function AdminPage() {
   };
 
   const deleteUser = async () => {
+    const identifier = userToDelete.email || userToDelete.username;
     try {
-      await deleteUserApi(userToDelete.email);
-
+      await deleteUserApi(identifier);
       toast.success(
         toastRef,
         "User Deleted",
-        `${userToDelete.email} has been removed.`,
+        `${identifier} has been removed.`,
       );
     } catch (err) {
       console.error("Delete failed:", err);
@@ -284,12 +272,10 @@ export default function AdminPage() {
       setNewUserEmailError("Invalid email format.");
       return;
     }
-
     if (users.some((u) => u.email === newUser.email)) {
       setNewUserEmailError("Email already in use.");
       return;
     }
-
     if (!newUser.password.trim()) {
       toast.warn(toastRef, "Missing password", "Password is required");
       return;
@@ -297,14 +283,14 @@ export default function AdminPage() {
     if (newUser.password !== newUser.confirmPassword) {
       toast.warn(
         toastRef,
-        "Passowrd mismatch",
+        "Password mismatch",
         "Password and confirmation do not match",
       );
       return;
     }
-    try {
-      const createdUser = await createUser(newUser);
 
+    try {
+      await createUser(newUser);
       setNewUser({
         firstName: "",
         lastName: "",
@@ -316,7 +302,6 @@ export default function AdminPage() {
       });
       setShowAddUserForm(false);
       setNewUserEmailError("");
-
       toast.success(
         toastRef,
         "User Added",
@@ -349,20 +334,21 @@ export default function AdminPage() {
       setPasswordError("Both password fields are required.");
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setPasswordError("Passwords do not match.");
       return;
     }
 
+    const identifier =
+      userToUpdatePassword.email || userToUpdatePassword.username;
+
     try {
-      await updatePassword(userToUpdatePassword.email, newPassword);
+      await updatePassword(identifier, newPassword);
       toast.success(
         toastRef,
         "Password updated",
-        `Password updated for ${userToUpdatePassword.email}`,
+        `Password updated for ${identifier}`,
       );
-
       setShowPasswordDialog(false);
       setUserToUpdatePassword(null);
       setNewPassword("");
@@ -399,6 +385,7 @@ export default function AdminPage() {
           <i className="pi pi-filter-slash"></i>
         </button>
       </div>
+
       <style>{`
         .p-datatable .p-datatable-thead > tr:first-child > th {
           background-color: white !important;
@@ -423,10 +410,11 @@ export default function AdminPage() {
         onRowEditComplete={onRowEditComplete}
         onRowEditCancel={onRowEditCancel}
         rowEditValidator={(row) => {
+          if (row.role === "automation") return false;
+
           const originalEmail = editingOriginalData?.email ?? row.email;
           const draftEmail =
             (emailDrafts[originalEmail] ?? row.email)?.trim() ?? "";
-
           const emailChanged = draftEmail !== originalEmail;
 
           if (emailChanged) {
@@ -439,15 +427,20 @@ export default function AdminPage() {
               !error
             );
           }
-
           return true;
         }}
       >
         <Column
           field="email"
+          header="Email"
+          body={(rowData) =>
+            rowData.email || (
+              <span className="text-gray-400 italic">{rowData.username}</span>
+            )
+          }
           editor={emailEditor}
           filter
-          filterElement={renderTextFilter("email", fieldMeta.email.label)}
+          filterElement={renderTextFilter("email", "Email")}
           showFilterMenu={false}
           filterMatchMode="contains"
           style={{ minWidth: "14rem" }}
@@ -475,7 +468,14 @@ export default function AdminPage() {
         />
         <Column
           field="role"
-          editor={(options) => dropdownEditor(options, roleEditOptions)}
+          editor={(options) =>
+            dropdownEditor(
+              options,
+              options.rowData?.role === "automation"
+                ? [{ label: "Automation", value: "automation" }]
+                : roleEditOptions,
+            )
+          }
           filter
           filterElement={renderDropdownFilter(
             "role",
@@ -499,7 +499,6 @@ export default function AdminPage() {
           filterMatchMode="equals"
           style={{ minWidth: "12rem" }}
         />
-
         <Column
           rowEditor
           headerStyle={{ width: "5rem" }}
@@ -523,8 +522,10 @@ export default function AdminPage() {
           style={{ width: "6rem", textAlign: "center" }}
         />
         <Column
-          body={(rowData) =>
-            rowData.email !== currentUser.email ? (
+          body={(rowData) => {
+            const isSelf = rowData.email === currentUser.email;
+            if (isSelf) return null;
+            return (
               <button
                 onClick={() => {
                   setUserToDelete(rowData);
@@ -534,8 +535,8 @@ export default function AdminPage() {
               >
                 <i className="pi pi-trash" />
               </button>
-            ) : null
-          }
+            );
+          }}
           style={{ width: "4rem", textAlign: "center" }}
         />
       </DataTable>

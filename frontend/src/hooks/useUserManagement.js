@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/utils/apiFetch";
-
 export default function useUserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchUsers();
   }, []);
-
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -24,20 +21,17 @@ export default function useUserManagement() {
       setLoading(false);
     }
   };
-
   const createUser = async (newUser) => {
     const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newUser),
     });
-
     if (!res.ok) throw new Error(await res.text());
     const created = await res.json();
     setUsers((prev) => [...prev, created]);
     return created;
   };
-
   const updateUser = async (originalEmail, updatedFields, index) => {
     const res = await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(originalEmail)}`,
@@ -59,21 +53,21 @@ export default function useUserManagement() {
     });
     return updated;
   };
-
-  const deleteUser = async (email) => {
+  const deleteUser = async (identifier) => {
     const res = await apiFetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(email)}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(identifier)}`,
       {
         method: "DELETE",
       },
     );
     if (!res.ok) throw new Error(await res.text());
-    setUsers((prev) => prev.filter((u) => u.email !== email));
+    setUsers((prev) =>
+      prev.filter((u) => (u.email || u.username) !== identifier),
+    );
   };
-
-  const updatePassword = async (email, newPassword) => {
+  const updatePassword = async (identifier, newPassword) => {
     const res = await apiFetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(email)}/password`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${encodeURIComponent(identifier)}/password`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -82,7 +76,6 @@ export default function useUserManagement() {
     );
     if (!res.ok) throw new Error(await res.text());
   };
-
   return {
     users,
     loading,

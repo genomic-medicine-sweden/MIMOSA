@@ -5,13 +5,16 @@ shift
 
 case "$COMMAND" in
   create-user)
-    npx ts-node scripts/create-user.ts "$@"
+    MIMOSA_SCRIPT_MODE=true npx ts-node -r tsconfig-paths/register scripts/create-user.ts "$@"
+    ;;
+  create-automation-user)
+    MIMOSA_SCRIPT_MODE=true npx ts-node -r tsconfig-paths/register scripts/create-automation-user.ts "$@"
     ;;
   *)
     echo "Unknown command: $COMMAND"
     echo "Available commands:"
     echo "  mimosa create-user --p=<password> --fname=<First> --lname=<Last> --m=<email> [--r=<role>] [--county=<HomeCounty>]"
+    echo "  mimosa create-automation-user --p=<password> --fname=<First> --lname=<Last> [--m=<email>] [--u=<username>]"
     exit 1
     ;;
 esac
-

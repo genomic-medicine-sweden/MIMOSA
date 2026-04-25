@@ -12,6 +12,9 @@ export default function ChangePasswordDialog({
   setConfirmPassword,
   passwordError,
 }) {
+  const isAutomation = user?.role === "automation";
+  const displayName = user?.email || user?.username || "";
+
   return (
     <Dialog
       header="Change Password"
@@ -34,8 +37,14 @@ export default function ChangePasswordDialog({
     >
       <div className="space-y-3">
         <p>
-          Set a new password for: <strong>{user?.email || ""}</strong>
+          Set a new password for: <strong>{displayName}</strong>
         </p>
+        {isAutomation && (
+          <small className="block text-orange-500">
+            This is an automation account. After changing the password, update{" "}
+            <code>.env.automation</code> and restart the automation container.
+          </small>
+        )}
         <InputText
           type="password"
           placeholder="New Password"

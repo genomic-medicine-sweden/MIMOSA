@@ -151,30 +151,34 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':email/password')
-  @ApiParam({ name: 'email', required: true, description: 'Email of the user' })
+  @ApiParam({
+    name: 'email',
+    required: true,
+    description: 'Email or username of the user',
+  })
   @ApiOperation({
     summary: 'Change user password',
     description:
       'Allows users to change their own password, or admins to reset passwords.',
   })
   async changePassword(
-    @Param('email') email: string,
+    @Param('email') identifier: string,
     @Body() dto: ChangePasswordDto,
     @Req() req: Request,
   ) {
     const currentUser = req.user as any;
     const isAdmin = currentUser.role === 'admin';
 
-    if (!isAdmin && currentUser.email !== email) {
+    if (!isAdmin && currentUser.email !== identifier) {
       throw new BadRequestException('You can only change your own password.');
     }
 
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByIdentifier(identifier);
     if (!user) {
       throw new BadRequestException('User not found.');
     }
 
-    const isSelf = currentUser.email === email;
+    const isSelf = currentUser.email === identifier;
 
     if (!isAdmin || (isAdmin && isSelf)) {
       if (!dto.currentPassword) {
@@ -191,9 +195,12 @@ export class UsersController {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    const updated = await this.usersService.updateUserByEmail(email, {
-      passwordHash,
-    });
+    const updated = await this.usersService.updateUser(
+      (user._id as any).toString(),
+      {
+        passwordHash,
+      } as any,
+    );
 
     if (!updated) {
       throw new BadRequestException('Password update failed.');
@@ -208,20 +215,16 @@ export class UsersController {
   @ApiParam({
     name: 'email',
     required: true,
-    description: 'Email of the user to delete',
+    description: 'Email or username of the user to delete',
   })
   @ApiOperation({
     summary: 'Delete user',
-    description: 'Deletes a user account using the provided email.',
+    description: 'Deletes a user account using the provided email or username.',
   })
-  async remove(@Param('email') email: string) {
-    if (!email) throw new BadRequestException('Email parameter is required.');
-
-    const deleted = await this.usersService.deleteUserByEmail(email);
-    if (!deleted) {
-      throw new BadRequestException('User not found.');
-    }
-
+  async remove(@Param('email') identifier: string) {
+    if (!identifier) throw new BadRequestException('Identifier is required.');
+    const deleted = await this.usersService.deleteByIdentifier(identifier);
+    if (!deleted) throw new BadRequestException('User not found.');
     return { message: 'User deleted successfully' };
   }
 }
