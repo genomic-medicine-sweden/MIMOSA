@@ -24,6 +24,7 @@
 - Retry logic for `fetch_samples` and automation pipeline runner
 - Graceful fallback to metadata-only sync when clustering fails
 - Cluster naming stability across ReporTree runs via nomenclature file reconstructed from latest clustering document
+- New `automation` user role for service accounts
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
@@ -52,7 +53,7 @@
 - `get_analyzed_sample_ids()` now queries `features` collection only
 - `fetch_group` now raises on HTTP 500 in addition to 404
 - Group-filtered clustering now includes previously analyzed samples, preventing existing cluster assignments from being lost when a new group is processed
-
+- Suppressed noisy MongoClientClosedError logs and change stream output when creating users
 
 ## [v0.4.0]
 
