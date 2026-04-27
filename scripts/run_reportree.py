@@ -55,6 +55,7 @@ def run_reportree(
             method,
             "-thr",
             str(thr),
+            "--keep-redundants",
         ]
         if nomenclature_file:
             command += ["--nomenclature-file", nomenclature_file]
@@ -88,7 +89,7 @@ def run_reportree(
             f"-m /data/{metadata_basename} "
             f"-a /data/{cgmlst_basename} "
             f"-out /data/{analysis_profile} "
-            f"--analysis {analysis} --method {method} -thr {thr}"
+            f"--analysis {analysis} --method {method} -thr {thr} --keep-redundants"
             f"{nomenclature_arg}",
         ]
 

@@ -2,6 +2,7 @@
 import os
 import csv
 import json
+import traceback
 from dotenv import load_dotenv
 from pathlib import Path
 from pymongo import MongoClient
@@ -24,6 +25,99 @@ from constants import get_reportree_params
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
+
+
+def _synthesize_singletons(profile, profile_dir, threshold):
+    """
+    If ReporTree produced no partition column (all samples identical at this threshold),
+    synthesize singleton assignments
+
+    Existing singleton labels are preserved from the previous clustering
+    so labels stay stable across runs. New samples get the next available number.
+    """
+    import pandas as pd
+    import tempfile
+    import shutil
+
+    metadata_partitions_tsv = os.path.join(
+        profile_dir, f"{profile}_metadata_w_partitions.tsv"
+    )
+    cluster_composition_tsv = os.path.join(
+        profile_dir, f"{profile}_clusterComposition.tsv"
+    )
+
+    partition_col = f"MST-{threshold}x1.0"
+
+    df = pd.read_csv(metadata_partitions_tsv, sep="\t")
+
+    if partition_col in df.columns:
+        return
+
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME")
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+
+    try:
+        existing_doc = db["clustering"].find_one(
+            {"analysis_profile": profile},
+            sort=[("_id", -1)],
+        )
+    finally:
+        client.close()
+
+    existing_labels = {}
+    if existing_doc:
+        for r in existing_doc.get("results", []):
+            if r.get("Partition") == partition_col:
+                existing_labels[r["ID"]] = r["Cluster_ID"]
+
+    highest = 0
+    for label in existing_labels.values():
+        label_str = str(label)
+        if label_str.startswith("singleton_"):
+            suffix = label_str.split("_", 1)[1]
+            if suffix.isdigit():
+                highest = max(highest, int(suffix))
+
+    next_num = highest + 1
+
+    assigned = {}
+    for sample_id in df["sample"]:
+        if sample_id in existing_labels:
+            assigned[sample_id] = existing_labels[sample_id]
+        else:
+            assigned[sample_id] = f"singleton_{next_num}"
+            next_num += 1
+
+    df[partition_col] = df["sample"].map(assigned)
+
+    for target_path, write_fn in [
+        (
+            metadata_partitions_tsv,
+            lambda p: df.to_csv(p, sep="\t", index=False),
+        ),
+        (
+            cluster_composition_tsv,
+            lambda p: _write_cluster_composition(p, partition_col, assigned),
+        ),
+    ]:
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=profile_dir)
+        try:
+            os.close(tmp_fd)
+            write_fn(tmp_path)
+            shutil.move(tmp_path, target_path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
+
+
+def _write_cluster_composition(path, partition_col, assigned):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["#partition", "cluster", "cluster_length", "samples"])
+        for sample_id, label in assigned.items():
+            writer.writerow([partition_col, label, 1, sample_id])
 
 
 def _get_nomenclature_file(profile, profile_dir, is_interactive):
@@ -231,6 +325,13 @@ def mimosa(
         count=sample_count,
         nomenclature_file=nomenclature_file,
     )
+
+    params = get_reportree_params(profile)
+    try:
+        _synthesize_singletons(profile, profile_dir, params["threshold"])
+    except Exception:
+        traceback.print_exc()
+        raise
 
     cluster_composition_tsv = os.path.join(
         profile_dir,

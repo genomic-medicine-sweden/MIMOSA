@@ -67,7 +67,9 @@ def parse_args():
     elif "All" in args.profile:
         target_profiles = AVAILABLE_PROFILES
     else:
-        target_profiles = [p for p in args.profile if p in AVAILABLE_PROFILES]
+        target_profiles = [
+            p for p in AVAILABLE_PROFILES if p in [x.lower() for x in args.profile]
+        ]
 
     if not target_profiles:
         raise SystemExit("No valid profiles selected.")
