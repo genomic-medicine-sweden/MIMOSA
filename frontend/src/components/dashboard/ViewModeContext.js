@@ -12,6 +12,7 @@ export const ViewModes = {
   SAMPLES: "samples",
   MATRIX: "matrix",
   TREE: "tree",
+  TIMELINE: "timeline",
 };
 
 export function ViewModeProvider({ children }) {
