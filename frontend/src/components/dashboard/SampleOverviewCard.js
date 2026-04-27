@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useAppData from "@/hooks/useAppData";
-import postcodeData from "@shared/postcode-coordinates";
+import { getCounty } from "@/utils/locationUtils";
 
 export default function SampleOverviewCard() {
   const { data: enrichedSamples } = useAppData();
@@ -19,11 +19,6 @@ export default function SampleOverviewCard() {
       }
     }
   }, []);
-
-  const getCounty = (postcode) => {
-    const entry = postcodeData[postcode];
-    return entry && entry.County !== "0" ? entry.County : "";
-  };
 
   const validSamples = enrichedSamples.filter((s) => s.properties?.ID);
 
