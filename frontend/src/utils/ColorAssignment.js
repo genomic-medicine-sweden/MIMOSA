@@ -1,14 +1,15 @@
 import colorPalette from "./ColorPalette";
 
 const DEFAULT_COLOR = "#FFFFFF";
-const SINGLETON_COLOR = "#D3D3D3";
+export const SINGLETON_COLOR = "#D3D3D3";
 
 let Cluster_IDProfileColorMap = new Map();
+
 function gcd(a, b) {
   return b === 0 ? a : gcd(b, a % b);
 }
 
-function getStep(n) {
+export function getStep(n) {
   const target = Math.max(2, Math.floor(colorPalette.length / 3));
   let step = target;
   while (gcd(step, colorPalette.length) !== 1) step++;
@@ -17,7 +18,6 @@ function getStep(n) {
 
 export const countOccurrences = (data) => {
   Cluster_IDProfileColorMap.clear();
-
   const profileClusters = new Map();
 
   data.forEach((item) => {
@@ -39,7 +39,6 @@ export const countOccurrences = (data) => {
   profileClusters.forEach((clusterSet, profile) => {
     const clusters = [...clusterSet].sort();
     const step = getStep(clusters.length);
-
     clusters.forEach((clusterID, i) => {
       const index = (i * step) % colorPalette.length;
       const key = `${clusterID}-${profile}`;
@@ -50,14 +49,12 @@ export const countOccurrences = (data) => {
 
 export const getColor = (Cluster_ID, analysis_profile, force = false) => {
   if (!Cluster_ID || Cluster_ID === "Unknown") return DEFAULT_COLOR;
-
   if (String(Cluster_ID).toLowerCase().includes("singleton")) {
     return SINGLETON_COLOR;
   }
 
   const key = `${Cluster_ID}-${analysis_profile}`;
   const assigned = Cluster_IDProfileColorMap.get(key);
-
   if (assigned) return assigned;
 
   if (force) {

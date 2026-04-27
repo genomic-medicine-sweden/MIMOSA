@@ -1,4 +1,8 @@
-import { getColor, countOccurrences } from "@/utils/ColorAssignment";
+import {
+  getColor,
+  SINGLETON_COLOR,
+  countOccurrences,
+} from "@/utils/ColorAssignment";
 
 export function buildClusterCounts(clusterMap) {
   const counts = {};
@@ -7,6 +11,16 @@ export function buildClusterCounts(clusterMap) {
     counts[clusterID] = (counts[clusterID] || 0) + 1;
   });
   return counts;
+}
+
+export function buildClusterSampleMap(clusterMap) {
+  const samplesByCluster = {};
+  Object.entries(clusterMap).forEach(([sampleID, clusterID]) => {
+    if (clusterID.toLowerCase().includes("singleton")) return;
+    if (!samplesByCluster[clusterID]) samplesByCluster[clusterID] = [];
+    samplesByCluster[clusterID].push(sampleID);
+  });
+  return samplesByCluster;
 }
 
 export function seedClusterColors(clusterCounts, analysisProfile) {
@@ -23,22 +37,30 @@ export function seedClusterColors(clusterCounts, analysisProfile) {
   countOccurrences(synthetic);
 }
 
+export function buildClusterPalette(clusterCounts, analysisProfile) {
+  const palette = {};
+  Object.keys(clusterCounts).forEach((clusterID) => {
+    palette[clusterID] = getColor(clusterID, analysisProfile, true);
+  });
+  return palette;
+}
+
 export function buildClusterRenderOptions(
   clusterCounts,
   analysisProfile,
-  showSampleCount,
+  sampleDisplay,
+  clusterSampleMap = {},
+  onClusterClick = null,
 ) {
   return {
     "draw-size-bubbles": true,
-
     "bubble-styler": (node) => {
       const label = node.data?.name;
       if (!label) return 0;
       if (!(label in clusterCounts)) return 5;
       const count = clusterCounts[label] || 1;
-      return 6 + Math.sqrt(count) * 4;
+      return Math.min(20, 6 + Math.sqrt(count) * 1.5);
     },
-
     "node-styler": (element, node) => {
       const label = node.data?.name;
       if (!label) {
@@ -50,7 +72,7 @@ export function buildClusterRenderOptions(
       const count = clusterCounts[label] || 1;
       const color = isRealCluster
         ? getColor(label, analysisProfile, true)
-        : "#D3D3D3";
+        : SINGLETON_COLOR;
 
       element
         .selectAll("circle")
@@ -58,13 +80,25 @@ export function buildClusterRenderOptions(
         .style("stroke", "#555")
         .style("stroke-width", "1px");
 
-      const displayLabel = isRealCluster
-        ? showSampleCount
-          ? `Cluster ${label} (${count} sample${count !== 1 ? "s" : ""})`
-          : `Cluster ${label}`
-        : label;
-
+      let displayLabel;
+      if (!isRealCluster) {
+        displayLabel = label;
+      } else if (sampleDisplay === "none") {
+        displayLabel = "";
+      } else {
+        displayLabel = `Cluster ${label} (${count} sample${count !== 1 ? "s" : ""})`;
+      }
       element.selectAll("text").text(displayLabel);
+
+      if (isRealCluster && onClusterClick) {
+        element.style("cursor", "pointer").on("click", function (event) {
+          event.stopPropagation();
+          onClusterClick({
+            clusterID: label,
+            samples: clusterSampleMap[label] ?? [],
+          });
+        });
+      }
     },
   };
 }

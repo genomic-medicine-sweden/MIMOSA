@@ -1,5 +1,6 @@
-import { getColor } from "@/utils/ColorAssignment";
+import { getColor, SINGLETON_COLOR, getStep } from "@/utils/ColorAssignment";
 import colorPalette from "@/utils/ColorPalette";
+import { getCounty, getPostalTown } from "@/utils/locationUtils";
 
 const SKIP_PROPERTIES = new Set([
   "QC_Status",
@@ -9,6 +10,12 @@ const SKIP_PROPERTIES = new Set([
   "ID",
   "alleles",
 ]);
+
+const isGrayValue = (v) =>
+  !v ||
+  v === "Unknown" ||
+  v === "Singleton" ||
+  String(v).toLowerCase().includes("singleton");
 
 export function getColorableProperties(data, analysisProfile) {
   const profileData = data.filter(
@@ -44,6 +51,20 @@ export function getColorableProperties(data, analysisProfile) {
     .map(([key]) => key)
     .filter((key) => key !== "Cluster_ID" && key !== "Partition");
 
+  const hasAnyPostcode = profileData.some((item) =>
+    item.properties?.PostCode?.trim(),
+  );
+  if (hasAnyPostcode) {
+    const hasCounty = profileData.some(
+      (item) => !!getCounty(item.properties?.PostCode),
+    );
+    const hasPostalTown = profileData.some(
+      (item) => !!getPostalTown(item.properties?.PostCode),
+    );
+    if (hasCounty) keys.push("County");
+    if (hasPostalTown) keys.push("Postal Town");
+  }
+
   return ["Cluster", ...keys];
 }
 
@@ -69,6 +90,17 @@ export function buildColorByMap(
       const props = item.properties;
       const id = props?.ID;
       if (!id) return;
+
+      if (colorByKey === "County") {
+        result[id] = getCounty(props.PostCode) || "Unknown";
+        return;
+      }
+
+      if (colorByKey === "Postal Town") {
+        result[id] = getPostalTown(props.PostCode) || "Unknown";
+        return;
+      }
+
       if (props[colorByKey] !== undefined) {
         result[id] = String(props[colorByKey] || "Unknown");
       } else if (props.typing?.[colorByKey] !== undefined) {
@@ -82,46 +114,27 @@ export function buildColorByMap(
 }
 
 export function buildColorByPalette(colorByMap, colorBy, analysisProfile) {
-  const GRAY = "#D3D3D3";
-  const isGray = (v) =>
-    !v ||
-    v === "Unknown" ||
-    v === "Singleton" ||
-    String(v).toLowerCase().includes("singleton");
-
   const palette = {};
   const uniqueValues = [...new Set(Object.values(colorByMap))];
 
   if (colorBy === "Cluster") {
     uniqueValues.forEach((value) => {
-      palette[value] = isGray(value)
-        ? GRAY
-        : getColor(value, analysisProfile, true);
+      palette[value] = getColor(value, analysisProfile, true);
     });
     return palette;
   }
 
   uniqueValues.forEach((v) => {
-    if (isGray(v)) palette[v] = GRAY;
+    if (isGrayValue(v)) palette[v] = SINGLETON_COLOR;
   });
 
-  const colorValues = uniqueValues.filter((v) => !isGray(v)).sort();
+  const colorValues = uniqueValues.filter((v) => !isGrayValue(v)).sort();
   if (colorValues.length === 0) return palette;
 
-  const n = colorPalette.length;
-
-  const targetStep = Math.max(2, Math.floor(n / 3));
-  let step = targetStep;
-  while (gcd(step, n) !== 1) step++;
-
+  const step = getStep(colorValues.length);
   colorValues.forEach((value, i) => {
-    const index = (i * step) % n;
-    palette[value] = colorPalette[index];
+    palette[value] = colorPalette[(i * step) % colorPalette.length];
   });
 
   return palette;
-}
-
-function gcd(a, b) {
-  return b === 0 ? a : gcd(b, a % b);
 }
