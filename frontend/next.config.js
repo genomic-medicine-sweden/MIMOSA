@@ -10,8 +10,11 @@ const nextConfig = {
   allowedDevOrigins: [`${domain}`],
   basePath,
   assetPrefix: basePath,
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
     config.resolve.alias["@shared"] = path.resolve(__dirname, "../shared");
+    if (dev) {
+      config.cache = false;
+    }
     return config;
   },
 };
