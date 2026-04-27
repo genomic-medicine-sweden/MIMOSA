@@ -12,6 +12,7 @@ import createPieChartSVG from "@/utils/PieChart";
 import { colorMapping } from "@/utils/MapColor";
 import { generateInfoContent } from "@/utils/info";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
+import { getCounty } from "@/utils/locationUtils";
 
 const Map = ({
   filteredData,
@@ -144,17 +145,16 @@ const Map = ({
 
       if (!hospitalView && postcodeCoordinates[PostCode]) {
         coordinates = postcodeCoordinates[PostCode].coordinates;
-        County = postcodeCoordinates[PostCode].County;
+        County = getCounty(PostCode);
       } else if (hospitalView && HospitalCoordinates[Hospital]) {
         const postCode = HospitalCoordinates[Hospital].PostCode;
         const locationData = postcodeCoordinates[postCode];
         if (!locationData) return;
         coordinates = locationData.coordinates;
-        County = locationData.County;
+        County = getCounty(postCode);
       } else {
         return;
       }
-
       const point = {
         type: "Point",
         coordinates: [coordinates[1], coordinates[0]],
@@ -276,8 +276,11 @@ const Map = ({
   ]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const waitForMapContainer = (callback) => {
       const checkSize = () => {
+        if (cancelled) return;
         if (
           mapRef.current &&
           mapRef.current.clientWidth > 0 &&
@@ -295,6 +298,8 @@ const Map = ({
 
     if (!mapInstance.current) {
       waitForMapContainer(() => {
+        if (cancelled) return;
+
         const swedenBounds = [
           [54.0, 10.0],
           [70.0, 25.0],
@@ -302,6 +307,10 @@ const Map = ({
 
         const initialZoom = pickZoom();
         currentZoomRef.current = initialZoom;
+
+        if (mapRef.current._leaflet_id) {
+          mapRef.current._leaflet_id = null;
+        }
 
         const map = L.map(mapRef.current, {
           minZoom: initialZoom,
@@ -399,6 +408,7 @@ const Map = ({
     }
 
     return () => {
+      cancelled = true;
       cleanupFn();
       Object.values(markersRef.current).forEach((markerCluster) =>
         markerCluster.clearLayers(),
