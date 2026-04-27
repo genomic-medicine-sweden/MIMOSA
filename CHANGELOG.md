@@ -27,6 +27,8 @@
 - New `automation` user role for service accounts
 - Server-Sent Events (SSE) endpoint (`GET /api/features/events`) that streams notifications to connected clients whenever a feature is inserted, updated, replaced, or deleted
 - Frontend automatically refetches all data (features, similarity, logs, clustering) when a change event is received, without requiring a manual browser refresh
+- Timeline view with epi curve, weekly/monthly/quarterly resolution, cluster summaries, and location filters
+- Cluster detail panel in tree view with sample table, timeline, and Excel export
 
 
 ### Changed
@@ -60,6 +62,8 @@
 - Suppressed noisy MongoClientClosedError logs and change stream output when creating users
 - Samples no longer show as "unknown" cluster when all allele profiles are identical and ReporTree skips partitioning. The pipeline now synthesizes stable singleton assignments in this case.
 - `--profile` argument is now case-insensitive
+- Fix map container re-initialization error caused by React Strict Mode double-mounting
+- MatrixPage: Fixed cluster and sample filters showing options outside the selected analysis profile
 
 
 ## [v0.4.0]
