@@ -32,6 +32,21 @@ export default function MatrixPage() {
   const { samples, matrix, newick, loading, error } =
     useDistance(analysisProfile);
 
+  const profileClusters = useMemo(() => {
+    if (!samples?.length) return {};
+
+    const sampleSet = new Set(samples);
+
+    return Object.fromEntries(
+      Object.entries(availableClusters)
+        .map(([clusterId, clusterMembers]) => [
+          clusterId,
+          clusterMembers.filter((s) => sampleSet.has(s)),
+        ])
+        .filter(([, members]) => members.length > 0),
+    );
+  }, [availableClusters, samples]);
+
   const treeOrder = useMemo(() => {
     if (!samples?.length || !newick) return [];
     try {
@@ -52,10 +67,10 @@ export default function MatrixPage() {
     if (!Array.isArray(samples)) return [];
     if (!clusterFilter.length) return samples;
 
-    const allowed = clusterFilter.flatMap((id) => availableClusters[id] || []);
+    const allowed = clusterFilter.flatMap((id) => profileClusters[id] || []);
 
     return samples.filter((s) => allowed.includes(s));
-  }, [clusterFilter, samples, availableClusters]);
+  }, [clusterFilter, samples, profileClusters]);
 
   const filteredSamples = useMemo(() => {
     const base =
@@ -115,7 +130,7 @@ export default function MatrixPage() {
         <FloatLabel>
           <MultiSelect
             value={clusterFilter}
-            options={Object.keys(availableClusters).map((c) => ({
+            options={Object.keys(profileClusters).map((c) => ({
               label: c,
               value: c,
             }))}
@@ -123,7 +138,7 @@ export default function MatrixPage() {
               const selected = e.value ?? [];
               setClusterFilter(selected);
               setSampleFilter(
-                selected.flatMap((id) => availableClusters[id] || []),
+                selected.flatMap((id) => profileClusters[id] || []),
               );
             }}
             className="w-20rem"
