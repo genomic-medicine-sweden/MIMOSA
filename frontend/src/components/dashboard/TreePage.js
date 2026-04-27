@@ -16,8 +16,10 @@ import useClustering from "@/hooks/useClustering";
 import { buildCollapsedNewick } from "./tree/newickUtils";
 import {
   buildClusterCounts,
+  buildClusterSampleMap,
   seedClusterColors,
   buildClusterRenderOptions,
+  buildClusterPalette,
 } from "./tree/clusterUtils";
 import { buildDetailRenderOptions } from "./tree/detailRenderOptions";
 import {
@@ -26,6 +28,10 @@ import {
   buildColorByPalette,
 } from "./tree/colorByUtils";
 import TreeLegend from "./tree/TreeLegend";
+import ClusterPanel from "./tree/clusterPanel";
+
+const DEFAULT_WIDTH = 900;
+const DEFAULT_HEIGHT = 800;
 
 export default function TreePage() {
   const containerRef = useRef(null);
@@ -34,12 +40,14 @@ export default function TreePage() {
   const debounceRef = useRef(null);
 
   const [layout, setLayout] = useState("linear");
-  const [treeWidth, setTreeWidth] = useState(900);
-  const [treeHeight, setTreeHeight] = useState(800);
+  const [treeWidth, setTreeWidth] = useState(DEFAULT_WIDTH);
+  const [treeHeight, setTreeHeight] = useState(DEFAULT_HEIGHT);
   const [analysisProfile, setAnalysisProfile] = useState("");
   const [viewMode, setViewMode] = useState("cluster");
-  const [showSampleCount, setShowSampleCount] = useState(true);
+  const [sampleDisplay, setSampleDisplay] = useState("count");
   const [colorBy, setColorBy] = useState("None");
+  const [selectedCluster, setSelectedCluster] = useState(null);
+  const [clusterPalette, setClusterPalette] = useState(null);
 
   const { data } = useAppData();
   const analysisProfiles = useAnalysisProfiles(data);
@@ -50,6 +58,10 @@ export default function TreePage() {
   useEffect(() => {
     setColorBy("None");
   }, [analysisProfile]);
+
+  useEffect(() => {
+    setSelectedCluster(null);
+  }, [analysisProfile, viewMode]);
 
   useEffect(() => {
     if (!analysisProfile && analysisProfiles.length > 0) {
@@ -84,6 +96,9 @@ export default function TreePage() {
     displayRef.current.update();
   }, []);
 
+  const setSelectedClusterRef = useRef(setSelectedCluster);
+  setSelectedClusterRef.current = setSelectedCluster;
+
   useEffect(() => {
     if (!newick) return;
     if (clusterLoading) return;
@@ -104,13 +119,21 @@ export default function TreePage() {
 
       if (isClusterView) {
         const clusterCounts = buildClusterCounts(clusterMap);
+        const clusterSampleMap = buildClusterSampleMap(clusterMap);
         seedClusterColors(clusterCounts, analysisProfile);
+
+        const palette = buildClusterPalette(clusterCounts, analysisProfile);
+        setClusterPalette(palette);
+
         extraOptions = buildClusterRenderOptions(
           clusterCounts,
           analysisProfile,
-          showSampleCount,
+          sampleDisplay,
+          clusterSampleMap,
+          (cluster) => setSelectedClusterRef.current(cluster),
         );
       } else {
+        setClusterPalette(null);
         extraOptions = buildDetailRenderOptions(colorByMap, colorByPalette);
       }
 
@@ -127,6 +150,7 @@ export default function TreePage() {
         "draw-size-bubbles": false,
         "font-size": 12,
         zoom: true,
+        brush: false,
         collapsible: false,
         "left-right-spacing": "fit-to-size",
         "top-bottom-spacing": "fit-to-size",
@@ -147,7 +171,7 @@ export default function TreePage() {
     clusterMap,
     clusterLoading,
     analysisProfile,
-    showSampleCount,
+    sampleDisplay,
     colorByMap,
     colorByPalette,
     applyLayout,
@@ -159,7 +183,33 @@ export default function TreePage() {
     applyLayout();
   };
 
+  const handleReset = () => {
+    setTreeWidth(DEFAULT_WIDTH);
+    setTreeHeight(DEFAULT_HEIGHT);
+
+    setLayout("linear");
+    layoutRef.current = "linear";
+    applyLayout();
+
+    if (displayRef.current) {
+      try {
+        displayRef.current.zoomScale(1);
+        displayRef.current.update();
+      } catch (_) {}
+    }
+
+    if (containerRef.current) {
+      const g = containerRef.current.querySelector("svg g.phylotree-container");
+      if (g) {
+        g.setAttribute("transform", "");
+      }
+    }
+  };
+
   const isLoading = loading || clusterLoading;
+
+  const showClusterLegend =
+    viewMode === "cluster" && sampleDisplay === "none" && clusterPalette;
 
   return (
     <div
@@ -229,15 +279,29 @@ export default function TreePage() {
           )}
 
           {viewMode === "cluster" && (
-            <Button
-              label={
-                showSampleCount ? "Hide Sample Count" : "Show Sample Count"
-              }
-              icon={showSampleCount ? "pi pi-eye-slash" : "pi pi-eye"}
-              onClick={() => setShowSampleCount((v) => !v)}
-              outlined
-              severity="secondary"
-            />
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[
+                {
+                  value: "none",
+                  label: "Hide Labels",
+                  icon: "pi pi-eye-slash",
+                },
+                {
+                  value: "count",
+                  label: "Sample Count",
+                  icon: "pi pi-hashtag",
+                },
+              ].map(({ value, label, icon }) => (
+                <Button
+                  key={value}
+                  label={label}
+                  icon={icon}
+                  onClick={() => setSampleDisplay(value)}
+                  outlined={sampleDisplay !== value}
+                  severity={sampleDisplay === value ? undefined : "secondary"}
+                />
+              ))}
+            </div>
           )}
 
           <div style={{ width: "1px", height: "28px", background: "#ddd" }} />
@@ -251,6 +315,16 @@ export default function TreePage() {
               severity={layout === mode ? undefined : "secondary"}
             />
           ))}
+
+          <div style={{ width: "1px", height: "28px", background: "#ddd" }} />
+
+          <Button
+            label="Reset View"
+            icon="pi pi-refresh"
+            onClick={handleReset}
+            outlined
+            severity="secondary"
+          />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -281,6 +355,10 @@ export default function TreePage() {
         <TreeLegend colorBy={colorBy} colorByPalette={colorByPalette} />
       )}
 
+      {showClusterLegend && (
+        <TreeLegend colorBy="Cluster" colorByPalette={clusterPalette} />
+      )}
+
       {isLoading && (
         <div style={{ padding: "20px", color: "#666" }}>Loading tree...</div>
       )}
@@ -293,8 +371,23 @@ export default function TreePage() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowX: "hidden",
+          overflowY: "auto",
+          position: "relative",
+        }}
+      >
         <div ref={containerRef} style={{ width: "100%", minHeight: "800px" }} />
+        {viewMode === "cluster" && (
+          <ClusterPanel
+            cluster={selectedCluster}
+            onClose={() => setSelectedCluster(null)}
+            data={data}
+            analysisProfile={analysisProfile}
+          />
+        )}
       </div>
     </div>
   );
