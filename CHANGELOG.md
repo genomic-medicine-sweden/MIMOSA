@@ -25,6 +25,9 @@
 - Graceful fallback to metadata-only sync when clustering fails
 - Cluster naming stability across ReporTree runs via nomenclature file reconstructed from latest clustering document
 - New `automation` user role for service accounts
+- Server-Sent Events (SSE) endpoint (`GET /api/features/events`) that streams notifications to connected clients whenever a feature is inserted, updated, replaced, or deleted
+- Frontend automatically refetches all data (features, similarity, logs, clustering) when a change event is received, without requiring a manual browser refresh
+
 
 ### Changed
 - Outbreak detection moved from client-side to backend service
@@ -46,6 +49,7 @@
 - Pipeline state rendering suppressed in automation mode
 - Script constants centralised in `constants.py`; ReporTree params now profile-configurable
 - `prepare_supplementary_metadata.py` accepts multiple profiles and optional `--groups` filtering, with retry logic on server errors
+- `useAppData` fetch logic extracted into `useCallback` to support both the initial load and SSE-triggered refetches
 
 
 ### Fixed
@@ -54,6 +58,9 @@
 - `fetch_group` now raises on HTTP 500 in addition to 404
 - Group-filtered clustering now includes previously analyzed samples, preventing existing cluster assignments from being lost when a new group is processed
 - Suppressed noisy MongoClientClosedError logs and change stream output when creating users
+- Samples no longer show as "unknown" cluster when all allele profiles are identical and ReporTree skips partitioning. The pipeline now synthesizes stable singleton assignments in this case.
+- `--profile` argument is now case-insensitive
+
 
 ## [v0.4.0]
 
