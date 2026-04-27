@@ -6,7 +6,12 @@ import {
   Body,
   UseGuards,
   Req,
+  Sse,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { fromEvent } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FeaturesService } from './features.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -18,7 +23,6 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
-import { Feature } from './features.schema';
 import { UpdateFeatureDto } from './dto/update-feature.dto';
 
 @ApiTags('features')
@@ -27,7 +31,10 @@ import { UpdateFeatureDto } from './dto/update-feature.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class FeaturesController {
-  constructor(private readonly featuresService: FeaturesService) {}
+  constructor(
+    private readonly featuresService: FeaturesService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -36,6 +43,18 @@ export class FeaturesController {
   })
   getAllFeatures() {
     return this.featuresService.findAll();
+  }
+
+  @Sse('events')
+  @ApiOperation({
+    summary: 'SSE stream for feature change notifications',
+    description:
+      'Streams a notification whenever a feature is inserted or updated.',
+  })
+  featureEvents(): Observable<MessageEvent> {
+    return fromEvent(this.eventEmitter, 'features.changed').pipe(
+      map(() => ({ data: { type: 'features.changed' } }) as MessageEvent),
+    );
   }
 
   @Get(':sample_id')
@@ -53,7 +72,7 @@ export class FeaturesController {
   @ApiOperation({
     summary: 'Update sample features',
     description:
-      ' Allow PostCode, Hospital, and Date fields in the sample feature to be updated by ID.',
+      'Allow PostCode, Hospital, and Date fields in the sample feature to be updated by ID.',
   })
   async updateFeature(
     @Param('sample_id') sampleId: string,

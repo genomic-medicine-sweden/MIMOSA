@@ -64,8 +64,26 @@ export class OutbreaksService implements OnModuleInit {
 
     featureStream.on('change', async (change) => {
       try {
-        if (!['insert', 'update', 'replace'].includes(change.operationType))
+        if (
+          !['insert', 'update', 'replace', 'delete'].includes(
+            change.operationType,
+          )
+        )
           return;
+
+        this.eventEmitter.emit('features.changed', {
+          operationType: change.operationType,
+        });
+
+        if (change.operationType === 'delete') {
+          const profiles = await this.featureModel.distinct(
+            'properties.analysis_profile',
+          );
+          for (const profile of profiles) {
+            this.scheduleOutbreakCheck(profile);
+          }
+          return;
+        }
         const docId = change.documentKey?._id;
         if (!docId) return;
         const feature = await this.featureModel.findById(docId);
