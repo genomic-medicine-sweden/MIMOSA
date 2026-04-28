@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 from api import fetch_samples, fetch_sample_details
+from constants import AVAILABLE_PROFILES, CGMLST_MISSING_CODES
 
 REPORTREE_SAFE_COLUMNS = [
     "sample",
@@ -12,9 +13,6 @@ REPORTREE_SAFE_COLUMNS = [
 
 
 def normalise_missing(value):
-    """
-    Convert placeholder API values to proper missing values (None).
-    """
     if value is None:
         return None
 
@@ -33,10 +31,9 @@ def process_samples_by_profile(
     output_folder,
     target_profiles=None,
     user_selected_profiles=None,
+    sample_ids=None,
+    run_clustering=True,
 ):
-    """
-    Process samples grouped by their profiles, filtering based on target_profiles.
-    """
     os.makedirs(output_folder, exist_ok=True)
 
     samples = fetch_samples(bonsai_api_url, token)
@@ -50,17 +47,28 @@ def process_samples_by_profile(
             continue
 
         if target_profiles is None or profile in target_profiles:
-            profiles.setdefault(profile, []).append(sample_id)
+            if sample_ids is None or sample_id in sample_ids:
+                profiles.setdefault(profile, []).append(sample_id)
 
     if not profiles:
-        print("No samples match the specified profiles. Exiting.")
+        print("No samples match the specified profiles. Exiting.", flush=True)
         return None, None
 
     metadata_files = []
     cgmlst_files = []
 
     for profile, sample_ids in profiles.items():
-        print(f"\nProcessing profile: {profile} with {len(sample_ids)} samples")
+
+        if run_clustering:
+            print(
+                f"\nProcessing profile: {profile} with {len(sample_ids)} samples",
+                flush=True,
+            )
+        else:
+            print(
+                f"\nChecking for metadata updates for {profile} with {len(sample_ids)} samples",
+                flush=True,
+            )
 
         metadata_rows = []
         cgmlst_frames = []
@@ -102,10 +110,7 @@ def process_samples_by_profile(
                 ),
             }
 
-            if (analysis_profile or "").lower() in {
-                "staphylococcus_aureus",
-                "klebsiella_pneumoniae",
-            }:
+            if (analysis_profile or "").lower() in set(AVAILABLE_PROFILES):
                 mlst = next(
                     (
                         r
@@ -136,7 +141,7 @@ def process_samples_by_profile(
                 allele_row.update(cgmlst.get("result", {}).get("alleles", {}))
                 cgmlst_frames.append(pd.DataFrame([allele_row]))
             else:
-                print(f"No cgMLST data found for sample {sample_id}")
+                print(f"No cgMLST data found for sample {sample_id}", flush=True)
 
             metadata_rows.append(metadata_row)
 
@@ -150,7 +155,7 @@ def process_samples_by_profile(
 
         missing = set(REPORTREE_SAFE_COLUMNS) - set(metadata_df.columns)
         if missing:
-            raise RuntimeError(f"Missing required ReporTree-safe columns: {missing}")
+            raise RuntimeError(f"Missing required ReporTree columns: {missing}")
 
         reportree_safe_metadata_file = os.path.join(
             output_folder,
@@ -171,21 +176,7 @@ def process_samples_by_profile(
 
         if cgmlst_frames:
             cgmlst_df = pd.concat(cgmlst_frames, ignore_index=True)
-            missing_codes = {
-                "ASM",
-                "EXC",
-                "INF",
-                "LNF",
-                "PLNF",
-                "PLOT3",
-                "PLOT5",
-                "LOTSC",
-                "NIPH",
-                "NIPHEM",
-                "PAMA",
-                "ALM",
-            }
-            cgmlst_df.replace(missing_codes, "0", inplace=True)
+            cgmlst_df.replace(CGMLST_MISSING_CODES, "0", inplace=True)
 
             cgmlst_file = os.path.join(
                 output_folder,
@@ -194,6 +185,6 @@ def process_samples_by_profile(
             cgmlst_df.to_csv(cgmlst_file, sep="\t", index=False)
             cgmlst_files.append(cgmlst_file)
         else:
-            print(f"No cgMLST data collected for profile {profile}")
+            print(f"No cgMLST data collected for profile {profile}", flush=True)
 
     return metadata_files, cgmlst_files

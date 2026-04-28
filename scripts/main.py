@@ -1,130 +1,140 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import sys
 import tempfile
 import shutil
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 from pymongo import MongoClient
 
 from api import (
     load_credentials,
     get_access_token,
     fetch_samples,
+    fetch_group,
+    validate_groups,
     authenticate_mimosa_user,
 )
 from upload import upload_similarity
-from sample_checks import get_new_sample_ids, prompt_if_no_new_samples
 from process_similarity import process_similarity
 from MIMOSA import mimosa
 
 from mimosa_state import (
+    GLOBAL_PROFILE,
     init_pipeline_state,
-    Status,
     render_pipeline_state,
     render_runtime_summary,
+    set_profile_mode,
 )
 from mimosa_runner import run_stage
+from constants import AVAILABLE_PROFILES
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
-
-AVAILABLE_PROFILES = [
-    "staphylococcus_aureus",
-    "klebsiella_pneumoniae",
-]
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Process sample data, run ReporTree, and upload results to MIMOSA."
     )
+
+    parser.add_argument("--credentials", required=False, default=None)
+    parser.add_argument("--profile", required=False, nargs="+", default=None)
+    parser.add_argument("--groups", required=False, nargs="+", default=None)
+    parser.add_argument("--output", required=False)
+    parser.add_argument("--save_files", action="store_true")
+    parser.add_argument("--supplementary_metadata", required=False, default=None)
+
+    parser.add_argument("--update-only", action="store_true")
+    parser.add_argument("--run-similarity", action="store_true")
     parser.add_argument(
-        "--credentials", required=True, help="Path to credentials file."
-    )
-    parser.add_argument(
-        "--profile",
-        required=True,
-        nargs="+",
-        help="Target profile(s) to process. Pass 'All' to process all.",
-    )
-    parser.add_argument("--output", required=False, help="Directory for output files.")
-    parser.add_argument(
-        "--supplementary_metadata",
-        required=False,
-        help="Path to supplementary metadata.",
-    )
-    parser.add_argument(
-        "--save_files", action="store_true", help="Save output files locally."
-    )
-    parser.add_argument(
-        "--update", action="store_true", help="Update existing samples."
-    )
-    parser.add_argument("--debug", action="store_true", help="Print full traceback.")
-    parser.add_argument(
-        "--skip_similarity",
+        "--re-cluster",
         action="store_true",
-        help="Skip similarity and related uploads",
+        help="Force clustering even if no new samples are detected.",
     )
+    parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
 
     if args.save_files and not args.output:
         parser.error("--save_files requires --output")
 
-    if "All" in args.profile:
+    if args.profile is None and args.groups is None:
+        target_profiles = AVAILABLE_PROFILES
+    elif args.profile is None:
+        target_profiles = AVAILABLE_PROFILES
+    elif "All" in args.profile:
         target_profiles = AVAILABLE_PROFILES
     else:
-        target_profiles = [p for p in args.profile if p in AVAILABLE_PROFILES]
+        target_profiles = [
+            p for p in AVAILABLE_PROFILES if p in [x.lower() for x in args.profile]
+        ]
 
     if not target_profiles:
-        raise SystemExit("No valid profiles selected. Exiting.")
-    if args.update:
-        args.skip_similarity = True
+        raise SystemExit("No valid profiles selected.")
 
     return args, target_profiles
 
 
-def get_analyzed_sample_ids():
-    mongo_uri = os.getenv("MONGO_URI") or os.getenv("MONGO_URI_DOCKER")
+def get_analyzed_sample_ids(profile=None):
+    """
+    Fetch IDs of samples already analyzed in MIMOSA (from features collection).
+    Optionally scoped to a specific analysis profile.
+    """
+    mongo_uri = os.getenv("MONGO_URI")
+    if not mongo_uri:
+        raise RuntimeError("MONGO_URI is not set.")
+
     db_name = os.getenv("MONGO_DB_NAME")
     client = MongoClient(mongo_uri)
     db = client[db_name]
 
-    similarity_ids = set(db["similarities"].distinct("ID"))
-    feature_ids = set(db["features"].distinct("properties.ID"))
+    query = {"properties.analysis_profile": profile} if profile else {}
+    feature_ids = set(db["features"].distinct("properties.ID", query))
 
     client.close()
-    return similarity_ids | feature_ids
+    return feature_ids
+
+
+def decide_clustering(profile, new_ids, args, is_interactive):
+    """
+    Decide whether to run clustering for a profile.
+    """
+    if new_ids:
+        print(f"[{profile}] New samples detected")
+        return True
+
+    if args.re_cluster:
+        print(f"[{profile}] --re-cluster set")
+        return True
+
+    if is_interactive:
+        user_input = (
+            input(f"No new samples for {profile}. Re-run clustering? (yes/no): ")
+            .strip()
+            .lower()
+        )
+        return user_input in ("yes", "y")
+
+    return False
 
 
 def main():
     args, target_profiles = parse_args()
 
-    GLOBAL_PROFILE = "__global__"
-    mode = "update" if args.update else "full"
-    pipeline_state = init_pipeline_state(target_profiles + [GLOBAL_PROFILE], mode=mode)
-
-    for stage in (
-        "prepare_metadata",
-        "run_reportree",
-        "process_features",
-        "upload_features",
-        "upload_clustering",
-        "upload_distance",
-    ):
-        pipeline_state[GLOBAL_PROFILE][stage]["status"] = Status.SKIPPED
-
-    if args.skip_similarity:
-        for stage in ("run_similarity", "upload_similarity"):
-            pipeline_state[GLOBAL_PROFILE][stage]["status"] = Status.SKIPPED
-
-    render_pipeline_state(pipeline_state)
-
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
+
+    if args.groups:
+        try:
+            validate_groups(credentials["bonsai_api_url"], token, args.groups)
+        except ValueError as e:
+            raise SystemExit(f"Error: {e}\nPlease check the group IDs and try again.")
+
     upload_token = authenticate_mimosa_user(credentials)
+
+    display_mode = "update" if args.update_only else "full"
 
     base_dir = (
         args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")
@@ -132,112 +142,188 @@ def main():
     if args.save_files:
         os.makedirs(base_dir, exist_ok=True)
 
-    all_target_ids = set()
+    all_ids_for_similarity = set()
+    clustering_failed_profiles = set()
+    is_interactive = sys.stdin.isatty()
 
     try:
         all_samples = fetch_samples(credentials["bonsai_api_url"], token)
-        analyzed_ids = get_analyzed_sample_ids()
-        any_new_samples = False
+        group_sample_ids = None
+        if args.groups:
+            group_sample_ids = set()
+            for gid in args.groups:
+                group_sample_ids.update(
+                    fetch_group(credentials["bonsai_api_url"], token, gid)
+                )
 
+        filtered_scope = {}
         for profile in target_profiles:
-            pipeline_state[profile]["fetch_samples"]["status"] = Status.DONE
-        pipeline_state[GLOBAL_PROFILE]["fetch_samples"]["status"] = Status.DONE
-        render_pipeline_state(pipeline_state)
+            profile_samples = [s for s in all_samples if s.get("profile") == profile]
+            profile_all_ids = {
+                s["sample_id"] for s in profile_samples if "sample_id" in s
+            }
 
-        for profile in target_profiles:
-            if args.update:
-                target_ids = {
-                    s["sample_id"]
-                    for s in all_samples
-                    if s.get("profile") == profile
-                    and s.get("sample_id") in analyzed_ids
-                }
-                if not target_ids:
-                    print(f"No samples to update for profile '{profile}'.")
-                    continue
+            if group_sample_ids is not None:
+                group_ids = profile_all_ids & group_sample_ids
             else:
-                new_ids = get_new_sample_ids(all_samples, analyzed_ids, profile)
-                if not new_ids:
-                    if not prompt_if_no_new_samples(profile, new_ids):
-                        continue
-                    target_ids = analyzed_ids
-                else:
-                    target_ids = new_ids
-                    any_new_samples = True
+                group_ids = profile_all_ids
 
-            pipeline_state[profile]["fetch_samples"]["count"] = len(target_ids)
-            all_target_ids.update(target_ids)
+            if group_ids:
+                filtered_scope[profile] = {
+                    "group_ids": group_ids,
+                    "profile_all_ids": profile_all_ids,
+                }
+
+        if filtered_scope:
+            state_profiles = list(filtered_scope.keys())
+            if args.run_similarity:
+                state_profiles.append(GLOBAL_PROFILE)
+
+            pipeline_state = init_pipeline_state(state_profiles, mode=display_mode)
+
+            for profile in state_profiles:
+                if profile != GLOBAL_PROFILE and profile in filtered_scope:
+                    pipeline_state[profile]["fetch_samples"]["count"] = len(
+                        filtered_scope[profile]["group_ids"]
+                    )
+
+            render_pipeline_state(pipeline_state)
+        else:
+            print("No samples found matching the specified filters.")
+            return
+
+        for profile, scope in filtered_scope.items():
+            group_ids = scope["group_ids"]
+            profile_all_ids = scope["profile_all_ids"]
+
+            analyzed_ids = get_analyzed_sample_ids(profile=profile)
+
+            new_ids = group_ids - analyzed_ids
+            existing_ids = group_ids & analyzed_ids
+
+            if group_sample_ids is not None:
+                already_analyzed_for_profile = analyzed_ids & profile_all_ids
+                clustering_ids = group_ids | already_analyzed_for_profile
+            else:
+                clustering_ids = group_ids
 
             profile_dir = os.path.join(base_dir, profile)
-            mimosa(
-                profile,
-                profile_dir,
-                args,
-                credentials,
-                token,
-                target_ids,
-                upload_token,
-                pipeline_state,
-            )
 
-        run_similarity = True
+            if args.update_only:
+                print(f"[{profile}] Update-only mode: metadata sync only")
 
-        if args.update:
-            run_similarity = False
+                try:
+                    mimosa(
+                        profile,
+                        profile_dir,
+                        args,
+                        credentials,
+                        token,
+                        existing_ids,
+                        upload_token,
+                        pipeline_state,
+                        run_clustering=False,
+                    )
+                    all_ids_for_similarity.update(existing_ids)
+                except Exception as e:
+                    print(f"[{profile}] ERROR in update-only mode: {e}")
+                    clustering_failed_profiles.add(profile)
 
-        if args.skip_similarity or not all_target_ids:
-            run_similarity = False
+                continue
 
-        elif not any_new_samples:
-            answer = (
-                input(
-                    "\nNo new samples detected across any profile. "
-                    "Do you want to recompute similarity anyway? (yes/no): "
-                )
-                .strip()
-                .lower()
-            )
-            if answer not in ("yes", "y"):
-                run_similarity = False
+            run_clustering = decide_clustering(profile, new_ids, args, is_interactive)
 
-        if run_similarity:
-            print("\nRunning similarity")
-
-            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["total"] = len(
-                all_target_ids
-            )
-            pipeline_state[GLOBAL_PROFILE]["run_similarity"]["done"] = 0
-            render_pipeline_state(pipeline_state)
-
-            def similarity_progress():
-                pipeline_state[GLOBAL_PROFILE]["run_similarity"]["done"] += 1
+            if not run_clustering:
+                set_profile_mode(pipeline_state, profile, "update")
                 render_pipeline_state(pipeline_state)
 
-            run_stage(
-                pipeline_state,
-                GLOBAL_PROFILE,
-                "run_similarity",
-                process_similarity,
-                credentials["bonsai_api_url"],
-                token,
-                sorted(all_target_ids),
-                base_dir,
-                "combined",
-                save_files=True,
-                progress_callback=similarity_progress,
-            )
+            if run_clustering:
+                target_ids = clustering_ids
+            else:
+                target_ids = existing_ids
 
-            similarity_path = os.path.join(base_dir, "combined_similarity.json")
+            try:
+                did_cluster = mimosa(
+                    profile,
+                    profile_dir,
+                    args,
+                    credentials,
+                    token,
+                    target_ids,
+                    upload_token,
+                    pipeline_state,
+                    run_clustering=run_clustering,
+                    is_interactive=is_interactive,
+                )
+            except Exception as e:
+                print(f"\n[{profile}] *** CLUSTERING FAILED ***")
+                print(f"[{profile}] Error: {e}")
+                print(f"[{profile}] Metadata sync will still proceed")
+                clustering_failed_profiles.add(profile)
 
-            run_stage(
-                pipeline_state,
-                GLOBAL_PROFILE,
-                "upload_similarity",
-                upload_similarity,
-                similarity_path,
-                upload_token=upload_token,
-                count=len(all_target_ids),
+                try:
+                    print(
+                        f"[{profile}] Attempting metadata sync for {len(existing_ids)} existing samples..."
+                    )
+                    mimosa(
+                        profile,
+                        profile_dir,
+                        args,
+                        credentials,
+                        token,
+                        existing_ids,
+                        upload_token,
+                        pipeline_state,
+                        run_clustering=False,
+                    )
+                except Exception as metadata_error:
+                    print(f"[{profile}] Metadata sync also failed: {metadata_error}")
+
+            all_ids_for_similarity.update(group_ids)
+
+        if args.run_similarity and all_ids_for_similarity:
+            print("\n" + "=" * 70)
+            print("Running similarity analysis...")
+            print("=" * 70)
+
+            if clustering_failed_profiles:
+                print(
+                    f"\nWARNING: Clustering failed for profiles: {', '.join(sorted(clustering_failed_profiles))}"
+                )
+                print("Similarity will run on available data.\n")
+
+            try:
+                run_stage(
+                    pipeline_state,
+                    GLOBAL_PROFILE,
+                    "run_similarity",
+                    process_similarity,
+                    credentials["bonsai_api_url"],
+                    token,
+                    sorted(all_ids_for_similarity),
+                    base_dir,
+                    save_files=True,
+                )
+
+                similarity_path = os.path.join(base_dir, "similarity.json")
+
+                run_stage(
+                    pipeline_state,
+                    GLOBAL_PROFILE,
+                    "upload_similarity",
+                    upload_similarity,
+                    similarity_path,
+                    upload_token=upload_token,
+                    count=len(all_ids_for_similarity),
+                )
+            except Exception as e:
+                print(f"Similarity analysis failed: {e}")
+
+        if clustering_failed_profiles:
+            print(
+                f"Clustering failed for: {', '.join(sorted(clustering_failed_profiles))}"
             )
+            print("Metadata was updated where possible.")
 
     finally:
         if not args.save_files and os.path.exists(base_dir):

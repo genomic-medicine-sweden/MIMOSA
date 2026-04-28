@@ -13,8 +13,19 @@ export class UsersService {
     return this.userModel.findOne({ email: email.toLowerCase() }).exec();
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return this.userModel.findOne({ username }).exec();
+  }
+
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).exec();
+  }
+
+  async findByIdentifier(identifier: string): Promise<User | null> {
+    return (
+      (await this.findByEmail(identifier)) ??
+      (await this.findByUsername(identifier))
+    );
   }
 
   private normaliseHomeCounty<T extends { homeCounty?: unknown }>(obj: T): T {
@@ -95,6 +106,15 @@ export class UsersService {
     return result.deletedCount > 0;
   }
 
+  async deleteByIdentifier(identifier: string): Promise<boolean> {
+    const user =
+      (await this.findByEmail(identifier)) ??
+      (await this.findByUsername(identifier));
+    if (!user) return false;
+    const result = await this.userModel.deleteOne({ _id: user._id }).exec();
+    return result.deletedCount > 0;
+  }
+
   async comparePassword(plain: string, hash: string): Promise<boolean> {
     return bcrypt.compare(plain, hash);
   }
@@ -102,22 +122,36 @@ export class UsersService {
   async create(data: {
     firstName: string;
     lastName: string;
-    email: string;
+    email?: string;
+    username?: string;
     homeCounty?: string;
     role?: string;
     passwordHash: string;
   }): Promise<User> {
+    const role = data.role ?? 'user';
+
+    if (role !== 'automation' && !data.email) {
+      throw new BadRequestException('Email is required.');
+    }
+
+    if (role === 'automation' && !data.email && !data.username) {
+      throw new BadRequestException(
+        'Automation accounts require at least an email or a username.',
+      );
+    }
+
     this.normaliseHomeCounty(data);
+
     const user = new this.userModel({
       ...data,
-      email: data.email.toLowerCase(),
+      role,
+      email: data.email ? data.email.toLowerCase() : undefined,
     });
     return user.save();
   }
 
   async findAll(): Promise<Omit<User, 'passwordHash' | '__v' | '_id'>[]> {
     const users = await this.userModel.find().lean();
-
     return users.map(({ passwordHash, __v, _id, ...rest }) => rest) as Omit<
       User,
       'passwordHash' | '__v' | '_id'

@@ -1,6 +1,9 @@
 import { Dialog } from "primereact/dialog";
 
 export default function DeleteUserDialog({ visible, onHide, onConfirm, user }) {
+  const isAutomation = user?.role === "automation";
+  const identifier = user?.email || user?.username;
+
   return (
     <Dialog
       header="Confirm Deletion"
@@ -22,10 +25,18 @@ export default function DeleteUserDialog({ visible, onHide, onConfirm, user }) {
       }
     >
       {user && (
-        <p>
-          Are you sure you want to delete? <br />
-          <strong>{user.email}</strong>
-        </p>
+        <div className="space-y-2">
+          <p>
+            Are you sure you want to delete? <br />
+            <strong>{identifier}</strong>
+          </p>
+          {isAutomation && (
+            <small className="block text-orange-500">
+              This is an automation account. After deletion, the automation
+              service will fail to authenticate.
+            </small>
+          )}
+        </div>
       )}
     </Dialog>
   );

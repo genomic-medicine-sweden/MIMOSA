@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bar, Line } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import {
   Chart,
-  BarElement,
   LineElement,
   PointElement,
   CategoryScale,
@@ -13,13 +12,13 @@ import {
 } from "chart.js";
 import { getColor } from "@/utils/ColorAssignment";
 import { SelectButton } from "primereact/selectbutton";
-import "primeicons/primeicons.css";
-import { exportTimelineImage } from "@/utils/TimelineExport";
 import { Button } from "primereact/button";
 import { Tooltip as PrimeTooltip } from "primereact/tooltip";
+import "primeicons/primeicons.css";
+import { exportTimelineImage } from "@/utils/TimelineExport";
+import StackedClusterBar from "@/components/charts/StackedClusterBar";
 
 Chart.register(
-  BarElement,
   LineElement,
   PointElement,
   CategoryScale,
@@ -29,117 +28,91 @@ Chart.register(
   Legend,
 );
 
+const GROUPING_OPTIONS = [
+  { label: "Year", value: "year" },
+  { label: "Year-Month", value: "year-month" },
+  { label: "Date", value: "date" },
+];
+
+function groupDataBy(data, groupingType) {
+  const grouped = {};
+  data.forEach((item) => {
+    let date;
+    if (groupingType === "year") {
+      date = item.properties.Date.slice(0, 4);
+    } else if (groupingType === "year-month") {
+      date = item.properties.Date.slice(0, 7);
+    } else {
+      date = item.properties.Date;
+    }
+
+    let clusterID = item.properties.Cluster_ID;
+    if (clusterID.toLowerCase().includes("singleton")) clusterID = "Singleton";
+
+    if (!grouped[date]) grouped[date] = {};
+    grouped[date][clusterID] = (grouped[date][clusterID] ?? 0) + 1;
+  });
+  return grouped;
+}
+
 const Timeline = ({ filteredData }) => {
   const [grouping, setGrouping] = useState("date");
   const [chartType, setChartType] = useState("bar");
   const chartRef = useRef(null);
 
-  const groupDataBy = (data, groupingType) => {
-    const groupedData = {};
-    data.forEach((item) => {
-      let date;
-      if (groupingType === "year") {
-        date = item.properties.Date.slice(0, 4);
-      } else if (groupingType === "year-month") {
-        date = item.properties.Date.slice(0, 7);
-      } else {
-        date = item.properties.Date;
-      }
+  useEffect(() => {
+    setGrouping("date");
+  }, []);
 
-      let clusterID = item.properties.Cluster_ID;
-      if (clusterID.toLowerCase().includes("singleton")) {
-        clusterID = "Singleton";
-      }
+  const datedData = filteredData.filter(
+    (item) => !!item.properties.Date?.trim(),
+  );
+  const missingDateCount = filteredData.length - datedData.length;
 
-      if (!groupedData[date]) {
-        groupedData[date] = {};
-      }
-      if (!groupedData[date][clusterID]) {
-        groupedData[date][clusterID] = 0;
-      }
-      groupedData[date][clusterID] += 1;
-    });
-    return groupedData;
-  };
-
-  const dataByDate = groupDataBy(filteredData, grouping);
+  const dataByDate = groupDataBy(datedData, grouping);
   const labels = Object.keys(dataByDate).sort();
 
   const uniqueClusterIDs = [
     ...new Set(
-      filteredData.map((item) => {
-        let cid = item.properties.Cluster_ID;
-        if (cid.toLowerCase().includes("singleton")) {
-          return "Singleton";
-        }
-        return cid;
+      datedData.map((item) => {
+        const cid = item.properties.Cluster_ID;
+        return cid.toLowerCase().includes("singleton") ? "Singleton" : cid;
       }),
     ),
   ];
 
-  const datasets = uniqueClusterIDs.map((Cluster_ID) => {
-    let itemWithID = filteredData.find((item) => {
-      let cid = item.properties.Cluster_ID;
-      if (Cluster_ID === "Singleton") {
-        return cid.toLowerCase().includes("singleton");
-      }
-      return cid === Cluster_ID;
+  const datasets = uniqueClusterIDs.map((clusterID) => {
+    const match = datedData.find((item) => {
+      const cid = item.properties.Cluster_ID;
+      return clusterID === "Singleton"
+        ? cid.toLowerCase().includes("singleton")
+        : cid === clusterID;
     });
-    const analysis_profile = itemWithID
-      ? itemWithID.properties.analysis_profile
-      : "default";
+    const analysis_profile = match?.properties.analysis_profile ?? "default";
+    const color = getColor(clusterID, analysis_profile, true);
 
     return {
-      label: Cluster_ID,
-      data: labels.map((label) => dataByDate[label][Cluster_ID] || 0),
-      backgroundColor: getColor(Cluster_ID, analysis_profile, true),
-      borderColor:
-        chartType === "bar"
-          ? "black"
-          : getColor(Cluster_ID, analysis_profile, true),
+      label: clusterID,
+      data: labels.map((label) => dataByDate[label][clusterID] ?? 0),
+      backgroundColor: color,
+      borderColor: chartType === "bar" ? "black" : color,
       borderWidth: chartType === "bar" ? 1 : 2,
       fill: chartType !== "bar",
+      stack: "stack",
     };
   });
 
-  const chartData = {
-    labels,
-    datasets,
-  };
-
-  const options = {
+  const lineOptions = {
     responsive: true,
-    plugins: {
-      legend: {
-        position: "top",
-      },
-    },
+    plugins: { legend: { position: "top" } },
     scales: {
       x: { stacked: true },
       y: {
         stacked: true,
-        ticks: {
-          beginAtZero: true,
-          stepSize: 1,
-          precision: 0,
-        },
+        ticks: { beginAtZero: true, stepSize: 1, precision: 0 },
       },
     },
   };
-
-  const groupingOptions = [
-    { label: "Year", value: "year" },
-    { label: "Year-Month", value: "year-month" },
-    { label: "Date", value: "date" },
-  ];
-
-  const toggleChartType = () => {
-    setChartType((prevType) => (prevType === "bar" ? "line" : "bar"));
-  };
-
-  useEffect(() => {
-    setGrouping("date");
-  }, []);
 
   return (
     <div className="timeline-component" style={{ marginBottom: "0px" }}>
@@ -148,13 +121,13 @@ const Timeline = ({ filteredData }) => {
       >
         <SelectButton
           value={grouping}
-          options={groupingOptions}
+          options={GROUPING_OPTIONS}
           onChange={(e) => setGrouping(e.value)}
           style={{ marginRight: "10px" }}
         />
         <Button
           className="p-button p-button-outlined"
-          onClick={toggleChartType}
+          onClick={() => setChartType((t) => (t === "bar" ? "line" : "bar"))}
           style={{ marginRight: "10px" }}
         >
           {chartType === "bar" ? "Line Chart" : "Bar Chart"}
@@ -174,13 +147,33 @@ const Timeline = ({ filteredData }) => {
           />
         </div>
       </div>
+
       <div ref={chartRef}>
         {chartType === "bar" ? (
-          <Bar data={chartData} options={options} height={30} />
+          <StackedClusterBar
+            datasets={datasets}
+            labels={labels}
+            height="200px"
+            showLegend
+          />
         ) : (
-          <Line data={chartData} options={options} height={30} />
+          <Line data={{ labels, datasets }} options={lineOptions} height={30} />
         )}
       </div>
+
+      {missingDateCount > 0 && (
+        <div
+          style={{
+            fontSize: "10px",
+            color: "#ccc",
+            fontStyle: "italic",
+            marginTop: "6px",
+          }}
+        >
+          {missingDateCount} sample{missingDateCount !== 1 ? "s" : ""} without
+          collection date
+        </div>
+      )}
     </div>
   );
 };

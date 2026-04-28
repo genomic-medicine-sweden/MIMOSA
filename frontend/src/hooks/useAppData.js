@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
 import { apiFetch } from "@/utils/apiFetch";
 
@@ -10,98 +10,121 @@ export default function useAppData() {
   const [dateRange, setDateRange] = useState(null);
   const [logs, setLogs] = useState([]);
   const [clusters, setClusters] = useState({});
+  const [hasNewData, setHasNewData] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  const fetchData = useCallback(async () => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
 
-        const [featuresRes, similarityRes, logsRes, clusteringRes] =
-          await Promise.all([
-            apiFetch(`${apiBase}/api/features`),
-            apiFetch(`${apiBase}/api/similarity`),
-            apiFetch(`${apiBase}/api/logs`),
-            apiFetch(`${apiBase}/api/clustering`),
-          ]);
+      const [featuresRes, similarityRes, logsRes, clusteringRes] =
+        await Promise.all([
+          apiFetch(`${apiBase}/api/features`),
+          apiFetch(`${apiBase}/api/similarity`),
+          apiFetch(`${apiBase}/api/logs`),
+          apiFetch(`${apiBase}/api/clustering`),
+        ]);
 
-        const features = await featuresRes.json();
-        const similarityData = await similarityRes.json();
-        const logsData = await logsRes.json();
-        const clusteringArray = await clusteringRes.json();
+      const features = await featuresRes.json();
+      const similarityData = await similarityRes.json();
+      const logsData = await logsRes.json();
+      const clusteringArray = await clusteringRes.json();
 
-        const clusteringByProfile = {};
+      const clusteringByProfile = {};
+      if (Array.isArray(clusteringArray)) {
+        clusteringArray.forEach((run) => {
+          const profile = run.analysis_profile;
+          if (!profile) return;
+          const existing = clusteringByProfile[profile];
+          if (
+            !existing ||
+            new Date(run.createdAt) > new Date(existing.createdAt)
+          ) {
+            clusteringByProfile[profile] = run;
+          }
+        });
+      }
 
-        if (Array.isArray(clusteringArray)) {
-          clusteringArray.forEach((run) => {
-            const profile = run.analysis_profile;
-            if (!profile) return;
-
-            const existing = clusteringByProfile[profile];
-            if (
-              !existing ||
-              new Date(run.createdAt) > new Date(existing.createdAt)
-            ) {
-              clusteringByProfile[profile] = run;
-            }
+      const clusterMapByProfile = {};
+      Object.entries(clusteringByProfile).forEach(([profile, run]) => {
+        const mapping = {};
+        if (Array.isArray(run.results)) {
+          run.results.forEach((item) => {
+            mapping[item.ID] = {
+              clusterID: item.Cluster_ID ?? "Unknown",
+              partition: item.Partition ?? "Unknown",
+            };
           });
         }
+        clusterMapByProfile[profile] = mapping;
+      });
 
-        const clusterMapByProfile = {};
+      const enriched = features.map((item) => {
+        const id = item.properties.ID;
+        const profile = item.properties.analysis_profile;
+        const profileMapping = clusterMapByProfile[profile] || {};
+        const clusterInfo = profileMapping[id] || {
+          clusterID: "Unknown",
+          partition: "Unknown",
+        };
+        item.properties.Cluster_ID = clusterInfo.clusterID;
+        item.properties.Partition = clusterInfo.partition;
+        return {
+          ...item,
+          clusterID: clusterInfo.clusterID,
+          partition: clusterInfo.partition,
+          color: getColor(clusterInfo.clusterID, profile),
+        };
+      });
 
-        Object.entries(clusteringByProfile).forEach(([profile, run]) => {
-          const mapping = {};
-          if (Array.isArray(run.results)) {
-            run.results.forEach((item) => {
-              mapping[item.ID] = {
-                clusterID: item.Cluster_ID ?? "Unknown",
-                partition: item.Partition ?? "Unknown",
-              };
-            });
-          }
-          clusterMapByProfile[profile] = mapping;
-        });
+      countOccurrences(enriched);
+      setData(enriched);
+      setSimilarity(similarityData);
+      setLogs(logsData);
 
-        const enriched = features.map((item) => {
-          const id = item.properties.ID;
-          const profile = item.properties.analysis_profile;
+      const clusterGroups = {};
+      enriched.forEach((item) => {
+        const id = item.properties.ID;
+        const clusterId = item.properties.Cluster_ID;
+        if (!clusterGroups[clusterId]) clusterGroups[clusterId] = [];
+        clusterGroups[clusterId].push(id);
+      });
+      setClusters(clusterGroups);
 
-          const profileMapping = clusterMapByProfile[profile] || {};
-          const clusterInfo = profileMapping[id] || {
-            clusterID: "Unknown",
-            partition: "Unknown",
-          };
+      setHasNewData(false);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
+  }, []);
 
-          item.properties.Cluster_ID = clusterInfo.clusterID;
-          item.properties.Partition = clusterInfo.partition;
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, dateRange]);
 
-          return {
-            ...item,
-            clusterID: clusterInfo.clusterID,
-            partition: clusterInfo.partition,
-            color: getColor(clusterInfo.clusterID, profile),
-          };
-        });
+  useEffect(() => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL;
+    const es = new EventSource(`${apiBase}/api/features/events`, {
+      withCredentials: true,
+    });
 
-        countOccurrences(enriched);
-        setData(enriched);
-        setSimilarity(similarityData);
-        setLogs(logsData);
-
-        const clusterGroups = {};
-        enriched.forEach((item) => {
-          const id = item.properties.ID;
-          const clusterId = item.properties.Cluster_ID;
-          if (!clusterGroups[clusterId]) clusterGroups[clusterId] = [];
-          clusterGroups[clusterId].push(id);
-        });
-        setClusters(clusterGroups);
-      } catch (error) {
-        console.error("Error loading data:", error);
-      }
+    es.onmessage = () => {
+      setHasNewData(true);
+      fetchData();
     };
 
-    fetchData();
-  }, [dateRange]);
+    es.onerror = (err) => {
+      console.warn("[SSE] Connection error, will auto-reconnect:", err);
+    };
 
-  return { data, similarity, logs, clusters, dateRange, setDateRange };
+    return () => es.close();
+  }, [fetchData]);
+
+  return {
+    data,
+    similarity,
+    logs,
+    clusters,
+    dateRange,
+    setDateRange,
+    hasNewData,
+  };
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import isEqual from 'lodash.isequal';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Feature } from './features.schema';
 import { LogsService } from '../logs/logs.service';
 
@@ -10,6 +11,7 @@ export class FeaturesService {
   constructor(
     @InjectModel(Feature.name) private featureModel: Model<Feature>,
     private readonly logsService: LogsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAll(): Promise<Feature[]> {
@@ -39,7 +41,6 @@ export class FeaturesService {
 
     const originalProps = existing.properties || {};
     const allowedFields = ['PostCode', 'Hospital', 'Date'];
-
     const updatePayload: Record<string, any> = {};
     const updatedFields: string[] = [];
     const finalChanges: Record<string, { old: any; new: any }> = {};
@@ -74,10 +75,12 @@ export class FeaturesService {
 
     await this.logsService.logSampleUpdate(
       sampleId,
+      existing.properties?.analysis_profile ?? 'unknown',
       changedBy,
       updatedFields,
       finalChanges,
     );
+    this.eventEmitter.emit('features.changed', { operationType: 'update' });
 
     return updated;
   }

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import os
+import csv
 import json
-from dotenv import load_dotenv, find_dotenv
-
+import traceback
+from dotenv import load_dotenv
+from pathlib import Path
+from pymongo import MongoClient
 from process_samples import process_samples_by_profile
 from run_reportree import run_reportree
 from process_tsv import (
@@ -18,11 +21,167 @@ from upload import (
 )
 from mimosa_runner import run_stage
 from mimosa_state import Status
+from constants import get_reportree_params
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
+
+
+def _synthesize_singletons(profile, profile_dir, threshold):
+    """
+    If ReporTree produced no partition column (all samples identical at this threshold),
+    synthesize singleton assignments
+
+    Existing singleton labels are preserved from the previous clustering
+    so labels stay stable across runs. New samples get the next available number.
+    """
+    import pandas as pd
+    import tempfile
+    import shutil
+
+    metadata_partitions_tsv = os.path.join(
+        profile_dir, f"{profile}_metadata_w_partitions.tsv"
+    )
+    cluster_composition_tsv = os.path.join(
+        profile_dir, f"{profile}_clusterComposition.tsv"
+    )
+
+    partition_col = f"MST-{threshold}x1.0"
+
+    df = pd.read_csv(metadata_partitions_tsv, sep="\t")
+
+    if partition_col in df.columns:
+        return
+
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME")
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+
+    try:
+        existing_doc = db["clustering"].find_one(
+            {"analysis_profile": profile},
+            sort=[("_id", -1)],
+        )
+    finally:
+        client.close()
+
+    existing_labels = {}
+    if existing_doc:
+        for r in existing_doc.get("results", []):
+            if r.get("Partition") == partition_col:
+                existing_labels[r["ID"]] = r["Cluster_ID"]
+
+    highest = 0
+    for label in existing_labels.values():
+        label_str = str(label)
+        if label_str.startswith("singleton_"):
+            suffix = label_str.split("_", 1)[1]
+            if suffix.isdigit():
+                highest = max(highest, int(suffix))
+
+    next_num = highest + 1
+
+    assigned = {}
+    for sample_id in df["sample"]:
+        if sample_id in existing_labels:
+            assigned[sample_id] = existing_labels[sample_id]
+        else:
+            assigned[sample_id] = f"singleton_{next_num}"
+            next_num += 1
+
+    df[partition_col] = df["sample"].map(assigned)
+
+    for target_path, write_fn in [
+        (
+            metadata_partitions_tsv,
+            lambda p: df.to_csv(p, sep="\t", index=False),
+        ),
+        (
+            cluster_composition_tsv,
+            lambda p: _write_cluster_composition(p, partition_col, assigned),
+        ),
+    ]:
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=profile_dir)
+        try:
+            os.close(tmp_fd)
+            write_fn(tmp_path)
+            shutil.move(tmp_path, target_path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
+
+
+def _write_cluster_composition(path, partition_col, assigned):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["#partition", "cluster", "cluster_length", "samples"])
+        for sample_id, label in assigned.items():
+            writer.writerow([partition_col, label, 1, sample_id])
+
+
+def _get_nomenclature_file(profile, profile_dir, is_interactive):
+    """
+    Fetch the latest clustering document for this profile
+    """
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME")
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    clustering_doc = db["clustering"].find_one(
+        {"analysis_profile": profile},
+        sort=[("_id", -1)],
+    )
+    client.close()
+
+    if not clustering_doc:
+        return None
+
+    params = get_reportree_params(profile)
+    expected_partition = f"MST-{params['threshold']}x1.0"
+
+    results = clustering_doc.get("results", [])
+    stored_partition = results[0]["Partition"] if results else None
+
+    if stored_partition != expected_partition:
+        print(
+            f"[{profile}] WARNING: Stored partition column is '{stored_partition}' "
+            f"but the current run expects '{expected_partition}'."
+        )
+        print(f"[{profile}] This likely means the clustering threshold has changed.")
+
+        if is_interactive:
+            answer = (
+                input(
+                    f"[{profile}] Proceed without preserving cluster names? (yes/no): "
+                )
+                .strip()
+                .lower()
+            )
+            if answer not in ("yes", "y"):
+                raise RuntimeError(
+                    f"[{profile}] Aborted by user due to partition mismatch."
+                )
+        else:
+            print(f"[{profile}] skipping nomenclature file.")
+
+        return None
+
+    nomenclature_path = os.path.join(profile_dir, f"{profile}_nomenclature.tsv")
+    with open(nomenclature_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["sample", stored_partition])
+        for entry in results:
+            cluster_id = entry["Cluster_ID"]
+            label = (
+                f"cluster_{cluster_id}"
+                if isinstance(cluster_id, int)
+                else str(cluster_id)
+            )
+            writer.writerow([entry["ID"], label])
+
+    return nomenclature_path
 
 
 def mimosa(
@@ -34,6 +193,8 @@ def mimosa(
     sample_ids,
     upload_token,
     state,
+    run_clustering=True,
+    is_interactive=False,
 ):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
@@ -49,18 +210,25 @@ def mimosa(
         target_profiles=[profile],
         user_selected_profiles=args.profile,
         count=sample_count,
+        sample_ids=sample_ids,
+        run_clustering=run_clustering,
     )
 
-    if not metadata_files or not cgmlst_files:
+    if not metadata_files:
         state[profile]["prepare_metadata"]["status"] = Status.SKIPPED
-        return
+        return False
+
+    if run_clustering and not cgmlst_files:
+        raise RuntimeError(
+            f"[{profile}] Clustering requested but cgMLST data is missing."
+        )
 
     metadata_entry = metadata_files[0]
     full_metadata_file = metadata_entry["full"]
     reportree_metadata_file = metadata_entry["reportree_safe"]
-    cgmlst_file = cgmlst_files[0]
+    cgmlst_file = cgmlst_files[0] if cgmlst_files else None
 
-    if args.supplementary_metadata:
+    if getattr(args, "supplementary_metadata", None):
         from update_metadata import update_metadata_with_supplementary_metadata
 
         update_metadata_with_supplementary_metadata(
@@ -78,7 +246,7 @@ def mimosa(
         f"features_{profile}.json",
     )
 
-    if args.update:
+    if args.update_only:
         run_stage(
             state,
             profile,
@@ -106,7 +274,43 @@ def mimosa(
         state[profile]["run_reportree"]["status"] = Status.SKIPPED
         state[profile]["upload_clustering"]["status"] = Status.SKIPPED
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
-        return
+        return False
+
+    if not run_clustering:
+        print(
+            f"[{profile}] Clustering skipped — no new samples and re-cluster not requested"
+        )
+
+        run_stage(
+            state,
+            profile,
+            "process_features",
+            process_tsv,
+            full_metadata_file,
+            full_metadata_file,
+            features_json_path,
+            save_files=True,
+            count=sample_count,
+        )
+
+        run_stage(
+            state,
+            profile,
+            "upload_features",
+            upload_features,
+            features_json_path,
+            overwrite=True,
+            show_log=True,
+            upload_token=upload_token,
+            count=sample_count,
+        )
+
+        state[profile]["run_reportree"]["status"] = Status.SKIPPED
+        state[profile]["upload_clustering"]["status"] = Status.SKIPPED
+        state[profile]["upload_distance"]["status"] = Status.SKIPPED
+        return False
+
+    nomenclature_file = _get_nomenclature_file(profile, profile_dir, is_interactive)
 
     run_stage(
         state,
@@ -119,7 +323,15 @@ def mimosa(
         profile,
         save_files=True,
         count=sample_count,
+        nomenclature_file=nomenclature_file,
     )
+
+    params = get_reportree_params(profile)
+    try:
+        _synthesize_singletons(profile, profile_dir, params["threshold"])
+    except Exception:
+        traceback.print_exc()
+        raise
 
     cluster_composition_tsv = os.path.join(
         profile_dir,
@@ -173,8 +385,8 @@ def mimosa(
         "upload_features",
         upload_features,
         features_json_path,
-        overwrite=args.update,
-        show_log=args.update or not sample_ids,
+        overwrite=True,
+        show_log=False,
         upload_token=upload_token,
         count=sample_count,
     )
@@ -213,5 +425,7 @@ def mimosa(
             count=sample_count,
         )
     else:
-        print("Distance matrix or Newick file missing — skipping distance upload.")
+        print("Distance matrix or Newick missing — skipping")
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
+
+    return True

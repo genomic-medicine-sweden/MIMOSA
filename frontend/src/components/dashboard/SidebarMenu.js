@@ -61,6 +61,21 @@ export default function SidebarMenu() {
           text
           onClick={() => setViewMode(ViewModes.MATRIX)}
         />
+        <Button
+          label="Tree"
+          icon="pi pi-sitemap"
+          className="w-full justify-start"
+          text
+          onClick={() => setViewMode(ViewModes.TREE)}
+        />
+        <Button
+          label="Timeline"
+          icon="pi pi-calendar"
+          className="w-full justify-start"
+          text
+          onClick={() => setViewMode(ViewModes.TIMELINE)}
+        />
+
         {role === "admin" && (
           <Button
             label="Logs"

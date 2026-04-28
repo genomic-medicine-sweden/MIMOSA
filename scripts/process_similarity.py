@@ -43,7 +43,6 @@ def process_similarity(
     token,
     sample_ids,
     output_dir,
-    profile,
     poll_interval=3,
     max_attempts=10,
     save_files=False,
@@ -125,7 +124,7 @@ def process_similarity(
 
     if save_files:
         os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, f"{profile}_similarity.json")
+        output_path = os.path.join(output_dir, "similarity.json")
         with open(output_path, "w", encoding="utf-8") as outfile:
             json.dump(similarity, outfile, indent=2)
 

@@ -16,6 +16,19 @@
 - Session validity polling with automatic redirect to login on expiry
 - Support for running MIMOSA behind a reverse proxy or at a subpath
 - Ability to configure external and internal API endpoints for more flexible deployments
+- Support for filtering samples by Bonsai group IDs via `--groups`
+- Phylogenetic tree view with cluster and detail display modes, supporting linear/radial/unrooted layouts, cluster collapsing with sized bubbles, and metadata-based node coloring with legend
+- useClustering hook to fetch cluster assignments from API
+- Automation service (`mimosa-automation`) for scheduled Bonsai sample ingestion
+- `--re-cluster` flag to force clustering without new samples
+- Retry logic for `fetch_samples` and automation pipeline runner
+- Graceful fallback to metadata-only sync when clustering fails
+- Cluster naming stability across ReporTree runs via nomenclature file reconstructed from latest clustering document
+- New `automation` user role for service accounts
+- Server-Sent Events (SSE) endpoint (`GET /api/features/events`) that streams notifications to connected clients whenever a feature is inserted, updated, replaced, or deleted
+- Frontend automatically refetches all data (features, similarity, logs, clustering) when a change event is received, without requiring a manual browser refresh
+- Timeline view with epi curve, weekly/monthly/quarterly resolution, cluster summaries, and location filters
+- Cluster detail panel in tree view with sample table, timeline, and Excel export
 
 
 ### Changed
@@ -27,9 +40,36 @@
 - Improved handling of application URLs, CORS, and authentication redirects
 - Frontend routing updated to work correctly when hosted under a subpath
 - Backend and scripts now better support non-local deployments
-	
+- Validate Bonsai group IDs before execution and improve error handling for missing groups
+- Cluster color assignment now uses evenly-spaced stepped indexing (GCD-based) instead of hashing, improving visual distinction between clusters
+- Color palette expanded and reordered for greater perceptual variety
+- Renamed `MONGO_URI_DOCKER` to `MONGO_URI_INTERNAL` for clarity
+- Pipeline runner now logs stage start, duration, and failure per profile
+- Terminal clear in pipeline state renderer is now guarded against non-TTY environment
+- load_credentials()` accepts env-based credentials when no credentials file is provided
+- `--update` renamed to `--update-only`; `--skip_similarity` replaced by opt-in `--run-similarity`
+- Pipeline state rendering suppressed in automation mode
+- Script constants centralised in `constants.py`; ReporTree params now profile-configurable
+- `prepare_supplementary_metadata.py` accepts multiple profiles and optional `--groups` filtering, with retry logic on server errors
+- `useAppData` fetch logic extracted into `useCallback` to support both the initial load and SSE-triggered refetches
+- New dashboard overview — shows KPI summary cards, an incomplete-clusters table, recent notifications, and recent sample activity
+- Samples missing a collection date are now excluded from the Timeline chart with a count shown below it
+
 
 ### Fixed
+- Backend startup log now correctly displays domain and port
+- `get_analyzed_sample_ids()` now queries `features` collection only
+- `fetch_group` now raises on HTTP 500 in addition to 404
+- Group-filtered clustering now includes previously analyzed samples, preventing existing cluster assignments from being lost when a new group is processed
+- Suppressed noisy MongoClientClosedError logs and change stream output when creating users
+- Samples no longer show as "unknown" cluster when all allele profiles are identical and ReporTree skips partitioning. The pipeline now synthesizes stable singleton assignments in this case.
+- `--profile` argument is now case-insensitive
+- Fix map container re-initialization error caused by React Strict Mode double-mounting
+- MatrixPage: Fixed cluster and sample filters showing options outside the selected analysis profile
+- Automation pipeline overwriting manually edited Hospital, PostCode, and Date fields
+- Log validation error when updating samples imported via automation
+- Notification preferences showing incorrect default state in UI
+
 
 ## [v0.4.0]
 

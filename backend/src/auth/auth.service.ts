@@ -9,19 +9,24 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(username: string, password: string) {
-    const user = await this.usersService.findByEmail(username);
+  async login(identifier: string, password: string) {
+    let user = await this.usersService.findByEmail(identifier);
+    if (!user) {
+      user = await this.usersService.findByUsername(identifier);
+    }
 
     const isValid =
       user &&
       (await this.usersService.comparePassword(password, user.passwordHash));
-    if (!isValid) {
+
+    if (!isValid || !user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const payload = {
       sub: user._id,
-      email: user.email,
+      email: user.email ?? null,
+      username: user.username ?? null,
       role: user.role,
     };
 
@@ -30,8 +35,10 @@ export class AuthService {
     return {
       access_token,
       expires_in: 1800,
+      isAutomation: user.role === 'automation',
       user: {
-        email: user.email,
+        email: user.email ?? null,
+        username: user.username ?? null,
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,

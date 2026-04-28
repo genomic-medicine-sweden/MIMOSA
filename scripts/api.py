@@ -1,13 +1,13 @@
 import json
 import os
+import time
 import requests
 from requests.exceptions import ConnectionError
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def normalise_scalar(value, default="Unknown"):
@@ -27,13 +27,10 @@ def auth_headers(token):
     }
 
 
-def load_credentials(credentials_file):
+def load_credentials(credentials_file=None):
     """
-    Load Bonsai and MIMOSA credentials from a user-specific JSON file.
-    Constructs bonsai_api_url from .env values.
+    Load Bonsai and MIMOSA credentials.
     """
-    with open(credentials_file, "r") as file:
-        user_credentials = json.load(file)
 
     domain = os.getenv("DOMAIN")
     bonsai_port = os.getenv("BONSAI_API_PORT")
@@ -41,21 +38,62 @@ def load_credentials(credentials_file):
     if not domain or not bonsai_port:
         raise ValueError("DOMAIN and BONSAI_API_PORT must be set in the .env file.")
 
-    bonsai_api_url = (
-        os.getenv("BONSAI_API_PRIVATE_URL") or f"http://{domain}:{bonsai_port}"
-    )
+    bonsai_api_internal = os.getenv("BONSAI_API_INTERNAL")
+    bonsai_api_private = os.getenv("BONSAI_API_PRIVATE_URL")
+
+    if bonsai_api_internal:
+        bonsai_api_url = f"{bonsai_api_internal}:{bonsai_port}"
+    elif bonsai_api_private:
+        bonsai_api_url = bonsai_api_private
+    else:
+        bonsai_api_url = f"http://{domain}:{bonsai_port}"
+
+    if credentials_file:
+        with open(credentials_file, "r") as file:
+            user_credentials = json.load(file)
+
+        return {
+            "bonsai_api_url": bonsai_api_url,
+            "bonsai_username": user_credentials["bonsai_username"],
+            "bonsai_password": user_credentials["bonsai_password"],
+            "mimosa_username": user_credentials["mimosa_username"],
+            "mimosa_password": user_credentials["mimosa_password"],
+        }
+
+    bonsai_username = os.getenv("AUTOMATION_BONSAI_USERNAME")
+    bonsai_password = os.getenv("AUTOMATION_BONSAI_PASSWORD")
+    mimosa_username = os.getenv("AUTOMATION_MIMOSA_USERNAME")
+    mimosa_password = os.getenv("AUTOMATION_MIMOSA_PASSWORD")
+
+    missing = [
+        name
+        for name, val in {
+            "AUTOMATION_BONSAI_USERNAME": bonsai_username,
+            "AUTOMATION_BONSAI_PASSWORD": bonsai_password,
+            "AUTOMATION_MIMOSA_USERNAME": mimosa_username,
+            "AUTOMATION_MIMOSA_PASSWORD": mimosa_password,
+        }.items()
+        if not val
+    ]
+
+    if missing:
+        raise ValueError(
+            f"Missing required environment variables: {', '.join(missing)}"
+        )
 
     return {
         "bonsai_api_url": bonsai_api_url,
-        "bonsai_username": user_credentials["bonsai_username"],
-        "bonsai_password": user_credentials["bonsai_password"],
-        "mimosa_username": user_credentials["mimosa_username"],
-        "mimosa_password": user_credentials["mimosa_password"],
+        "bonsai_username": bonsai_username,
+        "bonsai_password": bonsai_password,
+        "mimosa_username": mimosa_username,
+        "mimosa_password": mimosa_password,
     }
 
 
 def get_access_token(credentials):
-    """Retrieve access token from the Bonsai API."""
+    """
+    Retrieve access token from the Bonsai API.
+    """
     try:
         response = requests.post(
             f"{credentials['bonsai_api_url']}/token",
@@ -83,7 +121,10 @@ def get_access_token(credentials):
 
 
 def authenticate_mimosa_user(credentials):
-    """Authenticate the uploader as a MIMOSA user."""
+    """
+    Authenticate the uploader as a MIMOSA user.
+    """
+
     domain = os.getenv("DOMAIN")
     backend_port = os.getenv("BACKEND_PORT")
 
@@ -91,7 +132,9 @@ def authenticate_mimosa_user(credentials):
         raise ValueError("DOMAIN and BACKEND_PORT must be set in the .env file.")
 
     mimosa_api_base = (
-        os.getenv("MIMOSA_API_PRIVATE_URL_BASE") or f"http://{domain}:{backend_port}"
+        os.getenv("MIMOSA_API_INTERNAL")
+        or os.getenv("MIMOSA_API_PRIVATE_URL_BASE")
+        or f"http://{domain}:{backend_port}"
     )
 
     mimosa_api_url = f"{mimosa_api_base}/api/auth/login"
@@ -121,36 +164,70 @@ def authenticate_mimosa_user(credentials):
 
 
 def fetch_samples(bonsai_api_url, token):
-    """Fetch all samples from the Bonsai API and normalise profile fields."""
+    """
+    Fetch all samples from the Bonsai API and normalise profile fields.
+    Retries up to 3 times on transient failures.
+    """
+    max_retries = 3
+    retry_delay = 2
 
-    count_response = requests.get(
-        f"{bonsai_api_url}/samples/?limit=1",
-        headers=auth_headers(token),
-    )
-    count_response.raise_for_status()
+    for attempt in range(max_retries):
+        try:
+            count_response = requests.get(
+                f"{bonsai_api_url}/samples/?limit=1",
+                headers=auth_headers(token),
+            )
+            count_response.raise_for_status()
 
-    payload = count_response.json()
-    total = payload.get("records_total", 0)
+            payload = count_response.json()
+            total = payload.get("records_total", 0)
 
-    if total == 0:
-        return []
+            if total == 0:
+                return []
 
-    response = requests.get(
-        f"{bonsai_api_url}/samples/?limit={total}",
-        headers=auth_headers(token),
-    )
-    response.raise_for_status()
+            response = requests.get(
+                f"{bonsai_api_url}/samples/?limit={total}",
+                headers=auth_headers(token),
+            )
+            response.raise_for_status()
 
-    samples = response.json().get("data", [])
+            samples = response.json().get("data", [])
 
-    for sample in samples:
-        sample["profile"] = normalise_scalar(sample.get("profile"))
+            for sample in samples:
+                sample["profile"] = normalise_scalar(sample.get("profile"))
 
-    return samples
+            return samples
+
+        except requests.exceptions.HTTPError as e:
+            if attempt < max_retries - 1:
+                print(
+                    f"Bonsai API error (attempt {attempt + 1}/{max_retries}): {e.response.status_code} {e.response.reason}. Retrying in {retry_delay}s...",
+                    flush=True,
+                )
+                time.sleep(retry_delay)
+            else:
+                raise RuntimeError(
+                    f"Failed to fetch samples after {max_retries} attempts: {e}"
+                ) from e
+
+        except (ConnectionError, requests.exceptions.RequestException) as e:
+            if attempt < max_retries - 1:
+                print(
+                    f"Connection error (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...",
+                    flush=True,
+                )
+                time.sleep(retry_delay)
+            else:
+                raise RuntimeError(
+                    f"Failed to fetch samples after {max_retries} attempts: {e}"
+                ) from e
 
 
 def fetch_sample_details(bonsai_api_url, token, sample_id):
-    """Fetch details of a specific sample by ID from the Bonsai API."""
+    """
+    Fetch details of a specific sample by ID from the Bonsai API.
+    """
+
     response = requests.get(
         f"{bonsai_api_url}/samples/{sample_id}",
         headers=auth_headers(token),
@@ -166,3 +243,39 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
         )
 
     return data
+
+
+def validate_groups(bonsai_api_url, token, group_ids):
+    """
+    Validate that all provided group IDs exist in Bonsai.
+    """
+    invalid = []
+
+    for group_id in group_ids:
+        try:
+            fetch_group(bonsai_api_url, token, group_id)
+        except ValueError:
+            invalid.append(group_id)
+
+    if invalid:
+        listed = ", ".join(f"'{g}'" for g in invalid)
+        raise ValueError(
+            f"The following group ID(s) were not found in Bonsai: {listed}"
+        )
+
+
+def fetch_group(bonsai_api_url, token, group_id):
+    """
+    Fetch a specific group by ID and return its included sample IDs.
+    """
+
+    response = requests.get(
+        f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
+        headers=auth_headers(token),
+    )
+
+    if response.status_code in (404, 500):
+        raise ValueError(f"Group '{group_id}' was not found in Bonsai.")
+
+    response.raise_for_status()
+    return response.json().get("included_samples", [])

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 from enum import Enum
 
 
@@ -26,7 +27,7 @@ PIPELINE_STAGES = [
 
 PROFILE_DISPLAY_PIPELINE = [
     ("Sample preparation", ["fetch_samples", "prepare_metadata"]),
-    ("ReporTree analysis", ["run_reportree"]),
+    ("Perform clustering", ["run_reportree"]),
     ("Prepare results", ["process_features"]),
     (
         "Upload results",
@@ -61,7 +62,7 @@ _STATUS_ORDER = {
 }
 
 
-GLOBAL_PROFILE = "__global__"
+GLOBAL_PROFILE = "similarity"
 
 
 def init_pipeline_state(profiles, mode="full"):
@@ -82,7 +83,16 @@ def init_pipeline_state(profiles, mode="full"):
     }
 
     state["_mode"] = mode
+    state["_profile_modes"] = {
+        profile: mode for profile in profiles if profile != GLOBAL_PROFILE
+    }
     return state
+
+
+def set_profile_mode(state, profile, mode):
+    if "_profile_modes" not in state:
+        state["_profile_modes"] = {}
+    state["_profile_modes"][profile] = mode
 
 
 def _aggregate_status(stages):
@@ -113,15 +123,28 @@ LABEL_WIDTH = 26
 
 
 def render_pipeline_state(state):
-    os.system("clear")
+    if os.getenv("MIMOSA_AUTOMATION_MODE", "false").lower() == "true":
+        return
 
-    mode = state.get("_mode", "full")
+    try:
+        is_tty = os.isatty(sys.stdout.fileno())
+    except Exception:
+        is_tty = False
+
+    if is_tty:
+        sys.stdout.write("\033[2J\033[3J\033[H")
+        sys.stdout.flush()
+
+    global_mode = state.get("_mode", "full")
+    profile_modes = state.get("_profile_modes", {})
 
     print("MIMOSA\n")
 
     for profile, stages in state.items():
-        if profile in (GLOBAL_PROFILE, "_mode"):
+        if profile in (GLOBAL_PROFILE, "_mode", "_profile_modes"):
             continue
+
+        mode = profile_modes.get(profile, global_mode)
 
         sample_count = stages["fetch_samples"]["count"]
         header = f"{profile} ({sample_count} samples)" if sample_count else profile
@@ -159,7 +182,7 @@ def render_pipeline_state(state):
 
         print()
 
-    if mode == "update":
+    if global_mode == "update":
         return
 
     global_state = state.get(GLOBAL_PROFILE)
@@ -192,12 +215,15 @@ def render_pipeline_state(state):
 
 
 def render_runtime_summary(state):
+    if os.getenv("MIMOSA_AUTOMATION_MODE", "false").lower() == "true":
+        return
+
     print("\nRuntime summary\n")
 
     total_run_time = 0.0
 
     for profile, stages in state.items():
-        if profile in (GLOBAL_PROFILE, "_mode"):
+        if profile in (GLOBAL_PROFILE, "_mode", "_profile_modes"):
             continue
 
         duration = _sum_duration(stages.values())

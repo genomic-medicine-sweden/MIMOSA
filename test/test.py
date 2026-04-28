@@ -4,7 +4,8 @@ import os
 import argparse
 import tempfile
 import json
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
+from pathlib import Path
 from datetime import datetime, timezone
 
 from upload import (
@@ -15,10 +16,11 @@ from upload import (
 )
 from api import load_credentials, authenticate_mimosa_user
 
-dotenv_path = find_dotenv(filename=".env", usecwd=True)
-if not dotenv_path:
-    raise FileNotFoundError("Could not find project-root .env file.")
-load_dotenv(dotenv_path)
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 SCRIPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 sys.path.insert(0, SCRIPT_DIR)

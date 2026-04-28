@@ -1,9 +1,17 @@
-import { Controller, Post, Body, Res } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags, ApiOAuth2, ApiExcludeController } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
-import { Get, Req } from '@nestjs/common';
+import { Response, Request } from 'express';
+import { Get } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt.guard';
 
@@ -17,19 +25,33 @@ export class AuthController {
   async login(
     @Body() body: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
-    const result = await this.authService.login(body.username, body.password);
+    const identifier = body.username ?? body.email;
+    if (!identifier) {
+      throw new BadRequestException('Either email or username is required.');
+    }
 
-    res.cookie('access_token', result.access_token, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: false,
-    });
+    const result = await this.authService.login(identifier, body.password);
 
-    return {
-      ...result,
-      user: result.user,
-    };
+    const isBrowserRequest = req.headers['x-client'] === 'browser';
+
+    if (result.isAutomation && isBrowserRequest) {
+      throw new UnauthorizedException(
+        'Automation accounts cannot log in via the browser.',
+      );
+    }
+
+    if (!result.isAutomation) {
+      res.cookie('access_token', result.access_token, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: false,
+      });
+    }
+
+    const { isAutomation, ...response } = result;
+    return response;
   }
 
   @Get('me')
@@ -45,7 +67,6 @@ export class AuthController {
       sameSite: 'strict',
       secure: false,
     });
-
     return { message: 'Logged out successfully' };
   }
 }

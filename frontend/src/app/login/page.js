@@ -23,7 +23,10 @@ export default function LoginPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Client": "browser",
+          },
           credentials: "include",
           body: JSON.stringify({
             username: email,
@@ -33,7 +36,8 @@ export default function LoginPage() {
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
+      if (!res.ok)
+        throw new Error(data.message || data.error || "Login failed");
 
       localStorage.setItem("user", JSON.stringify(data.user));
 

@@ -23,7 +23,7 @@ export default function SettingsPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [notificationPreferences, setNotificationPreferences] = useState({
-    outbreakAlerts: true,
+    outbreakAlerts: false,
     frequency: "immediate",
     alertThreshold: {},
     counties: [],
@@ -71,8 +71,8 @@ export default function SettingsPage() {
         if (parsed.notificationPreferences) {
           setNotificationPreferences({
             outbreakAlerts:
-              parsed.notificationPreferences.outbreakAlerts ?? true,
-            frequency: parsed.notificationPreferences.frequency ?? "immediate",
+              parsed.notificationPreferences.outbreakAlerts ?? false,
+            frequency: parsed.notificationPreferences.frequency ?? "daily",
             alertThreshold: parsed.notificationPreferences.alertThreshold ?? {},
             counties: parsed.notificationPreferences.counties ?? [],
           });

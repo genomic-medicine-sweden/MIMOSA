@@ -21,7 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGO_URI_DOCKER', { infer: true }),
+        uri: configService.get<string>('MONGO_URI', { infer: true }),
       }),
       inject: [ConfigService],
     }),

@@ -10,6 +10,11 @@ import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import calculateDistance from "@/utils/distance.js";
 import HospitalCoordinates from "@shared/hospital-coordinates";
+import {
+  getCounty,
+  getPostalTown,
+  formatPostcode,
+} from "@/utils/locationUtils";
 
 const isModifiedRecently = (sampleId, logs) => {
   const log = logs.find((log) => log.sample_id === sampleId);
@@ -367,19 +372,6 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     );
   };
 
-  const getPostalTown = (postcode) => {
-    const entry = postcodeData[postcode];
-    return entry && entry.postaltown !== "0" ? entry.postaltown : "";
-  };
-
-  const getCounty = (postcode) => {
-    const entry = postcodeData[postcode];
-    return entry && entry.County !== "0" ? entry.County : "";
-  };
-
-  const formatPostcode = (postcode) =>
-    postcode.substring(Math.max(postcode.length - 5, 0));
-
   const checkIntraInter = (Cluster_ID, county) => {
     let intra = false;
     let inter = false;
@@ -402,13 +394,14 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     });
     return { intra, inter };
   };
-
   const severityBodyTemplate = (rowData) => {
     const date = new Date(rowData.properties.Date);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
     const Cluster_ID = rowData.properties.Cluster_ID;
+
     const county = getCounty(rowData.properties.PostCode);
+
     const { intra, inter } = county
       ? checkIntraInter(Cluster_ID, county)
       : { intra: false, inter: false };

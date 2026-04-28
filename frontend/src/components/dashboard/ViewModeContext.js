@@ -11,6 +11,8 @@ export const ViewModes = {
   ADMIN: "admin",
   SAMPLES: "samples",
   MATRIX: "matrix",
+  TREE: "tree",
+  TIMELINE: "timeline",
 };
 
 export function ViewModeProvider({ children }) {

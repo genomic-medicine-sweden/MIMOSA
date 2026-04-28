@@ -3,6 +3,21 @@ import csv
 import json
 import datetime
 
+from constants import BASE_METADATA_FIELDS
+
+
+def _clean_numeric_string(value):
+    """
+    Strip spurious float formatting
+    """
+    try:
+        f = float(value)
+        if f == int(f):
+            return str(int(f))
+    except (ValueError, TypeError):
+        pass
+    return value
+
 
 def process_tsv(
     metadata_partitions_tsv,
@@ -25,21 +40,7 @@ def process_tsv(
         full_reader = csv.DictReader(full_file, delimiter="\t")
         full_fields = full_reader.fieldnames or []
 
-        base_fields = {
-            "PostCode",
-            "Hospital",
-            "Profile",
-            "Pipeline_Version",
-            "Pipeline_Date",
-            "Date",
-            "sample",
-            "QC_Status",
-            "ST",
-            "Time",
-            "lims_id",
-        }
-
-        allele_fields = set(full_fields) - base_fields
+        allele_fields = set(full_fields) - BASE_METADATA_FIELDS
 
         for row in full_reader:
             sample_id = row.get("sample", "").strip()
@@ -47,12 +48,12 @@ def process_tsv(
                 continue
 
             typing = {
-                "ST": row.get("ST", "").strip(),
+                "ST": _clean_numeric_string(row.get("ST", "").strip()),
                 "alleles": {},
             }
 
             for field in allele_fields:
-                value = row.get(field, "").strip()
+                value = _clean_numeric_string(row.get(field, "").strip())
                 if value:
                     typing["alleles"][field] = value
 
@@ -70,6 +71,7 @@ def process_tsv(
     try:
         with open(metadata_partitions_tsv, newline="", encoding="utf-8") as tsvfile:
             reader = csv.DictReader(tsvfile, delimiter="\t")
+            qc_values = {v["QC_Status"] for v in metadata_lookup.values()}
 
             for row in reader:
                 sample_id = row.get("sample", "").strip()
@@ -115,7 +117,6 @@ def process_tsv(
 
     except Exception as e:
         print(f"Error processing results: {e}")
-
     return features
 
 
