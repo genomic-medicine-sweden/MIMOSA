@@ -1,5 +1,7 @@
 volumes/mongodb/*
 !volumes/mongodb/.gitkeep
+volumes/automation_tmp/*
+!volumes/automation_tmp/.gitkeep
 ./config.json
 **/__pycache__/
 /credentials.json
