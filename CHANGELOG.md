@@ -52,6 +52,8 @@
 - Script constants centralised in `constants.py`; ReporTree params now profile-configurable
 - `prepare_supplementary_metadata.py` accepts multiple profiles and optional `--groups` filtering, with retry logic on server errors
 - `useAppData` fetch logic extracted into `useCallback` to support both the initial load and SSE-triggered refetches
+- New dashboard overview — shows KPI summary cards, an incomplete-clusters table, recent notifications, and recent sample activity
+- Samples missing a collection date are now excluded from the Timeline chart with a count shown below it
 
 
 ### Fixed
