@@ -5,14 +5,6 @@ import { Dropdown } from "primereact/dropdown";
 import { FloatLabel } from "primereact/floatlabel";
 import { MultiSelect } from "primereact/multiselect";
 import { Button } from "primereact/button";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
 
 import useAppData from "@/hooks/useAppData";
 import useAnalysisProfiles from "@/hooks/useAnalysisProfiles";
@@ -34,60 +26,13 @@ import {
   bucketLabel,
   buildChartLabels,
 } from "./utils/timelineUtils";
+import StackedClusterBar from "@/components/charts/StackedClusterBar";
 
 const RESOLUTION_OPTIONS = [
   { label: "Weekly", value: "weekly" },
   { label: "Monthly", value: "monthly" },
   { label: "Quarterly", value: "quarterly" },
 ];
-
-const caseSquaresPlugin = {
-  id: "caseSquares",
-  afterDatasetsDraw(chart) {
-    const { ctx, scales } = chart;
-    const unitH = Math.abs(
-      scales.y.getPixelForValue(1) - scales.y.getPixelForValue(0),
-    );
-    if (unitH < 2) return;
-
-    ctx.save();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
-
-    chart.data.datasets.forEach((_, di) => {
-      const meta = chart.getDatasetMeta(di);
-      if (!meta.visible) return;
-      meta.data.forEach((bar) => {
-        const { x, y, width, base } = bar.getProps(
-          ["x", "y", "width", "base"],
-          true,
-        );
-        const totalUnits = Math.round((base - y) / unitH);
-        for (let i = 1; i < totalUnits; i++) {
-          const lineY = base - i * unitH;
-          ctx.beginPath();
-          ctx.moveTo(x - width / 2 + 1, lineY);
-          ctx.lineTo(x + width / 2 - 1, lineY);
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.moveTo(x - width / 2, y);
-        ctx.lineTo(x - width / 2, base);
-        ctx.stroke();
-      });
-    });
-
-    ctx.restore();
-  },
-};
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  caseSquaresPlugin,
-);
 
 function ColorSwatch({ color }) {
   return (
@@ -134,63 +79,25 @@ function EpiCurve({
       clusterId: cid,
     }));
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          title: (items) =>
-            bucketLabel(allKeys[items[0].dataIndex], resolution),
-          label: (item) => `${item.dataset.label}: ${item.raw}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        stacked: true,
-        grid: { display: false },
-        border: { color: "#ccc" },
-        ticks: {
-          font: { family: "monospace", size: 10 },
-          color: "#aaa",
-          maxRotation: 0,
-          autoSkip: true,
-          autoSkipPadding: 8,
-        },
-      },
-      y: {
-        stacked: true,
-        beginAtZero: true,
-        grid: { color: "#f0f0f0" },
-        border: { display: false },
-        ticks: {
-          font: { family: "monospace", size: 9 },
-          color: "#bbb",
-          precision: 0,
-          stepSize: 5,
-        },
-      },
-    },
-    categoryPercentage: 1.0,
-    barPercentage: 0.95,
-    onClick: (_e, elements) => {
-      const cid = elements.length
-        ? datasets[elements[0].datasetIndex]?.clusterId
-        : null;
-      if (cid && !isSingleton(cid)) onClickCluster?.(cid);
-    },
+  const tooltipCallbacks = {
+    title: (items) => bucketLabel(allKeys[items[0].dataIndex], resolution),
+    label: (item) => `${item.dataset.label}: ${item.raw}`,
+  };
+
+  const handleClick = (_e, elements, ds) => {
+    const cid = elements.length
+      ? ds[elements[0].datasetIndex]?.clusterId
+      : null;
+    if (cid && !isSingleton(cid)) onClickCluster?.(cid);
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "300px" }}>
-      <Bar
-        data={{ labels: buildChartLabels(allKeys, resolution), datasets }}
-        options={options}
-      />
-    </div>
+    <StackedClusterBar
+      datasets={datasets}
+      labels={buildChartLabels(allKeys, resolution)}
+      tooltipCallbacks={tooltipCallbacks}
+      onClick={handleClick}
+    />
   );
 }
 
@@ -643,7 +550,6 @@ export default function TimelinePage() {
             value={selectedClusters}
             onChange={(e) => setSelectedClusters(e.value)}
             options={filterOptions.clusters}
-            placeholder="All clusters"
             style={{ minWidth: "180px" }}
             maxSelectedLabels={2}
             filter
@@ -656,7 +562,6 @@ export default function TimelinePage() {
             value={selectedHospitals}
             onChange={(e) => setSelectedHospitals(e.value)}
             options={filterOptions.hospitals}
-            placeholder="All hospitals"
             style={{ minWidth: "180px" }}
             maxSelectedLabels={2}
             filter
@@ -669,7 +574,6 @@ export default function TimelinePage() {
             value={selectedCounties}
             onChange={(e) => setSelectedCounties(e.value)}
             options={filterOptions.counties}
-            placeholder="All counties"
             style={{ minWidth: "160px" }}
             maxSelectedLabels={2}
             filter
@@ -682,7 +586,6 @@ export default function TimelinePage() {
             value={selectedTowns}
             onChange={(e) => setSelectedTowns(e.value)}
             options={filterOptions.towns}
-            placeholder="All towns"
             style={{ minWidth: "160px" }}
             maxSelectedLabels={2}
             filter
