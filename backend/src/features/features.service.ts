@@ -75,11 +75,11 @@ export class FeaturesService {
 
     await this.logsService.logSampleUpdate(
       sampleId,
+      existing.properties?.analysis_profile ?? 'unknown',
       changedBy,
       updatedFields,
       finalChanges,
     );
-
     this.eventEmitter.emit('features.changed', { operationType: 'update' });
 
     return updated;

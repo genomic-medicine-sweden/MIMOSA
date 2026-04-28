@@ -17,12 +17,11 @@ export class LogsService {
 
   async logSampleUpdate(
     sampleId: string,
+    profile: string,
     changedBy: string,
     updatedFields: string[],
     changes: Record<string, any>,
   ): Promise<void> {
-    const log = await this.model.findOne({ sample_id: sampleId });
-
     const updateEntry = {
       date: new Date(),
       changed_by: changedBy,
@@ -30,16 +29,17 @@ export class LogsService {
       changes,
     };
 
-    if (log) {
-      log.updates.push(updateEntry);
-      await log.save();
-    } else {
-      const newLog = new this.model({
-        sample_id: sampleId,
-        added_at: new Date(),
-        updates: [updateEntry],
-      });
-      await newLog.save();
+    const result = await this.model.updateOne(
+      { sample_id: sampleId },
+      {
+        $push: { updates: updateEntry },
+        $setOnInsert: { added_at: new Date(), profile },
+      },
+      { upsert: true },
+    );
+
+    if (result.matchedCount === 0 && result.upsertedCount === 0) {
+      throw new Error(`Failed to log update for sample '${sampleId}'`);
     }
   }
 }
