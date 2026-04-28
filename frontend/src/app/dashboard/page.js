@@ -1,11 +1,8 @@
 "use client";
-
 import dynamic from "next/dynamic";
 import { useViewMode, ViewModes } from "@/components/dashboard/ViewModeContext";
 import useAppData from "@/hooks/useAppData";
-import SampleOverviewCard from "@/components/dashboard/SampleOverviewCard";
-import CountyCard from "@/components/dashboard/CountyCard";
-import LogsCard from "@/components/dashboard/LogsCard";
+import DashboardOverview from "@/components/dashboard/DashboardOverview";
 
 const SettingsPage = dynamic(
   () => import("@/components/dashboard/SettingsPage"),
@@ -29,25 +26,20 @@ const SamplesPage = dynamic(
 const LogsPage = dynamic(() => import("@/components/dashboard/LogsPage"), {
   ssr: false,
 });
-
 const MatrixPage = dynamic(() => import("@/components/dashboard/MatrixPage"), {
   ssr: false,
 });
-
 const TreePage = dynamic(() => import("@/components/dashboard/TreePage"), {
   ssr: false,
 });
-
 const TimelinePage = dynamic(
   () => import("@/components/dashboard/TimelinePage"),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 );
 
 export default function DashboardPage() {
   const { viewMode } = useViewMode();
-  const { data } = useAppData();
+  const { data, logs } = useAppData();
 
   if (viewMode === ViewModes.MY_COUNTY) return <MyCountyView data={data} />;
   if (viewMode === ViewModes.SETTINGS) return <SettingsPage />;
@@ -59,41 +51,5 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.TREE) return <TreePage />;
   if (viewMode === ViewModes.TIMELINE) return <TimelinePage />;
 
-  return (
-    <>
-      <style jsx>{`
-        .grid-container {
-          display: grid;
-          grid-template-columns: 1fr 1fr 2fr 2fr;
-          grid-template-rows: auto auto;
-          grid-template-areas:
-            "card1 card1 card2 card2"
-            "card3 card3 card2 card2";
-          gap: 0rem 1rem;
-          padding: 0.5rem;
-        }
-        .card1 {
-          grid-area: card1;
-        }
-        .card3 {
-          grid-area: card3;
-        }
-        .card2 {
-          grid-area: card2;
-        }
-      `}</style>
-
-      <div className="grid-container">
-        <div className="card1">
-          <SampleOverviewCard />
-        </div>
-        <div className="card3">
-          <LogsCard />
-        </div>
-        <div className="card2">
-          <CountyCard data={data} />
-        </div>
-      </div>
-    </>
-  );
+  return <DashboardOverview data={data} logs={logs} />;
 }

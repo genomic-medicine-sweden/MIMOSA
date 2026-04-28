@@ -1,5 +1,4 @@
 "use client";
-
 import useAppData from "@/hooks/useAppData";
 
 export default function LogsCard() {
@@ -12,14 +11,10 @@ export default function LogsCard() {
         type: "Edited",
         date: update.date,
       })) || [];
-
-    const added = {
-      sample_id: log.sample_id,
-      type: "Added",
-      date: log.added_at,
-    };
-
-    return [added, ...edits];
+    return [
+      { sample_id: log.sample_id, type: "Added", date: log.added_at },
+      ...edits,
+    ];
   });
 
   const recent = entries
@@ -27,34 +22,97 @@ export default function LogsCard() {
     .slice(0, 10);
 
   return (
-    <div className="rounded-xl p-4 bg-white shadow-md min-h-[100px]">
-      <h2 className="text-lg font-semibold mb-4">Recent Sample Activity</h2>
+    <div
+      style={{
+        background: "white",
+        border: "1px solid #f0f0f0",
+        borderRadius: "12px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        padding: "1.25rem",
+      }}
+    >
+      <h2
+        style={{
+          fontSize: "14px",
+          fontWeight: 600,
+          color: "#374151",
+          marginBottom: "0.75rem",
+          marginTop: 0,
+        }}
+      >
+        Recent sample activity
+      </h2>
+
       {recent.length === 0 ? (
-        <p className="text-gray-500 italic">No recent activity</p>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "#9ca3af",
+            fontStyle: "italic",
+            margin: 0,
+          }}
+        >
+          No recent activity.
+        </p>
       ) : (
-        <table className="w-full text-sm text-gray-800">
-          <thead className="text-left border-b border-gray-300">
-            <tr>
-              <th className="py-1 pr-4">Date</th>
-              <th className="py-1 pr-4">Type</th>
-              <th className="py-1">Sample ID</th>
+        <table
+          style={{
+            width: "100%",
+            fontSize: "13px",
+            borderCollapse: "collapse",
+          }}
+        >
+          <thead>
+            <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+              {["Date", "Type", "Sample ID"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "0 0.5rem 0.5rem 0",
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    color: "#9ca3af",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    textAlign: "left",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {recent.map((entry, i) => (
-              <tr key={i}>
-                <td className="py-1 pr-4 text-gray-800">
-                  {new Date(entry.date).toLocaleString(undefined, {
+              <tr key={i} style={{ borderBottom: "1px solid #fafafa" }}>
+                <td
+                  style={{
+                    padding: "0.4rem 0.5rem 0.4rem 0",
+                    color: "#6b7280",
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                  }}
+                >
+                  {new Date(entry.date).toLocaleString("sv-SE", {
                     year: "numeric",
                     month: "2-digit",
                     day: "2-digit",
                     hour: "2-digit",
                     minute: "2-digit",
-                    hour12: false,
                   })}
                 </td>
-                <td className="py-1 pr-4">{entry.type}</td>
-                <td className="py-1 font-medium">{entry.sample_id}</td>
+                <td style={{ padding: "0.4rem 0.5rem", color: "#6b7280" }}>
+                  {entry.type}
+                </td>
+                <td
+                  style={{
+                    padding: "0.4rem 0",
+                    fontWeight: 500,
+                    color: "#1f2937",
+                  }}
+                >
+                  {entry.sample_id}
+                </td>
               </tr>
             ))}
           </tbody>
