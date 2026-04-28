@@ -1,4 +1,3 @@
-README.md
 ![MIMOSA Logo](frontend/public/MIMOSA_Full_Logo.svg)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18770176.svg)](https://doi.org/10.5281/zenodo.18770176)
