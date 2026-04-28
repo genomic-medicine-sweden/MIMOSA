@@ -15,16 +15,12 @@ mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
     raise RuntimeError("MONGO_URI is not set")
 
-
 db_name = os.getenv("MONGO_DB_NAME")
 mimosa_domain = os.getenv("DOMAIN")
 backend_port = os.getenv("BACKEND_PORT")
 
 
 def validate_upload_token(token):
-    """
-    Validate that the provided token corresponds to an actual user in MIMOSA.
-    """
     mimosa_api_base = (
         os.getenv("MIMOSA_API_PRIVATE_URL_BASE")
         or f"http://{mimosa_domain}:{backend_port}"
@@ -60,6 +56,8 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
 
     updated_count = 0
     uploaded_count = 0
+
+    PROTECTED_FIELDS = {"Hospital", "PostCode", "Date"}
 
     def get_changed_fields(existing, new):
         changed = []
@@ -113,44 +111,74 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                         for f in get_changed_fields(existing, item)
                         if f != "QC_Status"
                     ]
-                    if changed_fields:
-                        collection.update_one(
-                            {"_id": existing["_id"]},
-                            {"$set": {"properties": new_props}},
-                        )
-                        updated_count += 1
 
-                        diff_dict = {}
+                    if changed_fields:
+                        selective_set = {}
+                        skipped_fields = []
+
                         for field in changed_fields:
+                            if field in PROTECTED_FIELDS and old_props.get(field):
+                                skipped_fields.append(field)
+                                continue
                             if field == "ST":
-                                old_val = old_props.get("typing", {}).get("ST")
-                                new_val = new_props.get("typing", {}).get("ST")
+                                selective_set["properties.typing.ST"] = new_props.get(
+                                    "typing", {}
+                                ).get("ST")
                             elif field in new_props.get("typing", {}).get(
                                 "alleles", {}
                             ):
-                                old_val = (
-                                    old_props.get("typing", {})
-                                    .get("alleles", {})
-                                    .get(field)
-                                )
-                                new_val = (
+                                selective_set[f"properties.typing.alleles.{field}"] = (
                                     new_props.get("typing", {})
                                     .get("alleles", {})
                                     .get(field)
                                 )
                             else:
-                                old_val = old_props.get(field)
-                                new_val = new_props.get(field)
+                                selective_set[f"properties.{field}"] = new_props.get(
+                                    field
+                                )
 
-                            diff_dict[field] = {"old": old_val, "new": new_val}
+                        if selective_set:
+                            collection.update_one(
+                                {"_id": existing["_id"]},
+                                {"$set": selective_set},
+                            )
+                            updated_count += 1
 
-                        log_sample_event(
-                            db,
-                            sample_id,
-                            new_props.get("analysis_profile"),
-                            changes_dict=diff_dict,
-                            changed_by=uploader_email,
-                        )
+                            logged_fields = [
+                                f for f in changed_fields if f not in skipped_fields
+                            ]
+                            if logged_fields:
+                                diff_dict = {}
+                                for field in logged_fields:
+                                    if field == "ST":
+                                        old_val = old_props.get("typing", {}).get("ST")
+                                        new_val = new_props.get("typing", {}).get("ST")
+                                    elif field in new_props.get("typing", {}).get(
+                                        "alleles", {}
+                                    ):
+                                        old_val = (
+                                            old_props.get("typing", {})
+                                            .get("alleles", {})
+                                            .get(field)
+                                        )
+                                        new_val = (
+                                            new_props.get("typing", {})
+                                            .get("alleles", {})
+                                            .get(field)
+                                        )
+                                    else:
+                                        old_val = old_props.get(field)
+                                        new_val = new_props.get(field)
+
+                                    diff_dict[field] = {"old": old_val, "new": new_val}
+
+                                log_sample_event(
+                                    db,
+                                    sample_id,
+                                    new_props.get("analysis_profile"),
+                                    changes_dict=diff_dict,
+                                    changed_by=uploader_email,
+                                )
             else:
                 collection.insert_one(item)
                 uploaded_count += 1
@@ -252,15 +280,12 @@ def upload_similarity(data_file_path, upload_token=None):
         for item in similarity_data:
             if "ID" not in item:
                 continue
-
             collection.replace_one(
                 {"ID": item["ID"]},
                 item,
                 upsert=True,
             )
-
             print(f"Similarity data for ID {item['ID']} uploaded successfully!")
-
     except Exception as err:
         print("Error uploading similarity data:", err)
     finally:

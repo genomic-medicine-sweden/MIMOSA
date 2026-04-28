@@ -9,6 +9,7 @@ def log_sample_event(
     """
     collection = db["logs"]
     now = datetime.datetime.utcnow().isoformat()
+    actor = changed_by or "automation"
 
     existing = collection.find_one({"sample_id": sample_id})
 
@@ -20,16 +21,15 @@ def log_sample_event(
             "updates": [],
         }
         collection.insert_one(doc)
+        existing = collection.find_one({"sample_id": sample_id})
 
     if changes_dict:
         update_entry = {
             "date": now,
+            "changed_by": actor,
             "updated_fields": list(changes_dict.keys()),
             "changes": changes_dict,
         }
-
-        if changed_by:
-            update_entry["changed_by"] = changed_by
 
         if existing:
             collection.update_one(
