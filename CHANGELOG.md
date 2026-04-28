@@ -66,6 +66,9 @@
 - `--profile` argument is now case-insensitive
 - Fix map container re-initialization error caused by React Strict Mode double-mounting
 - MatrixPage: Fixed cluster and sample filters showing options outside the selected analysis profile
+- Automation pipeline overwriting manually edited Hospital, PostCode, and Date fields
+- Log validation error when updating samples imported via automation
+- Notification preferences showing incorrect default state in UI
 
 
 ## [v0.4.0]
