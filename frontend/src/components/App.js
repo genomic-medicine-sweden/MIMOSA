@@ -27,6 +27,8 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
     "staphylococcus_aureus",
   );
 
+  const [shapeByPlatform, setShapeByPlatform] = useState(false);
+
   const mainContentRef = useRef(null);
   const infoRef = useRef({ countyCounts: {} });
 
@@ -107,7 +109,9 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
           selectedCounty={selectedCounty}
           setSelectedCounty={setSelectedCounty}
           onCountySelect={handleCountySelect}
-          outbreaks={outbreaks} // ← added
+          outbreaks={outbreaks}
+          shapeByPlatform={shapeByPlatform}
+          setShapeByPlatform={setShapeByPlatform}
         />
       </aside>
 
@@ -123,6 +127,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
           selectedCounties={selectedCounty ? [selectedCounty] : []}
           infoRef={infoRef}
           countyFilter={countyFilter}
+          shapeByPlatform={shapeByPlatform}
         />
       </main>
 

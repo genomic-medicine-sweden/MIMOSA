@@ -9,6 +9,7 @@ export class Feature extends Document {
     PostCode?: string;
     Hospital?: string;
     analysis_profile?: string;
+    Sequencing_Platform?: string;
     Pipeline_Version?: string;
     Pipeline_Date?: string;
     Date?: string;

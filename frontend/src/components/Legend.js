@@ -1,4 +1,22 @@
 import { getColor } from "@/utils/ColorAssignment";
+import { SHAPES } from "@/utils/markerUtils";
+
+export const generateShapeLegendItems = (data) => {
+  if (!Array.isArray(data) || data.length === 0) return [];
+
+  const seen = [];
+  data.forEach((item) => {
+    const platform = (
+      item.properties.Sequencing_Platform || "unknown"
+    ).toLowerCase();
+    if (!seen.includes(platform)) seen.push(platform);
+  });
+
+  return seen.map((platform, index) => ({
+    platform,
+    shape: SHAPES[index % SHAPES.length],
+  }));
+};
 
 const generateLegendItems = (data) => {
   if (!Array.isArray(data) || data.length === 0) {

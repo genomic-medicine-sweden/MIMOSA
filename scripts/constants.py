@@ -7,6 +7,7 @@ BASE_METADATA_FIELDS = {
     "PostCode",
     "Hospital",
     "Profile",
+    "Sequencing_Platform",
     "Pipeline_Version",
     "Pipeline_Date",
     "Date",

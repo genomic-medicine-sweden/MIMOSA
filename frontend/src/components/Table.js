@@ -107,7 +107,10 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           <strong>Pipeline Version:</strong>{" "}
           {properties.Pipeline_Version || "N/A"}
         </p>
-
+        <p>
+          <strong>Sequencing Platform:</strong>{" "}
+          {properties.Sequencing_Platform || "N/A"}
+        </p>
         <p>
           <strong>Date of Analysis:</strong> {properties.Pipeline_Date || "N/A"}
         </p>
@@ -136,7 +139,6 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
             : typing.ST || "N/A"}
         </p>
 
-        {/* Render allele table only if alleles exist */}
         {Object.keys(alleles).length > 0 && (
           <table style={{ marginLeft: "1rem" }}>
             <thead>

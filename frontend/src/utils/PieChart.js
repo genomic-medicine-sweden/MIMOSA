@@ -1,9 +1,15 @@
 import * as d3 from "d3";
 
-const createPieChartSVG = (filteredData, markerSize, strokeWidth = 1) => {
+const createPieChartSVG = (
+  filteredData,
+  markerSize,
+  strokeWidth = 1,
+  showRing = false,
+) => {
   const radius = markerSize / 2;
   const width = 2 * (radius + strokeWidth);
   const height = 2 * (radius + strokeWidth);
+
   const svg = d3
     .create("svg")
     .attr("width", width)
@@ -25,8 +31,11 @@ const createPieChartSVG = (filteredData, markerSize, strokeWidth = 1) => {
     .attr("d", arc)
     .attr("fill", (d) => d.data[1])
     .attr("stroke", "black")
-    .attr("stroke-width", strokeWidth);
+    .attr("stroke-width", showRing ? 2 : strokeWidth)
+    .attr("stroke-dasharray", showRing ? "6" : null)
+    .attr("stroke-linecap", showRing ? "round" : null);
 
   return svg.node().outerHTML;
 };
+
 export default createPieChartSVG;
