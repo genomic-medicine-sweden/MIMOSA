@@ -1,3 +1,16 @@
+## [unreleased]
+
+### Added
+- Map toggle in Map Settings to differentiate markers by sequencing platform
+
+### Changed
+- Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
+
+
+### Fixed
+
+
+
 ## [v0.5.0]
 
 ### Added
