@@ -11,7 +11,6 @@ const nextConfig = {
   basePath,
   assetPrefix: basePath,
   webpack: (config, { dev }) => {
-    config.resolve.alias["@shared"] = path.resolve(__dirname, "../shared");
     if (dev) {
       config.cache = false;
     }

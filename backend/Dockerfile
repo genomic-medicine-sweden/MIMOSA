@@ -8,11 +8,10 @@ RUN npm install
 
 COPY backend/ .
 
-COPY shared /app/shared
+COPY geodata /app/geodata
 
 RUN npm run build
 
 EXPOSE 5000
 
 CMD ["node", "dist/main"]
-

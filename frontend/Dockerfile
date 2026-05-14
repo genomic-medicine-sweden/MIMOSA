@@ -7,8 +7,6 @@ RUN npm install
 
 COPY frontend/ .
 
-COPY shared /app/shared
-
 COPY .env /app/.env
 
 ARG DOMAIN
@@ -24,4 +22,3 @@ RUN npm run build
 EXPOSE 3000
 
 CMD ["npm", "start"]
-
