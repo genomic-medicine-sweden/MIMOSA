@@ -7,7 +7,7 @@ import { ClusteringService } from '../clustering/clustering.service';
 import { FeaturesService } from '../features/features.service';
 import { Feature } from '../features/features.schema';
 import { OutbreakDetectedEvent } from './outbreak-detected.event';
-import { resolveToCounty } from '../utils/location-resolver';
+import { LocationResolver } from '../utils/location-resolver';
 import outbreakRules from '../config/outbreak-rules.json';
 
 type OutbreakResult = {
@@ -35,6 +35,7 @@ export class OutbreaksService implements OnModuleInit {
     @InjectModel(Feature.name)
     private readonly featureModel: Model<Feature>,
     private readonly eventEmitter: EventEmitter2,
+    private readonly locationResolver: LocationResolver,
   ) {}
 
   async onModuleInit() {
@@ -139,7 +140,7 @@ export class OutbreaksService implements OnModuleInit {
 
     for (const f of features) {
       const id = f.properties?.ID;
-      const county = resolveToCounty({
+      const county = this.locationResolver.resolveToCounty({
         Hospital: f.properties?.Hospital,
         PostCode: f.properties?.PostCode,
       });
