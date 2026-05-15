@@ -3,13 +3,15 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Tooltip } from "primereact/tooltip";
-import postcodeData from "@shared/postcode-coordinates";
+import {
+  getPostcodeCoordinates,
+  getHospitalCoordinates,
+} from "@/utils/coordinates";
 import ExportButton from "@/components/export/ExportButton";
 import "primereact/resources/themes/saga-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import calculateDistance from "@/utils/distance.js";
-import HospitalCoordinates from "@shared/hospital-coordinates";
 import {
   getCounty,
   getPostalTown,
@@ -66,12 +68,13 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
 
   const rowExpansionTemplate = (rowData) => {
     const properties = rowData?.properties || {};
-
     const typing = properties.typing || {};
     const alleles = typing.alleles || {};
-
     const similarData = getRelevantSimilarity(properties.ID);
     const sampleLog = logs?.find((log) => log.sample_id === properties.ID);
+
+    const postcodeData = getPostcodeCoordinates();
+    const HospitalCoordinates = getHospitalCoordinates();
 
     const mainPostcode = properties.PostCode;
     const mainCoordinates = postcodeData[mainPostcode]?.coordinates || [];
@@ -396,6 +399,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     });
     return { intra, inter };
   };
+
   const severityBodyTemplate = (rowData) => {
     const date = new Date(rowData.properties.Date);
     const now = new Date();
