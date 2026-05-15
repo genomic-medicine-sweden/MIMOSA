@@ -18,17 +18,23 @@ import {
 } from "./utils/Utils";
 
 import useSampleManagement from "@/hooks/useSampleManagement";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import FeatureEditDialog from "./samples/FeatureEditDialog";
 import BulkEditDialog from "./samples/BulkEditDialog";
 import ExcelDropzone from "./samples/ExcelDropzone";
 import DownloadSamplesTemplateButton from "./samples/DownloadSamplesTemplateButton";
 
-import { fieldFeaturesMeta, hospitalOptions } from "./samples/sampleUtils";
+import { fieldFeaturesMeta } from "./samples/sampleUtils";
 import { fieldValidators } from "./samples/samplesValidation";
 
 export default function SamplesPage() {
   const toastRef = useRef(null);
   const { samples, updateSample } = useSampleManagement();
+  const {
+    postcodePrefix = "",
+    postcodeLength = 0,
+    hospitalCoordinates = {},
+  } = useMapConfigContext() ?? {};
 
   const [editingOriginalRow, setEditingOriginalRow] = useState(null);
   const [originalPropertiesSnapshot, setOriginalPropertiesSnapshot] =
@@ -87,6 +93,14 @@ export default function SamplesPage() {
       ),
     );
   };
+
+  const editorHospitalOptions = [
+    { label: "", value: "" },
+    ...Object.keys(hospitalCoordinates).map((name) => ({
+      label: name,
+      value: name,
+    })),
+  ];
 
   const availableHospitalOptions = Array.from(
     new Set(samples.map((s) => s.properties.Hospital).filter(Boolean)),
@@ -159,8 +173,8 @@ export default function SamplesPage() {
       const newVal = rawProps[key];
       if (newVal !== undefined && oldVal !== newVal) {
         changes[key] =
-          key === "PostCode" && /^\d{5}$/.test(newVal)
-            ? `SE-${newVal}`
+          key === "PostCode" && newVal.trim().length === postcodeLength
+            ? `${postcodePrefix}${newVal}`
             : newVal;
       }
     });
@@ -216,7 +230,8 @@ export default function SamplesPage() {
         if (row[field] === undefined) return;
 
         let value = row[field];
-        if (field === "PostCode") value = value.replace(/^SE-/, "");
+        if (field === "PostCode" && value.startsWith(postcodePrefix))
+          value = value.slice(postcodePrefix.length);
 
         const validator = fieldValidators[field];
         const result = validator ? validator(value) : "";
@@ -235,7 +250,9 @@ export default function SamplesPage() {
         }
 
         const normalised =
-          field === "PostCode" && /^\d{5}$/.test(value) ? `SE-${value}` : value;
+          field === "PostCode" && value.trim().length === postcodeLength
+            ? `${postcodePrefix}${value}`
+            : value;
 
         if (sample.properties[field] !== normalised) {
           changes[field] = normalised;
@@ -300,7 +317,8 @@ export default function SamplesPage() {
 
       const handleChange = (e) => {
         let val = e.target.value;
-        if (field === "PostCode") val = val.replace(/^SE-/, "");
+        if (field === "PostCode" && val.startsWith(postcodePrefix))
+          val = val.slice(postcodePrefix.length);
 
         const validator = fieldValidators[field];
         const result = validator ? validator(val) : "";
@@ -322,10 +340,13 @@ export default function SamplesPage() {
         options.editorCallback(val);
       };
 
+      const raw = options.value ?? "";
       const displayValue =
         field === "PostCode"
-          ? (options.value?.replace(/^SE-/, "") ?? "")
-          : (options.value ?? "");
+          ? raw.startsWith(postcodePrefix)
+            ? raw.slice(postcodePrefix.length)
+            : raw
+          : raw;
 
       return (
         <div className="w-full">
@@ -342,7 +363,7 @@ export default function SamplesPage() {
   );
 
   const dropdownEditor = useCallback(
-    (field, optionsList) => (options) => (
+    (_field, optionsList) => (options) => (
       <Dropdown
         value={options.value ?? ""}
         options={optionsList}
@@ -454,7 +475,7 @@ export default function SamplesPage() {
 
         <Column
           field="properties.Hospital"
-          editor={dropdownEditor("Hospital", hospitalOptions)}
+          editor={dropdownEditor("Hospital", editorHospitalOptions)}
           style={{ minWidth: "8rem" }}
           filter
           filterField="properties.Hospital"
@@ -484,15 +505,21 @@ export default function SamplesPage() {
           field="properties.PostCode"
           editor={textEditor("PostCode")}
           style={{ maxWidth: "8rem" }}
-          body={(rowData) =>
-            rowData.properties.PostCode?.replace(/^SE-/, "") || ""
-          }
+          body={(rowData) => {
+            const pc = rowData.properties.PostCode ?? "";
+            return pc.startsWith(postcodePrefix)
+              ? pc.slice(postcodePrefix.length)
+              : pc;
+          }}
           filter
           filterField="properties.PostCode"
           filterFunction={(value, filterText) => {
-            const normalizedVal = (value || "")
-              .replace(/^SE-/, "")
-              .toLowerCase();
+            const raw = value || "";
+            const normalizedVal = (
+              raw.startsWith(postcodePrefix)
+                ? raw.slice(postcodePrefix.length)
+                : raw
+            ).toLowerCase();
             const normalizedFilter = (filterText || "").toLowerCase();
             return normalizedVal.includes(normalizedFilter);
           }}

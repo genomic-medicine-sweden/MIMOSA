@@ -1,17 +1,27 @@
-import postcodeCoordinates from "@shared/postcode-coordinates";
-import HospitalCoordinates from "@shared/hospital-coordinates";
+import {
+  getPostcodeCoordinates,
+  getHospitalCoordinates,
+  getPostcodePrefix,
+  getPostcodeLength,
+} from "@/utils/coordinates";
 
 export const validatePostCode = (value) => {
   if (!value?.trim()) return "";
 
-  const digitsOnly = value.replace(/\D/g, "");
+  const prefix = getPostcodePrefix();
+  const length = getPostcodeLength();
+  const stripped = value.startsWith(prefix)
+    ? value.slice(prefix.length)
+    : value.trim();
 
-  if (!/^\d{5}$/.test(digitsOnly)) {
-    return "Postcode must be 5 digits.";
+  if (stripped.length !== length) {
+    return `Postcode must be ${length} characters.`;
   }
 
-  const prefixed = `SE-${digitsOnly}`;
-  if (!postcodeCoordinates.hasOwnProperty(prefixed)) {
+  const prefixed = `${prefix}${stripped}`;
+  if (
+    !Object.prototype.hasOwnProperty.call(getPostcodeCoordinates(), prefixed)
+  ) {
     return `Postcode ${prefixed} is not supported.`;
   }
 
@@ -47,6 +57,7 @@ export const validateDate = (value) => {
 
   return "";
 };
+
 const STOP_WORDS = new Set([
   "sjukhus",
   "lasarett",
@@ -67,13 +78,6 @@ const tokenize = (value) =>
     .split(/\s+/)
     .filter((t) => t && !STOP_WORDS.has(t));
 
-const canonicalHospitals = Object.keys(HospitalCoordinates);
-
-const normalisedHospitalMap = canonicalHospitals.reduce((acc, name) => {
-  acc[normalise(name)] = name;
-  return acc;
-}, {});
-
 const tokenSimilarity = (aTokens, bTokens) => {
   const a = new Set(aTokens);
   const b = new Set(bTokens);
@@ -83,6 +87,7 @@ const tokenSimilarity = (aTokens, bTokens) => {
 };
 
 const findClosestHospital = (value) => {
+  const canonicalHospitals = Object.keys(getHospitalCoordinates());
   const inputTokens = tokenize(value);
   if (inputTokens.length === 0) return null;
 
@@ -91,7 +96,6 @@ const findClosestHospital = (value) => {
 
   for (const name of canonicalHospitals) {
     const score = tokenSimilarity(inputTokens, tokenize(name));
-
     if (score > bestScore) {
       bestScore = score;
       best = name;
@@ -103,6 +107,12 @@ const findClosestHospital = (value) => {
 
 export const validateHospital = (value) => {
   if (!value?.trim()) return "";
+
+  const canonicalHospitals = Object.keys(getHospitalCoordinates());
+  const normalisedHospitalMap = canonicalHospitals.reduce((acc, name) => {
+    acc[normalise(name)] = name;
+    return acc;
+  }, {});
 
   const norm = normalise(value);
 

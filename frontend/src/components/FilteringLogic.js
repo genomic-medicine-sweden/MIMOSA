@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import postcodeCoordinates from "@shared/postcode-coordinates";
+import { getPostcodeCoordinates } from "@/utils/coordinates";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import { MultiSelect } from "primereact/multiselect";
 import { FloatLabel } from "primereact/floatlabel";
 import "primeicons/primeicons.css";
@@ -24,6 +25,8 @@ const FilteringLogic = ({
   analysisProfile,
   setAnalysisProfile,
 }) => {
+  const { postcodePrefix = "" } = useMapConfigContext() ?? {};
+
   const [postcodeFilter, setPostcodeFilter] = useState([]);
   const [idFilter, setIdFilter] = useState([]);
   const [hospitalFilter, setHospitalFilter] = useState([]);
@@ -72,6 +75,8 @@ const FilteringLogic = ({
       setFilteredData([]);
       return;
     }
+
+    const postcodeCoordinates = getPostcodeCoordinates();
 
     const profileFilteredData = data.filter(
       (item) => item.properties.analysis_profile === analysisProfileFilter,
@@ -200,6 +205,7 @@ const FilteringLogic = ({
       setCountyFilter([]);
     }
   };
+
   return (
     <div className="card">
       <div className="card flex flex-wrap justify-content-center gap-3">
@@ -269,7 +275,9 @@ const FilteringLogic = ({
               <MultiSelect
                 value={postcodeFilter}
                 options={postcodes.map((postcode) => ({
-                  label: postcode.slice(-5),
+                  label: postcode.startsWith(postcodePrefix)
+                    ? postcode.slice(postcodePrefix.length)
+                    : postcode,
                   value: postcode,
                 }))}
                 onChange={(e) => setPostcodeFilter(e.value)}
