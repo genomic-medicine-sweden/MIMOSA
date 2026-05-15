@@ -9,7 +9,7 @@ import generateLegendItems, {
 } from "@/components/Legend";
 import { colorOptions } from "@/utils/MapColor";
 import { SHAPE_SVG } from "@/utils/markerUtils";
-import boundariesData from "@/assets/sweden-with-regions";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import OutbreakAlert from "@/components/OutbreakAlert";
 
 const SidePanel = ({
@@ -27,6 +27,7 @@ const SidePanel = ({
   shapeByPlatform,
   setShapeByPlatform,
 }) => {
+  const { boundariesData, regionNameKey } = useMapConfigContext();
   const [selectedColor, setSelectedColor] = useState("Green");
 
   const options = [
@@ -37,8 +38,8 @@ const SidePanel = ({
   const counties = [
     { label: "All", value: "All" },
     ...boundariesData.features.map((feature) => ({
-      label: feature.properties.name,
-      value: feature.properties.name,
+      label: feature.properties[regionNameKey],
+      value: feature.properties[regionNameKey],
     })),
   ];
 
@@ -62,7 +63,7 @@ const SidePanel = ({
 
             {shapeByPlatform && (
               <>
-                <h4 style={{ marginTop: "1rem" }}>Cluster </h4>
+                <h4 style={{ marginTop: "1rem" }}>Cluster</h4>
                 <div className="legend-item">
                   <svg
                     width="16"

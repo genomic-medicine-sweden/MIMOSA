@@ -4,10 +4,8 @@ import "leaflet.markercluster";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import postcodeCoordinates from "@shared/postcode-coordinates";
-import boundariesData from "@/assets/sweden-with-regions";
-import HospitalCoordinates from "@shared/hospital-coordinates";
 import * as turf from "@turf/turf";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import { colorMapping } from "@/utils/MapColor";
 import { generateInfoContent } from "@/utils/info";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
@@ -33,6 +31,17 @@ const Map = ({
   staticView = false,
   shapeByPlatform,
 }) => {
+  const {
+    bounds,
+    center,
+    boundariesData,
+    postcodeCoordinates = {},
+    hospitalCoordinates = {},
+    regionNameKey,
+    zoom,
+    postcodePrefix = "",
+  } = useMapConfigContext();
+
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef({});
@@ -78,12 +87,19 @@ const Map = ({
 
     if (!Array.isArray(filteredData) || filteredData.length === 0) return;
 
+    const resolvePostcodeKey = (pc) =>
+      postcodeCoordinates[pc]
+        ? pc
+        : postcodeCoordinates[`${postcodePrefix}${pc}`]
+          ? `${postcodePrefix}${pc}`
+          : null;
+
     const visualisedItems = filteredData.filter((item) => {
       const { PostCode, Hospital } = item.properties;
-      if (!hospitalView && postcodeCoordinates[PostCode]) return true;
-      if (hospitalView && HospitalCoordinates[Hospital]) {
-        const postCode = HospitalCoordinates[Hospital].PostCode;
-        return !!postcodeCoordinates[postCode];
+      if (!hospitalView && resolvePostcodeKey(PostCode)) return true;
+      if (hospitalView && hospitalCoordinates[Hospital]) {
+        const postCode = hospitalCoordinates[Hospital].PostCode;
+        return !!resolvePostcodeKey(postCode);
       }
       return false;
     });
@@ -115,15 +131,17 @@ const Map = ({
 
       let coordinates, County;
 
-      if (!hospitalView && postcodeCoordinates[PostCode]) {
-        coordinates = postcodeCoordinates[PostCode].coordinates;
-        County = getCounty(PostCode);
-      } else if (hospitalView && HospitalCoordinates[Hospital]) {
-        const postCode = HospitalCoordinates[Hospital].PostCode;
-        const locationData = postcodeCoordinates[postCode];
-        if (!locationData) return;
-        coordinates = locationData.coordinates;
-        County = getCounty(postCode);
+      if (!hospitalView) {
+        const key = resolvePostcodeKey(PostCode);
+        if (!key) return;
+        coordinates = postcodeCoordinates[key].coordinates;
+        County = getCounty(key);
+      } else if (hospitalView && hospitalCoordinates[Hospital]) {
+        const postCode = hospitalCoordinates[Hospital].PostCode;
+        const key = resolvePostcodeKey(postCode);
+        if (!key) return;
+        coordinates = postcodeCoordinates[key].coordinates;
+        County = getCounty(key);
       } else {
         return;
       }
@@ -139,7 +157,7 @@ const Map = ({
           (geometry.type === "Polygon" || geometry.type === "MultiPolygon") &&
           turf.booleanPointInPolygon(point, feature)
         ) {
-          const countyName = feature.properties.name;
+          const countyName = feature.properties[regionNameKey];
           if (!countyCounts[countyName]) {
             countyCounts[countyName] = { total: 0, Cluster_ID: {} };
           }
@@ -183,6 +201,7 @@ const Map = ({
         Date,
         Hospital,
         hospitalView,
+        postcodePrefix,
       });
 
       marker.on("click", () => {
@@ -208,6 +227,11 @@ const Map = ({
     infoRef,
     onVisualisedDataChange,
     shapeByPlatform,
+    postcodeCoordinates,
+    hospitalCoordinates,
+    boundariesData,
+    regionNameKey,
+    postcodePrefix,
   ]);
 
   const updateGeoJsonLayer = useCallback(() => {
@@ -219,7 +243,7 @@ const Map = ({
 
     geojsonLayerRef.current = L.geoJSON(boundariesData, {
       style: (feature) => {
-        const countyName = feature.properties.name;
+        const countyName = feature.properties[regionNameKey];
         const shouldHighlight = !(
           countyFilter.includes(countyName) ===
           selectedCounties.includes(countyName)
@@ -228,12 +252,12 @@ const Map = ({
       },
       filter: (feature) =>
         selectedCounties.includes("All") ||
-        selectedCounties.includes(feature.properties.name),
+        selectedCounties.includes(feature.properties[regionNameKey]),
       onEachFeature: (feature, layer) => {
         layer.on("mouseover", () => {
           if (!selectedCounties || selectedCounties.includes("All")) {
             layer.setStyle(highlightStyle);
-            const countyName = feature.properties.name;
+            const countyName = feature.properties[regionNameKey];
             const countyData = (infoRef.current?.countyCounts &&
               infoRef.current.countyCounts[countyName]) || {
               total: 0,
@@ -258,6 +282,8 @@ const Map = ({
     onInfoUpdate,
     infoRef,
     countyFilter,
+    boundariesData,
+    regionNameKey,
   ]);
 
   useEffect(() => {
@@ -284,7 +310,7 @@ const Map = ({
       waitForMapContainer(() => {
         if (cancelled) return;
 
-        const initialZoom = pickZoom();
+        const initialZoom = pickZoom(zoom);
         currentZoomRef.current = initialZoom;
 
         if (mapRef.current._leaflet_id) {
@@ -294,26 +320,27 @@ const Map = ({
         const map = L.map(mapRef.current, {
           minZoom: initialZoom,
           maxZoom: 18,
-          maxBounds: [
-            [54.0, 10.0],
-            [70.0, 25.0],
-          ],
+          maxBounds: bounds,
           maxBoundsViscosity: 1.0,
           zoomControl: false,
         });
 
         mapInstance.current = map;
 
-        const initialBounds = getInitialBounds(staticView, selectedCounties);
+        const initialBounds = getInitialBounds(staticView, selectedCounties, {
+          bounds,
+          boundariesData,
+          regionNameKey,
+        });
         map.fitBounds(initialBounds, { animate: false });
 
         setTimeout(() => {
           map.invalidateSize();
-          const newZoom = pickZoom();
+          const newZoom = pickZoom(zoom);
           currentZoomRef.current = newZoom;
           map.setMinZoom(newZoom);
           if (!staticView) {
-            map.setView([63.0, 15.0], newZoom);
+            map.setView(center, newZoom);
           }
         }, 100);
 
@@ -346,12 +373,12 @@ const Map = ({
               mapRef.current.clientWidth > 0 &&
               mapRef.current.clientHeight > 0
             ) {
-              const newZoom = pickZoom();
+              const newZoom = pickZoom(zoom);
               if (newZoom !== currentZoomRef.current) {
                 currentZoomRef.current = newZoom;
                 mapInstance.current.setMinZoom(newZoom);
                 if (!staticView) {
-                  mapInstance.current.setView([63.0, 15.0], newZoom);
+                  mapInstance.current.setView(center, newZoom);
                 }
               }
               mapInstance.current.invalidateSize();
@@ -389,6 +416,12 @@ const Map = ({
     selectedCounties,
     infoRef,
     countyFilter,
+    bounds,
+    center,
+    zoom,
+    boundariesData,
+    regionNameKey,
+    staticView,
   ]);
 
   const prevSelectedCounties = useRef(selectedCounties);
@@ -401,16 +434,13 @@ const Map = ({
       selectedCounties[0] === "All" &&
       prevSelectedCounties.current[0] !== "All"
     ) {
-      mapInstance.current.fitBounds([
-        [54.0, 10.0],
-        [70.0, 25.0],
-      ]);
+      mapInstance.current.fitBounds(bounds);
     }
 
     if (selectedCounties[0] !== "All") {
       const countyName = selectedCounties[0];
       const feature = boundariesData.features.find(
-        (f) => f.properties.name === countyName,
+        (f) => f.properties[regionNameKey] === countyName,
       );
 
       if (feature) {
@@ -426,7 +456,14 @@ const Map = ({
     }
 
     prevSelectedCounties.current = selectedCounties;
-  }, [selectedCounties, infoRef, onInfoUpdate]);
+  }, [
+    selectedCounties,
+    infoRef,
+    onInfoUpdate,
+    bounds,
+    boundariesData,
+    regionNameKey,
+  ]);
 
   return (
     <div>
