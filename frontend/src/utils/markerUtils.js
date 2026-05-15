@@ -34,10 +34,10 @@ export function createShapeIcon(shape, color, size) {
   const s = size * 2.5;
 
   const filledSVG = {
-    circle: `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 2}" fill="${color}" stroke="black" stroke-width="1" stroke-dasharray="3,4" stroke-linecap="round"/>`,
-    triangle: `<polygon points="${s / 2},2 ${s - 2},${s - 2} 2,${s - 2}" fill="${color}" stroke="black" stroke-width="1" stroke-dasharray="3,4" stroke-linecap="round"/>`,
-    square: `<rect x="2" y="2" width="${s - 4}" height="${s - 4}" fill="${color}" stroke="black" stroke-width="1" stroke-dasharray="3,4" stroke-linecap="round"/>`,
-    diamond: `<polygon points="${s / 2},2 ${s - 2},${s / 2} ${s / 2},${s - 2} 2,${s / 2}" fill="${color}" stroke="black" stroke-width="1" stroke-dasharray="3,4" stroke-linecap="round"/>`,
+    circle: `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 2}" fill="${color}" stroke="black" stroke-width="1"/>`,
+    triangle: `<polygon points="${s / 2},2 ${s - 2},${s - 2} 2,${s - 2}" fill="${color}" stroke="black" stroke-width="1"/>`,
+    square: `<rect x="2" y="2" width="${s - 4}" height="${s - 4}" fill="${color}" stroke="black" stroke-width="1"/>`,
+    diamond: `<polygon points="${s / 2},2 ${s - 2},${s / 2} ${s / 2},${s - 2} 2,${s / 2}" fill="${color}" stroke="black" stroke-width="1"/>`,
   };
 
   return L.divIcon({
