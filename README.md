@@ -251,6 +251,10 @@ conda activate mimosa
 pip install -r scripts/requirements.txt
 ```
 
+## Changing the active map
+[configuring country maps](backend/README.md)
+
+
 ## Citation
 If you use MIMOSA, please cite the Zenodo record for the version used. The DOI https://doi.org/10.5281/zenodo.18770176 always resolves to the latest release.
 
