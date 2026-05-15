@@ -2,6 +2,7 @@
 
 ### Added
 - Map toggle in Map Settings to differentiate markers by sequencing platform
+- Support for deploying MIMOSA with different country maps via configuration change
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
