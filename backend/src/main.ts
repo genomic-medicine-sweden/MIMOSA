@@ -22,10 +22,7 @@ async function bootstrap() {
     config.get<string>('PUBLIC_ORIGIN') || `http://${domain}:${frontendPort}`;
   const publicApiBase = `${origin}/api`;
 
-  app.enableCors({
-    origin,
-    credentials: true,
-  });
+  app.enableCors({ origin, credentials: true });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -42,16 +39,12 @@ async function bootstrap() {
     .addOAuth2({
       type: 'oauth2',
       flows: {
-        password: {
-          tokenUrl: '/api/auth/login',
-          scopes: {},
-        },
+        password: { tokenUrl: '/api/auth/login', scopes: {} },
       },
     })
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,

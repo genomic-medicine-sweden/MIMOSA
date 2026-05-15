@@ -8,12 +8,13 @@ import { Password } from "primereact/password";
 import { FloatLabel } from "primereact/floatlabel";
 import { Button } from "primereact/button";
 import { InputSwitch } from "primereact/inputswitch";
-import boundariesData from "@/assets/sweden-with-regions";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import NotificationInfoDialog from "@/components/dashboard/Info/NotificationInfoDialog";
 import useOutbreakRules from "@/hooks/useOutbreakRules";
 import { apiFetch } from "@/utils/apiFetch";
 
 export default function SettingsPage() {
+  const { boundariesData, regionNameKey } = useMapConfigContext();
   const [county, setCounty] = useState(null);
   const [userInfo, setUserInfo] = useState({
     name: "Unknown",
@@ -34,8 +35,8 @@ export default function SettingsPage() {
   const rules = useOutbreakRules();
 
   const counties = boundariesData.features.map((f) => ({
-    label: f.properties.name,
-    value: f.properties.name,
+    label: f.properties[regionNameKey],
+    value: f.properties[regionNameKey],
   }));
 
   const frequencyOptions = [
@@ -52,22 +53,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-
         setUserInfo({
-          name: `${parsed.firstName || "Unknown"} ${
-            parsed.lastName || ""
-          }`.trim(),
+          name: `${parsed.firstName || "Unknown"} ${parsed.lastName || ""}`.trim(),
           email: parsed.email || "Unknown",
         });
-
-        if (parsed.homeCounty) {
-          setCounty(parsed.homeCounty);
-        }
-
+        if (parsed.homeCounty) setCounty(parsed.homeCounty);
         if (parsed.notificationPreferences) {
           setNotificationPreferences({
             outbreakAlerts:
@@ -86,31 +79,23 @@ export default function SettingsPage() {
   const updateNotificationPreference = async (key, value) => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
-
     const previous = notificationPreferences;
     const newPrefs = { ...notificationPreferences, [key]: value };
     setNotificationPreferences(newPrefs);
-
     try {
       const parsed = JSON.parse(storedUser);
-
       const res = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/${parsed.email}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            notificationPreferences: { [key]: value },
-          }),
+          body: JSON.stringify({ notificationPreferences: { [key]: value } }),
         },
       );
-
       if (!res.ok) throw new Error("Failed to update notification preferences");
-
       const updated = await res.json();
       parsed.notificationPreferences = updated.notificationPreferences;
       localStorage.setItem("user", JSON.stringify(parsed));
-
       toast.current?.show({
         severity: "success",
         summary: "Saved",
@@ -132,13 +117,10 @@ export default function SettingsPage() {
   const handleCountyChange = async (e) => {
     const newCounty = e.value;
     setCounty(newCounty);
-
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
-
     try {
       const parsed = JSON.parse(storedUser);
-
       const res = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/${parsed.email}`,
         {
@@ -147,13 +129,10 @@ export default function SettingsPage() {
           body: JSON.stringify({ homeCounty: newCounty }),
         },
       );
-
       if (!res.ok) throw new Error("Failed to update user");
-
       const updated = await res.json();
       parsed.homeCounty = updated.homeCounty;
       localStorage.setItem("user", JSON.stringify(parsed));
-
       toast.current?.show({
         severity: "success",
         summary: "Success",
@@ -181,37 +160,28 @@ export default function SettingsPage() {
       });
       return;
     }
-
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
-
     try {
       const parsed = JSON.parse(storedUser);
-
       const res = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/${parsed.email}/password`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            currentPassword,
-            newPassword: password,
-          }),
+          body: JSON.stringify({ currentPassword, newPassword: password }),
         },
       );
-
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body?.message || "Password update failed");
       }
-
       toast.current?.show({
         severity: "success",
         summary: "Password Updated",
         detail: "Your password was updated successfully.",
         life: 3000,
       });
-
       setCurrentPassword("");
       setPassword("");
       setConfirmPassword("");
@@ -242,7 +212,6 @@ export default function SettingsPage() {
       <Toast ref={toast} position="bottom-right" />
       <h2 className="text-3xl font-semibold mb-4">Settings</h2>
 
-      {/* Profile */}
       <div className="grid grid-cols-3 gap-x-4 items-center">
         <label className="text-right font-medium">Name</label>
         <InputText
@@ -250,14 +219,12 @@ export default function SettingsPage() {
           disabled
           className="col-span-2 w-full mb-4"
         />
-
         <label className="text-right font-medium">Email</label>
         <InputText
           value={userInfo.email}
           disabled
           className="col-span-2 w-full mb-4"
         />
-
         <label className="text-right font-medium">My County</label>
         <Dropdown
           value={county}
@@ -268,7 +235,6 @@ export default function SettingsPage() {
         />
       </div>
 
-      {/* Password */}
       <div className="mt-6 mb-2">
         <h3 className="text-xl font-semibold mb-4">Password</h3>
         <div className="flex flex-wrap gap-6">
@@ -282,7 +248,6 @@ export default function SettingsPage() {
             />
             <label htmlFor="current">Current Password</label>
           </FloatLabel>
-
           <FloatLabel>
             <Password
               id="new"
@@ -293,7 +258,6 @@ export default function SettingsPage() {
             />
             <label htmlFor="new">New Password</label>
           </FloatLabel>
-
           <FloatLabel>
             <Password
               id="confirm"
@@ -304,7 +268,6 @@ export default function SettingsPage() {
             />
             <label htmlFor="confirm">Confirm Password</label>
           </FloatLabel>
-
           <div className="flex items-end">
             <Button
               label="Update"
@@ -315,7 +278,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Notifications */}
       <div className="flex flex-column gap-3 mt-4">
         <div className="flex align-items-center gap-2">
           <h2 className="text-xl font-semibold m-0">Notifications</h2>
@@ -324,7 +286,6 @@ export default function SettingsPage() {
             onClick={() => setShowInfo(true)}
           />
         </div>
-
         <div className="flex align-items-center gap-3">
           <span className="font-medium w-10rem">Outbreak Alerts</span>
           <InputSwitch
@@ -334,7 +295,6 @@ export default function SettingsPage() {
             }
           />
         </div>
-
         <div className="flex align-items-center gap-3">
           <span className="font-medium w-10rem">Frequency</span>
           <Dropdown
@@ -345,7 +305,6 @@ export default function SettingsPage() {
             style={{ width: "14rem" }}
           />
         </div>
-
         {thresholdEntries.map(({ key, threshold }) => (
           <div className="flex align-items-center gap-3" key={key}>
             <label className="font-medium w-10rem">
