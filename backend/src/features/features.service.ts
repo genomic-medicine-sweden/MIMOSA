@@ -40,7 +40,7 @@ export class FeaturesService {
     }
 
     const originalProps = existing.properties || {};
-    const allowedFields = ['PostCode', 'Hospital', 'Date'];
+    const allowedFields = ['PostCode', 'Hospital', 'Date', 'manualCoordinates'];
     const updatePayload: Record<string, any> = {};
     const updatedFields: string[] = [];
     const finalChanges: Record<string, { old: any; new: any }> = {};

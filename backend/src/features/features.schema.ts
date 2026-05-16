@@ -8,6 +8,7 @@ export class Feature extends Document {
   @Prop({ type: Object }) properties: {
     PostCode?: string;
     Hospital?: string;
+    manualCoordinates?: { lat: number; lng: number } | null;
     analysis_profile?: string;
     Sequencing_Platform?: string;
     Pipeline_Version?: string;
