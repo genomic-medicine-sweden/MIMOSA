@@ -18,6 +18,7 @@ export class LocationResolver {
   private readonly hospitalCoordinates: Record<string, any>;
   private readonly postcodeCoordinates: Record<string, any>;
   private readonly postcodePrefix: string;
+  private readonly boundariesData: Record<string, any>;
 
   private readonly unknownHospitals = new Set<string>();
   private readonly unknownPostcodes = new Set<string>();
@@ -27,6 +28,57 @@ export class LocationResolver {
     this.hospitalCoordinates = coords.hospitalCoordinates;
     this.postcodeCoordinates = coords.postcodeCoordinates;
     this.postcodePrefix = coords.postcodePrefix ?? '';
+    this.boundariesData = coords.boundariesData;
+  }
+
+  private pointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      const intersect =
+        yi > lat !== yj > lat &&
+        lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  private nearestPostcodeCounty(lat: number, lng: number): string | null {
+    let minDist = Infinity;
+    let county: string | null = null;
+    for (const data of Object.values(this.postcodeCoordinates) as any[]) {
+      const coords = data.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+      const [pcLat, pcLng] = coords;
+      const dist = (pcLat - lat) ** 2 + (pcLng - lng) ** 2;
+      if (dist < minDist) {
+        minDist = dist;
+        county = data.County || null;
+      }
+    }
+    return county;
+  }
+
+  private resolveCountyFromCoords(lat: number, lng: number): string | null {
+    const features = this.boundariesData?.features;
+    if (Array.isArray(features)) {
+      for (const feature of features) {
+        const geom = feature.geometry;
+        const name = feature.properties?.name;
+        if (!name || !geom) continue;
+
+        if (geom.type === 'Polygon') {
+          if (this.pointInPolygon(lat, lng, geom.coordinates[0])) return name;
+        } else if (geom.type === 'MultiPolygon') {
+          for (const polygon of geom.coordinates) {
+            if (this.pointInPolygon(lat, lng, polygon[0])) return name;
+          }
+        }
+      }
+    }
+
+    return this.nearestPostcodeCounty(lat, lng);
   }
 
   private scheduleSummary() {
@@ -70,9 +122,11 @@ export class LocationResolver {
   resolveToCounty({
     Hospital,
     PostCode,
+    manualCoordinates,
   }: {
     Hospital?: string;
     PostCode?: string;
+    manualCoordinates?: { lat: number; lng: number } | null;
   }): string | null {
     if (Hospital) {
       const hospitalKey = Object.keys(this.hospitalCoordinates).find(
@@ -106,6 +160,13 @@ export class LocationResolver {
         return null;
       }
       return this.postcodeCoordinates[postcodeKey].County || null;
+    }
+
+    if (manualCoordinates?.lat != null && manualCoordinates?.lng != null) {
+      return this.resolveCountyFromCoords(
+        manualCoordinates.lat,
+        manualCoordinates.lng,
+      );
     }
 
     return null;

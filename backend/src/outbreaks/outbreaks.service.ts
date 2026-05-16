@@ -143,6 +143,7 @@ export class OutbreaksService implements OnModuleInit {
       const county = this.locationResolver.resolveToCounty({
         Hospital: f.properties?.Hospital,
         PostCode: f.properties?.PostCode,
+        manualCoordinates: f.properties?.manualCoordinates,
       });
       if (id && county) {
         map[id] = county;
