@@ -10,7 +10,7 @@ import { colorMapping } from "@/utils/MapColor";
 import { generateInfoContent } from "@/utils/info";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
 import { getCounty } from "@/utils/locationUtils";
-import { pickZoom, getInitialBounds } from "@/utils/mapUtils";
+import { getInitialBounds } from "@/utils/mapUtils";
 import {
   getShape,
   createPieClusterIcon,
@@ -38,7 +38,6 @@ const Map = ({
     postcodeCoordinates = {},
     hospitalCoordinates = {},
     regionNameKey,
-    zoom,
     postcodePrefix = "",
   } = useMapConfigContext();
 
@@ -350,19 +349,23 @@ const Map = ({
       waitForMapContainer(() => {
         if (cancelled) return;
 
-        const initialZoom = pickZoom(zoom);
-        currentZoomRef.current = initialZoom;
-
         if (mapRef.current._leaflet_id) {
           mapRef.current._leaflet_id = null;
         }
 
+        const expandedBounds = [
+          [bounds[0][0] - 5, bounds[0][1] - 5],
+          [bounds[1][0] + 5, bounds[1][1] + 5],
+        ];
+
         const map = L.map(mapRef.current, {
-          minZoom: initialZoom,
+          minZoom: 1,
           maxZoom: 18,
-          maxBounds: bounds,
-          maxBoundsViscosity: 1.0,
+          maxBounds: expandedBounds,
+          maxBoundsViscosity: 0.5,
           zoomControl: false,
+          zoomSnap: 0.1,
+          zoomDelta: 0.5,
         });
 
         mapInstance.current = map;
@@ -372,19 +375,20 @@ const Map = ({
           boundariesData,
           regionNameKey,
         });
-        map.fitBounds(initialBounds, { animate: false });
+        map.fitBounds(initialBounds, { animate: false, padding: [10, 10] });
 
         setTimeout(() => {
           map.invalidateSize();
-          const newZoom = pickZoom(zoom);
-          currentZoomRef.current = newZoom;
-          map.setMinZoom(newZoom);
           if (!staticView) {
-            map.setView(center, newZoom);
+            const geoBounds = L.geoJSON(boundariesData).getBounds();
+            map.fitBounds(geoBounds, { animate: false, padding: [20, 20] });
           }
+          const fittedZoom = map.getZoom();
+          currentZoomRef.current = fittedZoom;
+          map.setMinZoom(fittedZoom);
         }, 100);
 
-        L.svg({ padding: 0 }).addTo(map);
+        L.svg({ padding: 0.2 }).addTo(map);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution:
@@ -413,15 +417,19 @@ const Map = ({
               mapRef.current.clientWidth > 0 &&
               mapRef.current.clientHeight > 0
             ) {
-              const newZoom = pickZoom(zoom);
-              if (newZoom !== currentZoomRef.current) {
-                currentZoomRef.current = newZoom;
-                mapInstance.current.setMinZoom(newZoom);
-                if (!staticView) {
-                  mapInstance.current.setView(center, newZoom);
-                }
-              }
               mapInstance.current.invalidateSize();
+              if (!staticView) {
+                const geoBounds = L.geoJSON(boundariesData).getBounds();
+                mapInstance.current.fitBounds(geoBounds, {
+                  animate: false,
+                  padding: [20, 20],
+                });
+              }
+              const fittedZoom = mapInstance.current.getZoom();
+              if (fittedZoom !== currentZoomRef.current) {
+                currentZoomRef.current = fittedZoom;
+                mapInstance.current.setMinZoom(fittedZoom);
+              }
             } else {
               requestAnimationFrame(waitAndResize);
             }
@@ -458,7 +466,6 @@ const Map = ({
     countyFilter,
     bounds,
     center,
-    zoom,
     boundariesData,
     regionNameKey,
     staticView,
@@ -474,7 +481,8 @@ const Map = ({
       selectedCounties[0] === "All" &&
       prevSelectedCounties.current[0] !== "All"
     ) {
-      mapInstance.current.fitBounds(bounds);
+      const geoBounds = L.geoJSON(boundariesData).getBounds();
+      mapInstance.current.fitBounds(geoBounds, { padding: [20, 20] });
     }
 
     if (selectedCounties[0] !== "All") {
