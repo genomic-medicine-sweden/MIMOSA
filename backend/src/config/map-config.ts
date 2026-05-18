@@ -5,7 +5,6 @@ type MapConfig = {
   bounds: [[number, number], [number, number]];
   center: [number, number];
   regionNameKey: string;
-  zoom: { mobile: number; small: number; large: number; default: number };
   postcodePrefix: string;
   postcodeLength: number;
 };
@@ -19,7 +18,6 @@ const configs: Record<string, MapConfig> = {
     ],
     center: [63.0, 15.0],
     regionNameKey: 'name',
-    zoom: { mobile: 4, small: 4.25, large: 5.25, default: 5 },
     postcodePrefix: 'SE-',
     postcodeLength: 5,
   },
@@ -30,8 +28,7 @@ const configs: Record<string, MapConfig> = {
       [61.0, 2.0],
     ],
     center: [54.0, -2.0],
-    regionNameKey: 'name',
-    zoom: { mobile: 6, small: 6, large: 6, default: 6 },
+    regionNameKey: 'shapeName',
     postcodePrefix: '',
     postcodeLength: 7,
   },
