@@ -24,6 +24,8 @@ export async function exportSamplesTemplate(
     { header: "Hospital", key: "Hospital", width: 20 },
     { header: "PostCode", key: "PostCode", width: 15 },
     { header: "Date", key: "Date", width: 15 },
+    { header: "Latitude", key: "Latitude", width: 12 },
+    { header: "Longitude", key: "Longitude", width: 12 },
   ];
 
   filtered.forEach((s) => {
@@ -39,6 +41,8 @@ export async function exportSamplesTemplate(
       Hospital: s.properties.Hospital || "",
       PostCode: postcode,
       Date: s.properties.Date || "",
+      Latitude: s.properties.manualCoordinates?.lat ?? "",
+      Longitude: s.properties.manualCoordinates?.lng ?? "",
     });
   });
 

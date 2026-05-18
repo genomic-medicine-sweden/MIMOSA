@@ -3,4 +3,5 @@ export const fieldFeaturesMeta = {
   Date: { label: "Date" },
   Hospital: { label: "Hospital" },
   SampleID: { label: "Sample" },
+  manualCoordinates: { label: "Coordinates" },
 };

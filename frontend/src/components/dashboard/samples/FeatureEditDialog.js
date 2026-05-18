@@ -9,6 +9,7 @@ export default function FeatureEditDialog({
   sampleId,
   originalProperties,
   newProperties,
+  warning = null,
   fieldFeatures = {},
 }) {
   const hasChanges = Object.keys(newProperties || {}).some((key) => {
@@ -45,10 +46,30 @@ export default function FeatureEditDialog({
           </p>
         )}
 
+        {warning && <p style={{ color: "#e65100" }}>{warning}</p>}
+
         {hasChanges ? (
           Object.keys(newProperties || {}).map((key) => {
             const oldVal = originalProperties?.[key];
             const newVal = newProperties?.[key];
+
+            if (key === "manualCoordinates") {
+              const fmtCoords = (v) =>
+                v ? `Lat: ${v.lat}, Lng: ${v.lng}` : "";
+              if (JSON.stringify(oldVal) === JSON.stringify(newVal))
+                return null;
+              return (
+                <div key={key} className="space-y-1">
+                  <p>
+                    <strong>{fieldFeatures[key]?.label || key}:</strong>{" "}
+                    <span className="text-gray-500">{fmtCoords(oldVal)}</span> →{" "}
+                    <span className="text-black font-medium">
+                      {fmtCoords(newVal)}
+                    </span>
+                  </p>
+                </div>
+              );
+            }
 
             const isObject =
               (typeof oldVal === "object" && oldVal !== null) ||

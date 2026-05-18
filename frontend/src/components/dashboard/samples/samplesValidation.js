@@ -134,8 +134,26 @@ export const validateHospital = (value) => {
   };
 };
 
+export const validateLat = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = Number(String(value).replace(",", "."));
+  if (isNaN(num)) return "Latitude must be a number.";
+  if (num < -90 || num > 90) return "Latitude must be between -90 and 90.";
+  return "";
+};
+
+export const validateLng = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = Number(String(value).replace(",", "."));
+  if (isNaN(num)) return "Longitude must be a number.";
+  if (num < -180 || num > 180) return "Longitude must be between -180 and 180.";
+  return "";
+};
+
 export const fieldValidators = {
   Date: validateDate,
   PostCode: validatePostCode,
   Hospital: validateHospital,
+  lat: validateLat,
+  lng: validateLng,
 };
