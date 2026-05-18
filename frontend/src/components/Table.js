@@ -18,6 +18,13 @@ import {
   formatPostcode,
 } from "@/utils/locationUtils";
 
+const fmtLogVal = (val) => {
+  if (val == null) return "";
+  if (typeof val === "object" && val.lat != null)
+    return `Lat: ${val.lat}, Lng: ${val.lng}`;
+  return String(val);
+};
+
 const isModifiedRecently = (sampleId, logs) => {
   const log = logs.find((log) => log.sample_id === sampleId);
   if (!log || !log.updates || log.updates.length === 0) return false;
@@ -352,7 +359,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                                     padding: "8px",
                                   }}
                                 >
-                                  {change.old}
+                                  {fmtLogVal(change.old)}
                                 </td>
                                 <td
                                   style={{
@@ -360,7 +367,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                                     padding: "8px",
                                   }}
                                 >
-                                  {change.new}
+                                  {fmtLogVal(change.new)}
                                 </td>
                               </tr>
                             ),
@@ -520,6 +527,19 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           body={(rowData) => rowData.properties.Hospital}
           sortable
         />
+        {filteredData?.some(
+          (item) => item.properties.manualCoordinates?.lat != null,
+        ) && (
+          <Column
+            header="Coordinates"
+            body={(rowData) => {
+              const coords = rowData.properties.manualCoordinates;
+              if (!coords || coords.lat == null || coords.lng == null)
+                return "";
+              return `${coords.lat}, ${coords.lng}`;
+            }}
+          />
+        )}
         <Column header="" body={severityBodyTemplate} />
       </DataTable>
       <Tooltip
