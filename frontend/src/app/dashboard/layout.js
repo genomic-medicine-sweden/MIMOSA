@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import "primeflex/primeflex.css";
 import SidebarMenu from "@/components/dashboard/SidebarMenu";
 import { ViewModeProvider } from "@/components/dashboard/ViewModeContext";
-import { MapConfigContext } from "@/components/AppWrapper";
+import { MapConfigContext } from "@/components/MapConfigContext";
 import useMapConfig from "@/hooks/useMapConfig";
 import { initCoordinates } from "@/utils/coordinates";
 

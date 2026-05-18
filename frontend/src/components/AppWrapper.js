@@ -1,16 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect } from "react";
+import React, { useEffect } from "react";
 import App from "@/components/App";
 import useAppData from "@/hooks/useAppData";
 import useMapConfig from "@/hooks/useMapConfig";
 import { initCoordinates } from "@/utils/coordinates";
+import { MapConfigContext } from "@/components/MapConfigContext";
 
-export const MapConfigContext = createContext(null);
-
-export function useMapConfigContext() {
-  return useContext(MapConfigContext);
-}
+export { useMapConfigContext } from "@/components/MapConfigContext";
 
 export default function AppWrapper() {
   const { mapConfig, loading, error } = useMapConfig();
