@@ -93,18 +93,35 @@ const Map = ({
           ? `${postcodePrefix}${pc}`
           : null;
 
+    const BORDER_BUFFER = 1;
     const hasValidCoords = (item) => {
       const coords = item.properties.manualCoordinates;
       if (!coords || coords.lat === "" || coords.lng === "") return false;
       const lat = Number(coords.lat);
       const lng = Number(coords.lng);
+      if (
+        isNaN(lat) ||
+        isNaN(lng) ||
+        lat < -90 ||
+        lat > 90 ||
+        lng < -180 ||
+        lng > 180
+      )
+        return false;
+      const point = turf.point([lng, lat]);
+      const insideCountry = boundariesData.features.some(
+        (feature) =>
+          (feature.geometry.type === "Polygon" ||
+            feature.geometry.type === "MultiPolygon") &&
+          turf.booleanPointInPolygon(point, feature),
+      );
+      if (insideCountry) return true;
+      const [[minLat, minLng], [maxLat, maxLng]] = bounds;
       return (
-        !isNaN(lat) &&
-        !isNaN(lng) &&
-        lat >= -90 &&
-        lat <= 90 &&
-        lng >= -180 &&
-        lng <= 180
+        lat >= minLat - BORDER_BUFFER &&
+        lat <= maxLat + BORDER_BUFFER &&
+        lng >= minLng - BORDER_BUFFER &&
+        lng <= maxLng + BORDER_BUFFER
       );
     };
 
@@ -271,6 +288,7 @@ const Map = ({
     boundariesData,
     regionNameKey,
     postcodePrefix,
+    bounds,
   ]);
 
   const updateGeoJsonLayer = useCallback(() => {
