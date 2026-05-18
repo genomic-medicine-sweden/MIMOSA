@@ -20,6 +20,8 @@ export default function AppWrapper() {
       mapConfig.hospitalCoordinates,
       mapConfig.postcodePrefix,
       mapConfig.postcodeLength,
+      mapConfig.boundariesData,
+      mapConfig.regionNameKey,
     );
   }, [mapConfig]);
 
@@ -67,3 +69,4 @@ const styles = {
   },
   text: { fontSize: 14, color: "#555", textAlign: "center" },
 };
+
