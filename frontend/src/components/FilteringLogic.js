@@ -154,9 +154,18 @@ const FilteringLogic = ({
       )
         return false;
 
+      const coords = item.properties.manualCoordinates;
+      const hasManualCoords = !!(
+        coords &&
+        coords.lat !== "" &&
+        coords.lat !== undefined &&
+        coords.lng !== "" &&
+        coords.lng !== undefined
+      );
       if (
         countyFilter.length > 0 &&
-        !countyFilter.includes(postcodeCoordinates[postcode]?.County)
+        !countyFilter.includes(postcodeCoordinates[postcode]?.County) &&
+        !hasManualCoords
       )
         return false;
 

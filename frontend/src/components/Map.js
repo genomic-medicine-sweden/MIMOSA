@@ -94,14 +94,29 @@ const Map = ({
           ? `${postcodePrefix}${pc}`
           : null;
 
+    const hasValidCoords = (item) => {
+      const coords = item.properties.manualCoordinates;
+      if (!coords || coords.lat === "" || coords.lng === "") return false;
+      const lat = Number(coords.lat);
+      const lng = Number(coords.lng);
+      return (
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180
+      );
+    };
+
     const visualisedItems = filteredData.filter((item) => {
       const { PostCode, Hospital } = item.properties;
       if (!hospitalView && resolvePostcodeKey(PostCode)) return true;
       if (hospitalView && hospitalCoordinates[Hospital]) {
         const postCode = hospitalCoordinates[Hospital].PostCode;
-        return !!resolvePostcodeKey(postCode);
+        if (resolvePostcodeKey(postCode)) return true;
       }
-      return false;
+      return hasValidCoords(item);
     });
 
     if (onVisualisedDataChange) {
@@ -133,17 +148,40 @@ const Map = ({
 
       if (!hospitalView) {
         const key = resolvePostcodeKey(PostCode);
-        if (!key) return;
-        coordinates = postcodeCoordinates[key].coordinates;
-        County = getCounty(key);
-      } else if (hospitalView && hospitalCoordinates[Hospital]) {
-        const postCode = hospitalCoordinates[Hospital].PostCode;
-        const key = resolvePostcodeKey(postCode);
-        if (!key) return;
-        coordinates = postcodeCoordinates[key].coordinates;
-        County = getCounty(key);
+        if (key) {
+          coordinates = postcodeCoordinates[key].coordinates;
+          County = getCounty(key);
+        } else if (hasValidCoords(item)) {
+          coordinates = [
+            Number(item.properties.manualCoordinates.lat),
+            Number(item.properties.manualCoordinates.lng),
+          ];
+        } else {
+          return;
+        }
       } else {
-        return;
+        if (hospitalCoordinates[Hospital]) {
+          const postCode = hospitalCoordinates[Hospital].PostCode;
+          const key = resolvePostcodeKey(postCode);
+          if (key) {
+            coordinates = postcodeCoordinates[key].coordinates;
+            County = getCounty(key);
+          } else if (hasValidCoords(item)) {
+            coordinates = [
+              Number(item.properties.manualCoordinates.lat),
+              Number(item.properties.manualCoordinates.lng),
+            ];
+          } else {
+            return;
+          }
+        } else if (hasValidCoords(item)) {
+          coordinates = [
+            Number(item.properties.manualCoordinates.lat),
+            Number(item.properties.manualCoordinates.lng),
+          ];
+        } else {
+          return;
+        }
       }
 
       const point = {
@@ -183,7 +221,9 @@ const Map = ({
         platform,
       );
 
-      const clusterKey = hospitalView ? Hospital : PostCode;
+      const naturalKey = hospitalView ? Hospital : PostCode;
+      const clusterKey =
+        naturalKey || `coords_${coordinates[0]},${coordinates[1]}`;
 
       if (!markersRef.current[clusterKey]) {
         markersRef.current[clusterKey] = L.markerClusterGroup({
