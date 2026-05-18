@@ -391,12 +391,20 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
       (item) => item.properties.Cluster_ID === Cluster_ID,
     );
     sameCluster.forEach((item) => {
-      const itemCounty = getCounty(item.properties.PostCode);
+      const itemCounty = getCounty(
+        item.properties.PostCode,
+        item.properties.manualCoordinates,
+      );
       if (itemCounty === county) {
         if (
           !intra &&
-          sameCluster.filter((i) => getCounty(i.properties.PostCode) === county)
-            .length > 1
+          sameCluster.filter(
+            (i) =>
+              getCounty(
+                i.properties.PostCode,
+                i.properties.manualCoordinates,
+              ) === county,
+          ).length > 1
         ) {
           intra = true;
         }
@@ -413,7 +421,10 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
     const Cluster_ID = rowData.properties.Cluster_ID;
 
-    const county = getCounty(rowData.properties.PostCode);
+    const county = getCounty(
+      rowData.properties.PostCode,
+      rowData.properties.manualCoordinates,
+    );
 
     const { intra, inter } = county
       ? checkIntraInter(Cluster_ID, county)
@@ -514,12 +525,22 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
         />
         <Column
           header="Postal Town"
-          body={(rowData) => getPostalTown(rowData.properties.PostCode)}
+          body={(rowData) =>
+            getPostalTown(
+              rowData.properties.PostCode,
+              rowData.properties.manualCoordinates,
+            )
+          }
           sortable
         />
         <Column
           header="County"
-          body={(rowData) => getCounty(rowData.properties.PostCode)}
+          body={(rowData) =>
+            getCounty(
+              rowData.properties.PostCode,
+              rowData.properties.manualCoordinates,
+            )
+          }
           sortable
         />
         <Column
