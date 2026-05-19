@@ -34,10 +34,74 @@ function tryLoadJson(filename: string): any | null {
   }
 }
 
+function logBoundaryKeys(geojson: any): void {
+  const keys = Object.keys(geojson?.features?.[0]?.properties ?? {});
+  console.log(
+    `[map-config] Boundary feature property keys: ${keys.join(', ')}`,
+  );
+}
+
+async function fetchGeoBoundaries(api: {
+  countryCode: string;
+  level: string;
+}): Promise<any> {
+  const metaUrl = `https://www.geoboundaries.org/api/current/gbOpen/${api.countryCode}/${api.level}/`;
+  const metaRes = await fetch(metaUrl);
+  if (!metaRes.ok) {
+    throw new Error(
+      `[map-config] geoBoundaries metadata fetch failed (${metaRes.status}) for ${api.countryCode}/${api.level}`,
+    );
+  }
+  const meta = (await metaRes.json()) as any;
+  const gjUrl = meta.gjDownloadURL;
+  if (!gjUrl) {
+    throw new Error(
+      `[map-config] geoBoundaries returned no gjDownloadURL. Keys: ${Object.keys(meta).join(', ')}`,
+    );
+  }
+  const gjRes = await fetch(gjUrl);
+  if (!gjRes.ok) {
+    throw new Error(
+      `[map-config] geoBoundaries GeoJSON download failed (${gjRes.status}) from ${gjUrl}`,
+    );
+  }
+  const geojson = await gjRes.json();
+  console.log(
+    `[map-config] Loaded boundaries from geoBoundaries: ${api.countryCode}/${api.level}`,
+  );
+  logBoundaryKeys(geojson);
+  return geojson;
+}
+
+async function loadBoundaries(config: typeof mapConfig): Promise<any> {
+  const { boundariesFile, boundariesApi } = config;
+
+  if (boundariesFile) {
+    const local = tryLoadJson(boundariesFile);
+    if (local) {
+      console.log(
+        `[map-config] Loaded boundaries from local file: ${boundariesFile}`,
+      );
+      logBoundaryKeys(local);
+      return local;
+    }
+    if (!boundariesApi) {
+      throw new Error(
+        `[map-config] Boundaries file not found: ${boundariesFile}. ` +
+          `Add it to geodata/ or configure boundariesApi as fallback.`,
+      );
+    }
+    console.warn(
+      `[map-config] Boundaries file not found: ${boundariesFile}, falling back to geoBoundaries API`,
+    );
+  }
+
+  return fetchGeoBoundaries(boundariesApi!);
+}
+
 const country = mapConfig.activeMap;
 const hospitals = tryLoadJs(`${country}-hospital-coordinates.js`);
 const postcodes = tryLoadJs(`${country}-postcode-coordinates.js`);
-const boundaries = tryLoadJson(`${country}-with-regions.json`);
 
 if (hospitals === null || postcodes === null) {
   console.warn(
@@ -48,20 +112,16 @@ if (hospitals === null || postcodes === null) {
   );
 }
 
-if (boundaries === null) {
-  throw new Error(
-    `[map-config] No boundaries file found for activeMap "${country}". ` +
-      `Add geodata/${country}-with-regions.json to continue.`,
-  );
-}
-
 const coordinatesProvider = {
   provide: COORDINATES_TOKEN,
-  useValue: {
-    postcodeCoordinates: postcodes ?? {},
-    hospitalCoordinates: hospitals ?? {},
-    boundariesData: boundaries,
-    postcodePrefix: mapConfig.postcodePrefix,
+  useFactory: async () => {
+    const boundaries = await loadBoundaries(mapConfig);
+    return {
+      postcodeCoordinates: postcodes ?? {},
+      hospitalCoordinates: hospitals ?? {},
+      boundariesData: boundaries,
+      postcodePrefix: mapConfig.postcodePrefix,
+    };
   },
 };
 

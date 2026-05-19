@@ -7,6 +7,11 @@ type MapConfig = {
   regionNameKey: string;
   postcodePrefix: string;
   postcodeLength: number;
+  boundariesFile?: string;
+  boundariesApi?: {
+    countryCode: string;
+    level: string;
+  };
 };
 
 const configs: Record<string, MapConfig> = {
@@ -20,6 +25,7 @@ const configs: Record<string, MapConfig> = {
     regionNameKey: 'name',
     postcodePrefix: 'SE-',
     postcodeLength: 5,
+    boundariesFile: 'sweden-with-regions.json',
   },
   uk: {
     activeMap: 'uk',
@@ -31,6 +37,20 @@ const configs: Record<string, MapConfig> = {
     regionNameKey: 'shapeName',
     postcodePrefix: '',
     postcodeLength: 7,
+    boundariesFile: 'uk-with-regions.json',
+    boundariesApi: { countryCode: 'GBR', level: 'ADM1' },
+  },
+  norway: {
+    activeMap: 'norway',
+    bounds: [
+      [57.0, 4.0],
+      [71.5, 31.5],
+    ],
+    center: [65.0, 15.0],
+    regionNameKey: 'shapeName',
+    postcodePrefix: '',
+    postcodeLength: 4,
+    boundariesApi: { countryCode: 'NOR', level: 'ADM1' },
   },
 };
 
@@ -41,4 +61,12 @@ if (!(ACTIVE_MAP in configs)) {
   );
 }
 
-export default configs[ACTIVE_MAP];
+const activeConfig = configs[ACTIVE_MAP];
+if (!activeConfig.boundariesFile && !activeConfig.boundariesApi) {
+  throw new Error(
+    `[map-config] "${ACTIVE_MAP}" has no boundaries source configured. ` +
+      `Set boundariesFile and/or boundariesApi in the config.`,
+  );
+}
+
+export default activeConfig;
