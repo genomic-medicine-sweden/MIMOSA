@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
+import * as turf from "@turf/turf";
 import FilteringLogic from "@/components/FilteringLogic";
 import Table from "@/components/Table";
 import Timeline from "@/components/Timeline";
@@ -10,10 +11,63 @@ import SidePanel from "@/components/SidePanel";
 import ImageExport from "@/components/export/ImageExport";
 import { generateInfoContent } from "@/utils/info";
 import useOutbreaks from "@/hooks/useOutbreaks";
+import { useMapConfigContext } from "@/components/AppWrapper";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
 const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
+  const {
+    postcodeCoordinates = {},
+    hospitalCoordinates = {},
+    boundariesData,
+    postcodePrefix = "",
+  } = useMapConfigContext();
+
+  const countryData = useMemo(() => {
+    if (!Array.isArray(data) || !boundariesData) return data ?? [];
+
+    const resolvePostcodeKey = (pc) =>
+      postcodeCoordinates[pc]
+        ? pc
+        : postcodeCoordinates[`${postcodePrefix}${pc}`]
+          ? `${postcodePrefix}${pc}`
+          : null;
+
+    return data.filter((item) => {
+      const { PostCode, Hospital, manualCoordinates } = item.properties;
+
+      if (!PostCode?.trim() && manualCoordinates?.lat == null) return true;
+
+      if (resolvePostcodeKey(PostCode)) return true;
+
+      if (Hospital && hospitalCoordinates[Hospital]) {
+        const hpc = hospitalCoordinates[Hospital].PostCode;
+        if (resolvePostcodeKey(hpc)) return true;
+      }
+
+      if (manualCoordinates?.lat != null && manualCoordinates?.lng != null) {
+        const lat = Number(manualCoordinates.lat);
+        const lng = Number(manualCoordinates.lng);
+        if (isNaN(lat) || isNaN(lng)) return false;
+        const point = turf.point([lng, lat]);
+        return boundariesData.features.some(
+          (f) =>
+            (f.geometry.type === "Polygon" ||
+              f.geometry.type === "MultiPolygon") &&
+            turf.booleanPointInPolygon(point, f),
+        );
+      }
+
+      return false;
+    });
+  }, [
+    data,
+    postcodeCoordinates,
+    hospitalCoordinates,
+    boundariesData,
+    postcodePrefix,
+  ]);
+
   const [filteredData, setFilteredData] = useState(data);
   const [hospitalView, setHospitalView] = useState(true);
   const [mapColor, setMapColor] = useState("green");
@@ -82,7 +136,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
       <nav className="nav">
         <div className="filtering-logic-container">
           <FilteringLogic
-            data={data}
+            data={countryData}
             setFilteredData={setFilteredData}
             hospitalView={hospitalView}
             toggleHospitalView={toggleHospitalView}
