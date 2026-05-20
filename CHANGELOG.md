@@ -3,14 +3,27 @@
 ### Added
 - Map toggle in Map Settings to differentiate markers by sequencing platform
 - Support for deploying MIMOSA with different country maps via configuration change
+- Support for manually placing samples on the map using coordinates
+- Support for deriving counties and postal towns from manual sample coordinates
+- Validation for manually entered sample coordinates against country boundaries
+- Support for geoBoundaries API as a boundary source, with local file fallback
+- Pending Samples page — pre-populate geographical metadata for samples not yet uploaded; metadata is applied automatically on arrival and unmatched entries expire after 30 days
+
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
+- Reworked map zoom handling to derive zoom levels dynamically from map bounds instead of static configuration
+- Improved map interaction behaviour with updated bounds fitting, resize handling, and smoother zoom controls
+- Country boundary source is now configurable per map (local file, API, or
+  both); startup fails fast if no source is configured
+- Data passed to FilteringLogic is now pre-filtered to the active country
+  boundary, with manual coordinates validated via point-in-polygon
 
 
 ### Fixed
-
-
+- Fixed region matching for UK map boundaries
+- Manual coordinate validation no longer accepts points outside country
+  boundaries via a bounding-box buffer
 
 ## [v0.5.0]
 
