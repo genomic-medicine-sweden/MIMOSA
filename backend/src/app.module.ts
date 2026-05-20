@@ -14,6 +14,7 @@ import { MailModule } from './mail/mail.module';
 import { OutbreaksModule } from './outbreaks/outbreaks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MapConfigModule } from './map-config/map-config.module';
+import { PendingSamplesModule } from './pending-samples/pending-samples.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { MapConfigModule } from './map-config/map-config.module';
     OutbreaksModule,
     NotificationsModule,
     MapConfigModule,
+    PendingSamplesModule,
   ],
 })
 export class AppModule {}
