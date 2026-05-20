@@ -95,6 +95,15 @@ export default function SidebarMenu() {
             onClick={() => setViewMode(ViewModes.SAMPLES)}
           />
         )}
+        {role === "admin" && (
+          <Button
+            label="Pending Samples"
+            icon="pi pi-clock"
+            className="w-full justify-start"
+            text
+            onClick={() => setViewMode(ViewModes.PENDING_SAMPLES)}
+          />
+        )}
         <Button
           label="Settings"
           icon="pi pi-cog"

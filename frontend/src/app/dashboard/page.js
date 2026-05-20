@@ -23,6 +23,10 @@ const SamplesPage = dynamic(
   () => import("@/components/dashboard/SamplesPage"),
   { ssr: false },
 );
+const PendingSamplesPage = dynamic(
+  () => import("@/components/dashboard/PendingSamplesPage"),
+  { ssr: false },
+);
 const LogsPage = dynamic(() => import("@/components/dashboard/LogsPage"), {
   ssr: false,
 });
@@ -46,6 +50,7 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.NOTIFICATIONS) return <NotificationsPage />;
   if (viewMode === ViewModes.ADMIN) return <AdminPage />;
   if (viewMode === ViewModes.SAMPLES) return <SamplesPage />;
+  if (viewMode === ViewModes.PENDING_SAMPLES) return <PendingSamplesPage />;
   if (viewMode === ViewModes.LOGS) return <LogsPage />;
   if (viewMode === ViewModes.MATRIX) return <MatrixPage />;
   if (viewMode === ViewModes.TREE) return <TreePage />;
