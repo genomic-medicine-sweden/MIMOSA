@@ -241,6 +241,9 @@ From the **Samples** page, a pre-formatted Excel template for bulk correction ca
 
 The downloaded file can be edited and re-uploaded via the existing Excel bulk update functionality.
 
+Geographical metadata can also be pre-populated for samples that have not yet been uploaded via the **Pending Samples** page (admin only). When a sample with the matching ID is later uploaded, the metadata is applied automatically.
+Unmatched entries expire and are removed after 30 days.
+
 ### conda environment
 
 ```
