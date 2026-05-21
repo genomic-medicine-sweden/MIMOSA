@@ -10,9 +10,9 @@ import { Connection, Model } from 'mongoose';
 import { ChangeStream } from 'mongodb';
 import { PendingSample } from './pending-sample.schema';
 import { CreatePendingSampleDto } from './dto/create-pending-sample.dto';
+import { UpdatePendingSampleDto } from './dto/update-pending-sample.dto';
 import { FeaturesService } from '../features/features.service';
-
-const DEFAULT_EXPIRES_IN_DAYS = 30;
+import { pendingSamplesConfig } from '../config/pending-samples';
 
 @Injectable()
 export class PendingSamplesService implements OnModuleInit, OnModuleDestroy {
@@ -94,7 +94,7 @@ export class PendingSamplesService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const expiresInDays = DEFAULT_EXPIRES_IN_DAYS;
+    const expiresInDays = pendingSamplesConfig.expiryDays;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
@@ -115,6 +115,33 @@ export class PendingSamplesService implements OnModuleInit, OnModuleDestroy {
       }
       throw err;
     }
+  }
+
+  async update(
+    id: string,
+    dto: UpdatePendingSampleDto,
+  ): Promise<PendingSample | null> {
+    const existing = await this.featuresService.findBySampleId(dto.expectedId);
+    if (existing) {
+      throw new BadRequestException(
+        `Sample '${dto.expectedId}' has already been uploaded to MIMOSA. Update its metadata directly from the Samples page instead.`,
+      );
+    }
+
+    return this.pendingSampleModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            expectedId: dto.expectedId,
+            postCode: dto.postCode ?? null,
+            hospital: dto.hospital ?? null,
+            manualCoordinates: dto.manualCoordinates ?? null,
+          },
+        },
+        { new: true },
+      )
+      .exec();
   }
 
   async delete(id: string): Promise<void> {
