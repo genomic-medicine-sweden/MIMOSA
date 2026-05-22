@@ -12,6 +12,8 @@ import { useMapConfigContext } from "@/components/AppWrapper";
 import { validatePostCode } from "@/components/dashboard/samples/samplesValidation";
 import { getPostcodePrefix } from "@/utils/coordinates";
 import usePendingSamples from "@/hooks/usePendingSamples";
+import PendingSamplesInfoDialog from "@/components/dashboard/Info/PendingSamplesInfoDialog";
+import PendingSamplesBulkUpload from "@/components/dashboard/samples/PendingSamplesBulkUpload";
 
 const EMPTY_FORM = {
   expectedId: "",
@@ -36,6 +38,7 @@ export default function PendingSamplesPage() {
   const [postCodeError, setPostCodeError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmRow, setConfirmRow] = useState(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   const hasHospitalData = Object.keys(hospitalCoordinates).length > 0;
 
@@ -46,6 +49,15 @@ export default function PendingSamplesPage() {
         value: name,
       })),
     [hospitalCoordinates],
+  );
+
+  const shownColumns = useMemo(
+    () => ({
+      postCode: pendingSamples.some((s) => s.postCode),
+      hospital: pendingSamples.some((s) => s.hospital),
+      coordinates: pendingSamples.some((s) => s.manualCoordinates),
+    }),
+    [pendingSamples],
   );
 
   const isFormValid = useMemo(() => {
@@ -122,7 +134,7 @@ export default function PendingSamplesPage() {
         severity: "warn",
         summary: "Required",
         detail:
-          "Fill in at least one geographical field: Post Code, Hospital, or Coordinates.",
+          "Fill in at least one geographical field: PostCode, Hospital, or Coordinates.",
         life: 4000,
       });
       return;
@@ -261,16 +273,17 @@ export default function PendingSamplesPage() {
         Remove pending sample for &lsquo;{confirmRow?.expectedId}&rsquo;?
       </Dialog>
 
-      <h2 className="text-xl font-semibold mb-4">Pending Samples</h2>
-      <p
-        className="text-sm text-color-secondary mb-4"
-        style={{ maxWidth: 640 }}
-      >
-        Pre-populate geographical metadata for samples that have not yet
-        arrived. When a sample with the matching ID is uploaded, the metadata is
-        applied automatically. Unmatched entries expire and are removed
-        automatically.
-      </p>
+      <div className="flex align-items-center gap-2 mb-4">
+        <h2 className="text-xl font-semibold m-0">Pending Samples</h2>
+        <i
+          className="pi pi-info-circle cursor-pointer text-500 hover:text-700"
+          onClick={() => setShowInfo(true)}
+        />
+      </div>
+      <PendingSamplesInfoDialog
+        visible={showInfo}
+        onHide={() => setShowInfo(false)}
+      />
 
       <div
         className="surface-card border-1 surface-border border-round p-4 mb-5"
@@ -282,7 +295,7 @@ export default function PendingSamplesPage() {
         <div className="formgrid grid">
           <div className="field col-12">
             <label className="block text-sm mb-1">
-              Expected Sample ID <span className="text-red-500">*</span>
+              Sample ID <span className="text-red-500">*</span>
             </label>
             <InputText
               value={form.expectedId}
@@ -299,7 +312,7 @@ export default function PendingSamplesPage() {
           </div>
 
           <div className="field col-12 md:col-6">
-            <label className="block text-sm mb-1">Post Code</label>
+            <label className="block text-sm mb-1">PostCode</label>
             <InputText
               value={form.postCode}
               onChange={(e) => handleChange("postCode", e.target.value)}
@@ -364,6 +377,13 @@ export default function PendingSamplesPage() {
         />
       </div>
 
+      <PendingSamplesBulkUpload
+        createPendingSample={createPendingSample}
+        toastRef={toastRef}
+        pendingSamples={pendingSamples}
+        hasHospitalData={hasHospitalData}
+      />
+
       <DataTable
         value={pendingSamples}
         loading={loading}
@@ -376,18 +396,24 @@ export default function PendingSamplesPage() {
       >
         <Column
           field="expectedId"
-          header="Expected ID"
+          header="Sample ID"
           editor={textEditor}
           sortable
         />
-        <Column field="postCode" header="Post Code" editor={textEditor} />
-        <Column field="hospital" header="Hospital" editor={hospitalEditor} />
-        <Column
-          field="manualCoordinates"
-          header="Coordinates"
-          body={coordsBody}
-          editor={coordsEditor}
-        />
+        {shownColumns.postCode && (
+          <Column field="postCode" header="Post Code" editor={textEditor} />
+        )}
+        {shownColumns.hospital && (
+          <Column field="hospital" header="Hospital" editor={hospitalEditor} />
+        )}
+        {shownColumns.coordinates && (
+          <Column
+            field="manualCoordinates"
+            header="Coordinates"
+            body={coordsBody}
+            editor={coordsEditor}
+          />
+        )}
         <Column
           header="Expires in"
           body={expiresBody}
