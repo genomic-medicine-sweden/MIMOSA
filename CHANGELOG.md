@@ -8,22 +8,23 @@
 - Validation for manually entered sample coordinates against country boundaries
 - Support for geoBoundaries API as a boundary source, with local file fallback
 - Pending Samples page — pre-populate geographical metadata for samples not yet uploaded; metadata is applied automatically on arrival and unmatched entries expire after 30 days
+- Bulk Excel upload for pending samples — download template, fill in entries, drag-and-drop or click to browse; invalid rows are flagged and skipped
+- Configurable pending sample expiry (default: 30 days)
+- Info dialog on the Pending Samples page
 
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
 - Reworked map zoom handling to derive zoom levels dynamically from map bounds instead of static configuration
 - Improved map interaction behaviour with updated bounds fitting, resize handling, and smoother zoom controls
-- Country boundary source is now configurable per map (local file, API, or
-  both); startup fails fast if no source is configured
-- Data passed to FilteringLogic is now pre-filtered to the active country
-  boundary, with manual coordinates validated via point-in-polygon
+- Country boundary source is now configurable per map (local file, API, or both); startup fails fast if no source is configured
+- Data passed to FilteringLogic is now pre-filtered to the active country  boundary, with manual coordinates validated via point-in-polygon
 
 
 ### Fixed
 - Fixed region matching for UK map boundaries
-- Manual coordinate validation no longer accepts points outside country
-  boundaries via a bounding-box buffer
+- Manual coordinate validation no longer accepts points outside country boundaries via a bounding-box buffer
+
 
 ## [v0.5.0]
 
