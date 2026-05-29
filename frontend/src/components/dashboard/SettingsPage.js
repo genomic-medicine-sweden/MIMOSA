@@ -74,6 +74,30 @@ export default function SettingsPage() {
         console.error(err);
       }
     }
+
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`)
+      .then((res) => res?.json())
+      .then((fresh) => {
+        if (!fresh) return;
+        const storedRaw = localStorage.getItem("user");
+        const stored = storedRaw ? JSON.parse(storedRaw) : {};
+        localStorage.setItem("user", JSON.stringify({ ...stored, ...fresh }));
+        setUserInfo({
+          name: `${fresh.firstName || "Unknown"} ${fresh.lastName || ""}`.trim(),
+          email: fresh.email || "Unknown",
+        });
+        if (fresh.homeCounty != null) setCounty(fresh.homeCounty);
+        if (fresh.notificationPreferences) {
+          setNotificationPreferences({
+            outbreakAlerts:
+              fresh.notificationPreferences.outbreakAlerts ?? false,
+            frequency: fresh.notificationPreferences.frequency ?? "daily",
+            alertThreshold: fresh.notificationPreferences.alertThreshold ?? {},
+            counties: fresh.notificationPreferences.counties ?? [],
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const updateNotificationPreference = async (key, value) => {
