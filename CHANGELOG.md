@@ -24,6 +24,7 @@
 ### Fixed
 - Fixed region matching for UK map boundaries
 - Manual coordinate validation no longer accepts points outside country boundaries via a bounding-box buffer
+- Fixed the notifications settings page showing stale preference data by refreshing user settings from the API on load.
 
 
 ## [v0.5.0]
