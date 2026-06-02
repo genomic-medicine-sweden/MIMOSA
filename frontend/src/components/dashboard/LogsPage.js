@@ -14,6 +14,13 @@ import {
 
 import useAppData from "@/hooks/useAppData";
 
+const fmtLogVal = (val) => {
+  if (val == null) return "";
+  if (typeof val === "object" && val.lat != null)
+    return `Lat: ${val.lat}, Lng: ${val.lng}`;
+  return String(val);
+};
+
 const LogsPage = () => {
   const { logs } = useAppData();
 
@@ -34,7 +41,7 @@ const LogsPage = () => {
             changed_field: firstChangedField,
             change_detail:
               firstChangedField && firstChange?.new != null
-                ? `${firstChange.old ?? ""} → ${firstChange.new}`
+                ? `${fmtLogVal(firstChange.old)} → ${fmtLogVal(firstChange.new)}`
                 : "",
           };
         })

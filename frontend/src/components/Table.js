@@ -3,18 +3,27 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Tooltip } from "primereact/tooltip";
-import postcodeData from "@shared/postcode-coordinates";
+import {
+  getPostcodeCoordinates,
+  getHospitalCoordinates,
+} from "@/utils/coordinates";
 import ExportButton from "@/components/export/ExportButton";
 import "primereact/resources/themes/saga-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import calculateDistance from "@/utils/distance.js";
-import HospitalCoordinates from "@shared/hospital-coordinates";
 import {
   getCounty,
   getPostalTown,
   formatPostcode,
 } from "@/utils/locationUtils";
+
+const fmtLogVal = (val) => {
+  if (val == null) return "";
+  if (typeof val === "object" && val.lat != null)
+    return `Lat: ${val.lat}, Lng: ${val.lng}`;
+  return String(val);
+};
 
 const isModifiedRecently = (sampleId, logs) => {
   const log = logs.find((log) => log.sample_id === sampleId);
@@ -66,12 +75,13 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
 
   const rowExpansionTemplate = (rowData) => {
     const properties = rowData?.properties || {};
-
     const typing = properties.typing || {};
     const alleles = typing.alleles || {};
-
     const similarData = getRelevantSimilarity(properties.ID);
     const sampleLog = logs?.find((log) => log.sample_id === properties.ID);
+
+    const postcodeData = getPostcodeCoordinates();
+    const HospitalCoordinates = getHospitalCoordinates();
 
     const mainPostcode = properties.PostCode;
     const mainCoordinates = postcodeData[mainPostcode]?.coordinates || [];
@@ -107,7 +117,10 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           <strong>Pipeline Version:</strong>{" "}
           {properties.Pipeline_Version || "N/A"}
         </p>
-
+        <p>
+          <strong>Sequencing Platform:</strong>{" "}
+          {properties.Sequencing_Platform || "N/A"}
+        </p>
         <p>
           <strong>Date of Analysis:</strong> {properties.Pipeline_Date || "N/A"}
         </p>
@@ -136,7 +149,6 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
             : typing.ST || "N/A"}
         </p>
 
-        {/* Render allele table only if alleles exist */}
         {Object.keys(alleles).length > 0 && (
           <table style={{ marginLeft: "1rem" }}>
             <thead>
@@ -347,7 +359,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                                     padding: "8px",
                                   }}
                                 >
-                                  {change.old}
+                                  {fmtLogVal(change.old)}
                                 </td>
                                 <td
                                   style={{
@@ -355,7 +367,7 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
                                     padding: "8px",
                                   }}
                                 >
-                                  {change.new}
+                                  {fmtLogVal(change.new)}
                                 </td>
                               </tr>
                             ),
@@ -379,12 +391,20 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
       (item) => item.properties.Cluster_ID === Cluster_ID,
     );
     sameCluster.forEach((item) => {
-      const itemCounty = getCounty(item.properties.PostCode);
+      const itemCounty = getCounty(
+        item.properties.PostCode,
+        item.properties.manualCoordinates,
+      );
       if (itemCounty === county) {
         if (
           !intra &&
-          sameCluster.filter((i) => getCounty(i.properties.PostCode) === county)
-            .length > 1
+          sameCluster.filter(
+            (i) =>
+              getCounty(
+                i.properties.PostCode,
+                i.properties.manualCoordinates,
+              ) === county,
+          ).length > 1
         ) {
           intra = true;
         }
@@ -394,13 +414,17 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     });
     return { intra, inter };
   };
+
   const severityBodyTemplate = (rowData) => {
     const date = new Date(rowData.properties.Date);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
     const Cluster_ID = rowData.properties.Cluster_ID;
 
-    const county = getCounty(rowData.properties.PostCode);
+    const county = getCounty(
+      rowData.properties.PostCode,
+      rowData.properties.manualCoordinates,
+    );
 
     const { intra, inter } = county
       ? checkIntraInter(Cluster_ID, county)
@@ -501,12 +525,22 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
         />
         <Column
           header="Postal Town"
-          body={(rowData) => getPostalTown(rowData.properties.PostCode)}
+          body={(rowData) =>
+            getPostalTown(
+              rowData.properties.PostCode,
+              rowData.properties.manualCoordinates,
+            )
+          }
           sortable
         />
         <Column
           header="County"
-          body={(rowData) => getCounty(rowData.properties.PostCode)}
+          body={(rowData) =>
+            getCounty(
+              rowData.properties.PostCode,
+              rowData.properties.manualCoordinates,
+            )
+          }
           sortable
         />
         <Column
@@ -514,6 +548,19 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           body={(rowData) => rowData.properties.Hospital}
           sortable
         />
+        {filteredData?.some(
+          (item) => item.properties.manualCoordinates?.lat != null,
+        ) && (
+          <Column
+            header="Coordinates"
+            body={(rowData) => {
+              const coords = rowData.properties.manualCoordinates;
+              if (!coords || coords.lat == null || coords.lng == null)
+                return "";
+              return `${coords.lat}, ${coords.lng}`;
+            }}
+          />
+        )}
         <Column header="" body={severityBodyTemplate} />
       </DataTable>
       <Tooltip

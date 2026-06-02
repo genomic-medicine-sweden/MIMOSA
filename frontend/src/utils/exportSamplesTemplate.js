@@ -1,6 +1,10 @@
 import ExcelJS from "exceljs";
 
-export async function exportSamplesTemplate(samples, mode = "all") {
+export async function exportSamplesTemplate(
+  samples,
+  mode = "all",
+  postcodePrefix = "",
+) {
   let filtered = samples;
 
   if (mode === "incomplete") {
@@ -20,17 +24,25 @@ export async function exportSamplesTemplate(samples, mode = "all") {
     { header: "Hospital", key: "Hospital", width: 20 },
     { header: "PostCode", key: "PostCode", width: 15 },
     { header: "Date", key: "Date", width: 15 },
+    { header: "Latitude", key: "Latitude", width: 12 },
+    { header: "Longitude", key: "Longitude", width: 12 },
   ];
 
   filtered.forEach((s) => {
     const rawProfile = s.properties.analysis_profile || "";
+    const rawPostcode = s.properties.PostCode ?? "";
+    const postcode = rawPostcode.startsWith(postcodePrefix)
+      ? rawPostcode.slice(postcodePrefix.length)
+      : rawPostcode;
 
     worksheet.addRow({
       SampleID: s.properties.ID || "",
       analysis_profile: rawProfile.replace(/_/g, " "),
       Hospital: s.properties.Hospital || "",
-      PostCode: s.properties.PostCode?.replace(/^SE-/, "") || "",
+      PostCode: postcode,
       Date: s.properties.Date || "",
+      Latitude: s.properties.manualCoordinates?.lat ?? "",
+      Longitude: s.properties.manualCoordinates?.lng ?? "",
     });
   });
 

@@ -1,4 +1,4 @@
-import postcodeCoordinates from "@shared/postcode-coordinates";
+import { getPostcodeCoordinates } from "@/utils/coordinates";
 
 export const fieldMeta = {
   firstName: { label: "First Name" },
@@ -17,7 +17,7 @@ export const roleEditOptions = [
 
 export const countyEditOptions = Array.from(
   new Set(
-    Object.values(postcodeCoordinates)
+    Object.values(getPostcodeCoordinates())
       .map((entry) => entry.County)
       .filter((county) => county && county !== "0"),
   ),

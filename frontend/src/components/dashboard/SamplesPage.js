@@ -18,17 +18,24 @@ import {
 } from "./utils/Utils";
 
 import useSampleManagement from "@/hooks/useSampleManagement";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import FeatureEditDialog from "./samples/FeatureEditDialog";
 import BulkEditDialog from "./samples/BulkEditDialog";
 import ExcelDropzone from "./samples/ExcelDropzone";
 import DownloadSamplesTemplateButton from "./samples/DownloadSamplesTemplateButton";
 
-import { fieldFeaturesMeta, hospitalOptions } from "./samples/sampleUtils";
+import { fieldFeaturesMeta } from "./samples/sampleUtils";
 import { fieldValidators } from "./samples/samplesValidation";
 
 export default function SamplesPage() {
   const toastRef = useRef(null);
   const { samples, updateSample } = useSampleManagement();
+  const {
+    postcodePrefix = "",
+    postcodeLength = 0,
+    hospitalCoordinates = {},
+    bounds = null,
+  } = useMapConfigContext() ?? {};
 
   const [editingOriginalRow, setEditingOriginalRow] = useState(null);
   const [originalPropertiesSnapshot, setOriginalPropertiesSnapshot] =
@@ -88,6 +95,14 @@ export default function SamplesPage() {
     );
   };
 
+  const editorHospitalOptions = [
+    { label: "", value: "" },
+    ...Object.keys(hospitalCoordinates).map((name) => ({
+      label: name,
+      value: name,
+    })),
+  ];
+
   const availableHospitalOptions = Array.from(
     new Set(samples.map((s) => s.properties.Hospital).filter(Boolean)),
   ).map((hospital) => ({ label: hospital, value: hospital }));
@@ -99,6 +114,21 @@ export default function SamplesPage() {
     value: profile,
   }));
 
+  const hasValidCoords = (props) => {
+    const coords = props.manualCoordinates;
+    if (!coords || coords.lat === "" || coords.lng === "") return false;
+    const lat = Number(coords.lat);
+    const lng = Number(coords.lng);
+    return (
+      !isNaN(lat) &&
+      !isNaN(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    );
+  };
+
   const tableSamples = samples.map((sample) => {
     const props = { ...sample.properties };
 
@@ -106,9 +136,9 @@ export default function SamplesPage() {
       (key) => !props[key]?.trim(),
     );
 
-    const missingLocation = ["Hospital", "PostCode"].every(
-      (key) => !props[key]?.trim(),
-    );
+    const missingLocation =
+      ["Hospital", "PostCode"].every((key) => !props[key]?.trim()) &&
+      !hasValidCoords(props);
     let statusFilter = "";
 
     if (missingLocation) statusFilter += "missingLocation ";
@@ -120,6 +150,10 @@ export default function SamplesPage() {
       isIncomplete,
       missingLocation,
       statusFilter: statusFilter.trim(),
+      _coords: {
+        lat: String(props.manualCoordinates?.lat ?? ""),
+        lng: String(props.manualCoordinates?.lng ?? ""),
+      },
     };
   });
   const onRowEditInit = (e) => {
@@ -159,17 +193,40 @@ export default function SamplesPage() {
       const newVal = rawProps[key];
       if (newVal !== undefined && oldVal !== newVal) {
         changes[key] =
-          key === "PostCode" && /^\d{5}$/.test(newVal)
-            ? `SE-${newVal}`
+          key === "PostCode" && newVal.trim().length === postcodeLength
+            ? `${postcodePrefix}${newVal}`
             : newVal;
       }
     });
 
+    const editedCoords = e.newData._coords || { lat: "", lng: "" };
+    const rawLat = String(editedCoords.lat ?? "").replace(",", ".");
+    const rawLng = String(editedCoords.lng ?? "").replace(",", ".");
+    const origCoords = editingOriginalRow?._coords || { lat: "", lng: "" };
+    const origLat = String(origCoords.lat ?? "").replace(",", ".");
+    const origLng = String(origCoords.lng ?? "").replace(",", ".");
+    if (rawLat !== origLat || rawLng !== origLng) {
+      const lat = rawLat !== "" ? Number(rawLat) : null;
+      const lng = rawLng !== "" ? Number(rawLng) : null;
+      changes.manualCoordinates =
+        lat !== null && lng !== null ? { lat, lng } : null;
+    }
+
     if (Object.keys(changes).length === 0) return;
+
+    let coordsWarning = null;
+    if (changes.manualCoordinates && bounds) {
+      const { lat, lng } = changes.manualCoordinates;
+      const [[minLat, minLng], [maxLat, maxLng]] = bounds;
+      if (lat < minLat || lat > maxLat || lng < minLng || lng > maxLng) {
+        coordsWarning = "Coordinates are outside the configured country bounds";
+      }
+    }
 
     setPendingEditData({
       sampleId: originalProps.ID,
       updatedProperties: changes,
+      warning: coordsWarning,
     });
 
     setShowConfirmDialog(true);
@@ -215,8 +272,9 @@ export default function SamplesPage() {
       ["Hospital", "PostCode", "Date"].forEach((field) => {
         if (row[field] === undefined) return;
 
-        let value = row[field];
-        if (field === "PostCode") value = value.replace(/^SE-/, "");
+        let value = String(row[field]);
+        if (field === "PostCode" && value.startsWith(postcodePrefix))
+          value = value.slice(postcodePrefix.length);
 
         const validator = fieldValidators[field];
         const result = validator ? validator(value) : "";
@@ -235,12 +293,52 @@ export default function SamplesPage() {
         }
 
         const normalised =
-          field === "PostCode" && /^\d{5}$/.test(value) ? `SE-${value}` : value;
+          field === "PostCode" && value.trim().length === postcodeLength
+            ? `${postcodePrefix}${value}`
+            : value;
 
         if (sample.properties[field] !== normalised) {
           changes[field] = normalised;
         }
       });
+
+      const hasLatCol = row.Latitude !== undefined;
+      const hasLngCol = row.Longitude !== undefined;
+      if (hasLatCol || hasLngCol) {
+        const rawLat = hasLatCol ? String(row.Latitude).replace(",", ".") : "";
+        const rawLng = hasLngCol ? String(row.Longitude).replace(",", ".") : "";
+        const latErr = fieldValidators.lat(rawLat);
+        const lngErr = fieldValidators.lng(rawLng);
+
+        if (latErr)
+          errors.push({
+            row: row.__row,
+            sampleId,
+            field: "Latitude",
+            message: latErr,
+            originalValue: rawLat,
+          });
+        if (lngErr)
+          errors.push({
+            row: row.__row,
+            sampleId,
+            field: "Longitude",
+            message: lngErr,
+            originalValue: rawLng,
+          });
+
+        if (!latErr && !lngErr) {
+          const lat = rawLat !== "" ? Number(rawLat) : null;
+          const lng = rawLng !== "" ? Number(rawLng) : null;
+          const newCoords = lat !== null && lng !== null ? { lat, lng } : null;
+          if (
+            JSON.stringify(sample.properties.manualCoordinates ?? null) !==
+            JSON.stringify(newCoords)
+          ) {
+            changes.manualCoordinates = newCoords;
+          }
+        }
+      }
 
       if (Object.keys(changes).length > 0) {
         updates.push({
@@ -300,7 +398,8 @@ export default function SamplesPage() {
 
       const handleChange = (e) => {
         let val = e.target.value;
-        if (field === "PostCode") val = val.replace(/^SE-/, "");
+        if (field === "PostCode" && val.startsWith(postcodePrefix))
+          val = val.slice(postcodePrefix.length);
 
         const validator = fieldValidators[field];
         const result = validator ? validator(val) : "";
@@ -322,10 +421,13 @@ export default function SamplesPage() {
         options.editorCallback(val);
       };
 
+      const raw = options.value ?? "";
       const displayValue =
         field === "PostCode"
-          ? (options.value?.replace(/^SE-/, "") ?? "")
-          : (options.value ?? "");
+          ? raw.startsWith(postcodePrefix)
+            ? raw.slice(postcodePrefix.length)
+            : raw
+          : raw;
 
       return (
         <div className="w-full">
@@ -342,7 +444,7 @@ export default function SamplesPage() {
   );
 
   const dropdownEditor = useCallback(
-    (field, optionsList) => (options) => (
+    (_field, optionsList) => (options) => (
       <Dropdown
         value={options.value ?? ""}
         options={optionsList}
@@ -359,6 +461,81 @@ export default function SamplesPage() {
       />
     ),
     [],
+  );
+
+  const coordsEditor = useCallback(
+    (options) => {
+      const sampleId = options.rowData.properties.ID;
+      const rowErrors = fieldErrorsRef.current?.[sampleId] || {};
+      const coords = options.value ?? { lat: "", lng: "" };
+
+      const handleCoordChange = (subfield, val) => {
+        const normalized = val.replace(",", ".");
+        const validator = fieldValidators[subfield];
+        const result = validator ? validator(normalized) : "";
+        const errorMsg =
+          typeof result === "string" ? result : result?.error || "";
+
+        setFieldErrors((prev) => {
+          const updated = { ...prev };
+          const row = { ...(updated[sampleId] || {}) };
+          if (errorMsg) row[subfield] = errorMsg;
+          else delete row[subfield];
+          if (Object.keys(row).length > 0) updated[sampleId] = row;
+          else delete updated[sampleId];
+          return updated;
+        });
+
+        options.editorCallback({ ...coords, [subfield]: val });
+      };
+
+      let boundsWarning = null;
+      if (bounds && coords.lat !== "" && coords.lng !== "") {
+        const lat = parseFloat(String(coords.lat).replace(",", "."));
+        const lng = parseFloat(String(coords.lng).replace(",", "."));
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const [[minLat, minLng], [maxLat, maxLng]] = bounds;
+          if (lat < minLat || lat > maxLat || lng < minLng || lng > maxLng) {
+            boundsWarning = "Outside configured country bounds";
+          }
+        }
+      }
+
+      return (
+        <div>
+          <div className="flex gap-1">
+            <div>
+              <InputText
+                value={coords.lat}
+                onChange={(e) => handleCoordChange("lat", e.target.value)}
+                className={rowErrors.lat ? "p-invalid" : ""}
+                placeholder="Lat"
+                style={{ width: "6rem" }}
+              />
+              {rowErrors.lat && (
+                <small className="p-error block">{rowErrors.lat}</small>
+              )}
+            </div>
+            <div>
+              <InputText
+                value={coords.lng}
+                onChange={(e) => handleCoordChange("lng", e.target.value)}
+                className={rowErrors.lng ? "p-invalid" : ""}
+                placeholder="Lng"
+                style={{ width: "6rem" }}
+              />
+              {rowErrors.lng && (
+                <small className="p-error block">{rowErrors.lng}</small>
+              )}
+            </div>
+          </div>
+          {boundsWarning && (
+            <small style={{ color: "#e65100" }}>{boundsWarning}</small>
+          )}
+        </div>
+      );
+    },
+    [bounds],
   );
 
   return (
@@ -454,7 +631,7 @@ export default function SamplesPage() {
 
         <Column
           field="properties.Hospital"
-          editor={dropdownEditor("Hospital", hospitalOptions)}
+          editor={dropdownEditor("Hospital", editorHospitalOptions)}
           style={{ minWidth: "8rem" }}
           filter
           filterField="properties.Hospital"
@@ -484,15 +661,21 @@ export default function SamplesPage() {
           field="properties.PostCode"
           editor={textEditor("PostCode")}
           style={{ maxWidth: "8rem" }}
-          body={(rowData) =>
-            rowData.properties.PostCode?.replace(/^SE-/, "") || ""
-          }
+          body={(rowData) => {
+            const pc = rowData.properties.PostCode ?? "";
+            return pc.startsWith(postcodePrefix)
+              ? pc.slice(postcodePrefix.length)
+              : pc;
+          }}
           filter
           filterField="properties.PostCode"
           filterFunction={(value, filterText) => {
-            const normalizedVal = (value || "")
-              .replace(/^SE-/, "")
-              .toLowerCase();
+            const raw = value || "";
+            const normalizedVal = (
+              raw.startsWith(postcodePrefix)
+                ? raw.slice(postcodePrefix.length)
+                : raw
+            ).toLowerCase();
             const normalizedFilter = (filterText || "").toLowerCase();
             return normalizedVal.includes(normalizedFilter);
           }}
@@ -503,6 +686,27 @@ export default function SamplesPage() {
             textFilterChange,
           )}
           showFilterMenu={false}
+        />
+        <Column
+          field="_coords"
+          editor={coordsEditor}
+          filter
+          showFilterMenu={false}
+          filterMatchMode="custom"
+          filterFunction={() => true}
+          filterElement={
+            <InputText
+              disabled
+              placeholder="Coordinates"
+              className="p-column-filter"
+            />
+          }
+          style={{ minWidth: "14rem" }}
+          body={(rowData) => {
+            const c = rowData._coords;
+            if (!c || (c.lat === "" && c.lng === "")) return "";
+            return `${c.lat}, ${c.lng}`;
+          }}
         />
         <Column
           field="statusFilter"
@@ -531,7 +735,7 @@ export default function SamplesPage() {
                 <span
                   key="missingLocation"
                   className="status-tag"
-                  data-pr-tooltip="Hospital or postCode required for map visualisation"
+                  data-pr-tooltip="Hospital, PostCode, or coordinates required for map visualisation"
                 >
                   <Tag
                     severity="danger"
@@ -583,6 +787,7 @@ export default function SamplesPage() {
         sampleId={editingOriginalRow?.properties?.ID}
         originalProperties={originalPropertiesSnapshot}
         newProperties={pendingEditData?.updatedProperties}
+        warning={pendingEditData?.warning}
         fieldFeatures={fieldFeaturesMeta}
       />
 

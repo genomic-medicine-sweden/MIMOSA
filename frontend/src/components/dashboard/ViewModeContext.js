@@ -10,6 +10,7 @@ export const ViewModes = {
   NOTIFICATIONS: "notifications",
   ADMIN: "admin",
   SAMPLES: "samples",
+  PENDING_SAMPLES: "pendingSamples",
   MATRIX: "matrix",
   TREE: "tree",
   TIMELINE: "timeline",

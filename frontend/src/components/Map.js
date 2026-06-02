@@ -4,15 +4,19 @@ import "leaflet.markercluster";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import postcodeCoordinates from "@shared/postcode-coordinates";
-import boundariesData from "@/assets/sweden-with-regions";
-import HospitalCoordinates from "@shared/hospital-coordinates";
 import * as turf from "@turf/turf";
-import createPieChartSVG from "@/utils/PieChart";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import { colorMapping } from "@/utils/MapColor";
 import { generateInfoContent } from "@/utils/info";
 import { getColor, countOccurrences } from "@/utils/ColorAssignment";
 import { getCounty } from "@/utils/locationUtils";
+import { getInitialBounds } from "@/utils/mapUtils";
+import {
+  getShape,
+  createPieClusterIcon,
+  createMarker,
+  buildPopupContent,
+} from "@/utils/markerUtils";
 
 const Map = ({
   filteredData,
@@ -25,15 +29,33 @@ const Map = ({
   countyFilter,
   onVisualisedDataChange,
   staticView = false,
+  shapeByPlatform,
 }) => {
+  const {
+    bounds,
+    center,
+    boundariesData,
+    postcodeCoordinates = {},
+    hospitalCoordinates = {},
+    regionNameKey,
+    postcodePrefix = "",
+  } = useMapConfigContext();
+
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef({});
   const selectedMarkerRef = useRef(null);
   const geojsonLayerRef = useRef(null);
   const currentZoomRef = useRef(null);
-
   const previousVisualisedRef = useRef([]);
+
+  const platformShapeMap = useRef({});
+  const platformOrder = useRef([]);
+
+  useEffect(() => {
+    platformShapeMap.current = {};
+    platformOrder.current = [];
+  }, [shapeByPlatform]);
 
   const defaultStyle = useMemo(
     () => ({
@@ -55,76 +77,57 @@ const Map = ({
     [mapColor],
   );
 
-  const pickZoom = () => {
-    const width = window.innerWidth;
-    if (width < 768) return 4;
-    if (width < 1300) return 4.25;
-    if (width > 2300) return 5.25;
-    return 5;
-  };
-
-  const createPieClusterIcon = useCallback((cluster, markerSize) => {
-    const childMarkers = cluster.getAllChildMarkers();
-    const count = cluster.getChildCount();
-    const grouped = {};
-
-    childMarkers.forEach((marker) => {
-      const category = marker.options.fillColor;
-      grouped[category] = (grouped[category] || 0) + 1;
-    });
-
-    const chartData = Object.entries(grouped).map(([color, value]) => [
-      value,
-      color,
-    ]);
-
-    const pieChartSize = markerSize * 3.5;
-    const chartSVG = createPieChartSVG(chartData, pieChartSize);
-
-    return L.divIcon({
-      html: `
-        <div style="width: ${pieChartSize}px; height: ${pieChartSize}px; position: relative; display: flex; align-items: center; justify-content: center;">
-          ${chartSVG}
-          <div style="position: absolute; width: ${pieChartSize}px; height: ${pieChartSize}px; display: flex; align-items: center; justify-content: center; font-size: ${
-            Math.log(count) * 3
-          }px; color: black;">
-            ${count}
-          </div>
-        </div>
-      `,
-      className: "pie-cluster-icon",
-      iconSize: [pieChartSize, pieChartSize],
-    });
-  }, []);
-
   const clearAndAddMarkers = useCallback(() => {
     Object.values(markersRef.current).forEach((markerCluster) => {
       markerCluster.clearLayers();
     });
-
     markersRef.current = {};
     const countyCounts = {};
 
     if (!Array.isArray(filteredData) || filteredData.length === 0) return;
 
+    const resolvePostcodeKey = (pc) =>
+      postcodeCoordinates[pc]
+        ? pc
+        : postcodeCoordinates[`${postcodePrefix}${pc}`]
+          ? `${postcodePrefix}${pc}`
+          : null;
+
+    const hasValidCoords = (item) => {
+      const coords = item.properties.manualCoordinates;
+      if (!coords || coords.lat === "" || coords.lng === "") return false;
+      const lat = Number(coords.lat);
+      const lng = Number(coords.lng);
+      if (
+        isNaN(lat) ||
+        isNaN(lng) ||
+        lat < -90 ||
+        lat > 90 ||
+        lng < -180 ||
+        lng > 180
+      )
+        return false;
+      const point = turf.point([lng, lat]);
+      return boundariesData.features.some(
+        (feature) =>
+          (feature.geometry.type === "Polygon" ||
+            feature.geometry.type === "MultiPolygon") &&
+          turf.booleanPointInPolygon(point, feature),
+      );
+    };
+
     const visualisedItems = filteredData.filter((item) => {
       const { PostCode, Hospital } = item.properties;
-
-      if (!hospitalView && postcodeCoordinates[PostCode]) {
-        return true;
+      if (!hospitalView && resolvePostcodeKey(PostCode)) return true;
+      if (hospitalView && hospitalCoordinates[Hospital]) {
+        const postCode = hospitalCoordinates[Hospital].PostCode;
+        if (resolvePostcodeKey(postCode)) return true;
       }
-
-      if (hospitalView && HospitalCoordinates[Hospital]) {
-        const postCode = HospitalCoordinates[Hospital].PostCode;
-        return !!postcodeCoordinates[postCode];
-      }
-
-      return false;
+      return hasValidCoords(item);
     });
 
     if (onVisualisedDataChange) {
       const previous = previousVisualisedRef.current;
-
       const hasChanged =
         previous.length !== visualisedItems.length ||
         previous.some((item, index) => item !== visualisedItems[index]);
@@ -138,23 +141,56 @@ const Map = ({
     countOccurrences(visualisedItems);
 
     visualisedItems.forEach((item) => {
-      const { PostCode, Date, ID, Hospital, Cluster_ID, analysis_profile } =
-        item.properties;
+      const {
+        PostCode,
+        Date,
+        ID,
+        Hospital,
+        Cluster_ID,
+        analysis_profile,
+        Sequencing_Platform,
+      } = item.properties;
 
       let coordinates, County;
 
-      if (!hospitalView && postcodeCoordinates[PostCode]) {
-        coordinates = postcodeCoordinates[PostCode].coordinates;
-        County = getCounty(PostCode);
-      } else if (hospitalView && HospitalCoordinates[Hospital]) {
-        const postCode = HospitalCoordinates[Hospital].PostCode;
-        const locationData = postcodeCoordinates[postCode];
-        if (!locationData) return;
-        coordinates = locationData.coordinates;
-        County = getCounty(postCode);
+      if (!hospitalView) {
+        const key = resolvePostcodeKey(PostCode);
+        if (key) {
+          coordinates = postcodeCoordinates[key].coordinates;
+          County = getCounty(key);
+        } else if (hasValidCoords(item)) {
+          coordinates = [
+            Number(item.properties.manualCoordinates.lat),
+            Number(item.properties.manualCoordinates.lng),
+          ];
+        } else {
+          return;
+        }
       } else {
-        return;
+        if (hospitalCoordinates[Hospital]) {
+          const postCode = hospitalCoordinates[Hospital].PostCode;
+          const key = resolvePostcodeKey(postCode);
+          if (key) {
+            coordinates = postcodeCoordinates[key].coordinates;
+            County = getCounty(key);
+          } else if (hasValidCoords(item)) {
+            coordinates = [
+              Number(item.properties.manualCoordinates.lat),
+              Number(item.properties.manualCoordinates.lng),
+            ];
+          } else {
+            return;
+          }
+        } else if (hasValidCoords(item)) {
+          coordinates = [
+            Number(item.properties.manualCoordinates.lat),
+            Number(item.properties.manualCoordinates.lng),
+          ];
+        } else {
+          return;
+        }
       }
+
       const point = {
         type: "Point",
         coordinates: [coordinates[1], coordinates[0]],
@@ -166,7 +202,7 @@ const Map = ({
           (geometry.type === "Polygon" || geometry.type === "MultiPolygon") &&
           turf.booleanPointInPolygon(point, feature)
         ) {
-          const countyName = feature.properties.name;
+          const countyName = feature.properties[regionNameKey];
           if (!countyCounts[countyName]) {
             countyCounts[countyName] = { total: 0, Cluster_ID: {} };
           }
@@ -177,42 +213,50 @@ const Map = ({
       });
 
       const color = getColor(Cluster_ID, analysis_profile);
+      const platform = (Sequencing_Platform || "unknown").toLowerCase();
+      const shape = getShape(
+        platform,
+        shapeByPlatform,
+        platformShapeMap.current,
+        platformOrder.current,
+      );
+      const marker = createMarker(
+        coordinates,
+        color,
+        markerSize,
+        shape,
+        platform,
+      );
 
-      const marker = L.circleMarker(coordinates, {
-        color: "black",
-        fillColor: color,
-        fillOpacity: 1,
-        radius: markerSize,
-        weight: 1,
-      });
-
-      const clusterKey = hospitalView ? Hospital : PostCode;
+      const naturalKey = hospitalView ? Hospital : PostCode;
+      const clusterKey =
+        naturalKey || `coords_${coordinates[0]},${coordinates[1]}`;
 
       if (!markersRef.current[clusterKey]) {
         markersRef.current[clusterKey] = L.markerClusterGroup({
           iconCreateFunction: (cluster) =>
-            createPieClusterIcon(cluster, markerSize),
+            createPieClusterIcon(cluster, markerSize, shapeByPlatform),
         });
         mapInstance.current.addLayer(markersRef.current[clusterKey]);
       }
 
-      const popupContent = `
-        <div>
-          <h3>ID: ${ID}</h3>
-          <b>Cluster_ID:</b> ${Cluster_ID}<br>
-          ${!hospitalView ? `<b>County:</b> ${County}<br>` : ""}
-          ${!hospitalView ? `<b>Postcode:</b> ${PostCode.slice(-5)}<br>` : ""}
-          <b>Date:</b> ${Date}<br>
-          <b>Hospital:</b> ${Hospital}<br>
-        </div>
-      `;
+      const popupContent = buildPopupContent({
+        ID,
+        Cluster_ID,
+        County,
+        PostCode,
+        Date,
+        Hospital,
+        hospitalView,
+        postcodePrefix,
+      });
 
       marker.on("click", () => {
         if (selectedMarkerRef.current) {
-          selectedMarkerRef.current.setStyle({ weight: 1 });
+          selectedMarkerRef.current.setStyle?.({ weight: 1 });
           selectedMarkerRef.current.closePopup();
         }
-        marker.setStyle({ weight: markerSize / 3 });
+        marker.setStyle?.({ weight: markerSize / 3 });
         selectedMarkerRef.current = marker;
         marker.bindPopup(popupContent).openPopup();
       });
@@ -223,7 +267,19 @@ const Map = ({
     if (infoRef.current) {
       infoRef.current.countyCounts = countyCounts;
     }
-  }, [filteredData, hospitalView, markerSize, createPieClusterIcon, infoRef]);
+  }, [
+    filteredData,
+    hospitalView,
+    markerSize,
+    infoRef,
+    onVisualisedDataChange,
+    shapeByPlatform,
+    postcodeCoordinates,
+    hospitalCoordinates,
+    boundariesData,
+    regionNameKey,
+    postcodePrefix,
+  ]);
 
   const updateGeoJsonLayer = useCallback(() => {
     if (!mapInstance.current) return;
@@ -234,7 +290,7 @@ const Map = ({
 
     geojsonLayerRef.current = L.geoJSON(boundariesData, {
       style: (feature) => {
-        const countyName = feature.properties.name;
+        const countyName = feature.properties[regionNameKey];
         const shouldHighlight = !(
           countyFilter.includes(countyName) ===
           selectedCounties.includes(countyName)
@@ -243,12 +299,12 @@ const Map = ({
       },
       filter: (feature) =>
         selectedCounties.includes("All") ||
-        selectedCounties.includes(feature.properties.name),
+        selectedCounties.includes(feature.properties[regionNameKey]),
       onEachFeature: (feature, layer) => {
         layer.on("mouseover", () => {
           if (!selectedCounties || selectedCounties.includes("All")) {
             layer.setStyle(highlightStyle);
-            const countyName = feature.properties.name;
+            const countyName = feature.properties[regionNameKey];
             const countyData = (infoRef.current?.countyCounts &&
               infoRef.current.countyCounts[countyName]) || {
               total: 0,
@@ -273,10 +329,13 @@ const Map = ({
     onInfoUpdate,
     infoRef,
     countyFilter,
+    boundariesData,
+    regionNameKey,
   ]);
 
   useEffect(() => {
     let cancelled = false;
+    let cleanupFn = () => {};
 
     const waitForMapContainer = (callback) => {
       const checkSize = () => {
@@ -294,62 +353,50 @@ const Map = ({
       checkSize();
     };
 
-    let cleanupFn = () => {};
-
     if (!mapInstance.current) {
       waitForMapContainer(() => {
         if (cancelled) return;
-
-        const swedenBounds = [
-          [54.0, 10.0],
-          [70.0, 25.0],
-        ];
-
-        const initialZoom = pickZoom();
-        currentZoomRef.current = initialZoom;
 
         if (mapRef.current._leaflet_id) {
           mapRef.current._leaflet_id = null;
         }
 
+        const expandedBounds = [
+          [bounds[0][0] - 5, bounds[0][1] - 5],
+          [bounds[1][0] + 5, bounds[1][1] + 5],
+        ];
+
         const map = L.map(mapRef.current, {
-          minZoom: initialZoom,
+          minZoom: 1,
           maxZoom: 18,
-          maxBounds: swedenBounds,
-          maxBoundsViscosity: 1.0,
+          maxBounds: expandedBounds,
+          maxBoundsViscosity: 0.5,
           zoomControl: false,
+          zoomSnap: 0.1,
+          zoomDelta: 0.5,
         });
 
         mapInstance.current = map;
 
-        let initialBounds = swedenBounds;
-
-        if (
-          staticView &&
-          selectedCounties.length === 1 &&
-          selectedCounties[0] !== "All"
-        ) {
-          const feature = boundariesData.features.find(
-            (f) => f.properties.name === selectedCounties[0],
-          );
-          if (feature) {
-            initialBounds = L.geoJSON(feature).getBounds();
-          }
-        }
-
-        map.fitBounds(initialBounds, { animate: false });
+        const initialBounds = getInitialBounds(staticView, selectedCounties, {
+          bounds,
+          boundariesData,
+          regionNameKey,
+        });
+        map.fitBounds(initialBounds, { animate: false, padding: [10, 10] });
 
         setTimeout(() => {
           map.invalidateSize();
-          const newZoom = pickZoom();
-          currentZoomRef.current = newZoom;
-          map.setMinZoom(newZoom);
           if (!staticView) {
-            map.setView([63.0, 15.0], newZoom);
+            const geoBounds = L.geoJSON(boundariesData).getBounds();
+            map.fitBounds(geoBounds, { animate: false, padding: [20, 20] });
           }
+          const fittedZoom = map.getZoom();
+          currentZoomRef.current = fittedZoom;
+          map.setMinZoom(fittedZoom);
         }, 100);
 
-        L.svg({ padding: 0 }).addTo(map);
+        L.svg({ padding: 0.2 }).addTo(map);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution:
@@ -378,26 +425,28 @@ const Map = ({
               mapRef.current.clientWidth > 0 &&
               mapRef.current.clientHeight > 0
             ) {
-              const newZoom = pickZoom();
-              if (newZoom !== currentZoomRef.current) {
-                currentZoomRef.current = newZoom;
-                mapInstance.current.setMinZoom(newZoom);
-                if (!staticView) {
-                  mapInstance.current.setView([63.0, 15.0], newZoom);
-                }
-              }
               mapInstance.current.invalidateSize();
+              if (!staticView) {
+                const geoBounds = L.geoJSON(boundariesData).getBounds();
+                mapInstance.current.fitBounds(geoBounds, {
+                  animate: false,
+                  padding: [20, 20],
+                });
+              }
+              const fittedZoom = mapInstance.current.getZoom();
+              if (fittedZoom !== currentZoomRef.current) {
+                currentZoomRef.current = fittedZoom;
+                mapInstance.current.setMinZoom(fittedZoom);
+              }
             } else {
               requestAnimationFrame(waitAndResize);
             }
           };
           waitAndResize();
         };
-        window.addEventListener("resize", handleResize);
 
-        cleanupFn = () => {
-          window.removeEventListener("resize", handleResize);
-        };
+        window.addEventListener("resize", handleResize);
+        cleanupFn = () => window.removeEventListener("resize", handleResize);
 
         updateGeoJsonLayer();
         clearAndAddMarkers();
@@ -423,6 +472,11 @@ const Map = ({
     selectedCounties,
     infoRef,
     countyFilter,
+    bounds,
+    center,
+    boundariesData,
+    regionNameKey,
+    staticView,
   ]);
 
   const prevSelectedCounties = useRef(selectedCounties);
@@ -435,21 +489,19 @@ const Map = ({
       selectedCounties[0] === "All" &&
       prevSelectedCounties.current[0] !== "All"
     ) {
-      mapInstance.current.fitBounds([
-        [54.0, 10.0],
-        [70.0, 25.0],
-      ]);
+      const geoBounds = L.geoJSON(boundariesData).getBounds();
+      mapInstance.current.fitBounds(geoBounds, { padding: [20, 20] });
     }
 
     if (selectedCounties[0] !== "All") {
       const countyName = selectedCounties[0];
       const feature = boundariesData.features.find(
-        (f) => f.properties.name === countyName,
+        (f) => f.properties[regionNameKey] === countyName,
       );
 
       if (feature) {
-        const bounds = L.geoJSON(feature).getBounds();
-        mapInstance.current.fitBounds(bounds);
+        const featureBounds = L.geoJSON(feature).getBounds();
+        mapInstance.current.fitBounds(featureBounds);
 
         const countyData = infoRef.current?.countyCounts?.[countyName] || {
           total: 0,
@@ -460,7 +512,14 @@ const Map = ({
     }
 
     prevSelectedCounties.current = selectedCounties;
-  }, [selectedCounties, infoRef, onInfoUpdate]);
+  }, [
+    selectedCounties,
+    infoRef,
+    onInfoUpdate,
+    bounds,
+    boundariesData,
+    regionNameKey,
+  ]);
 
   return (
     <div>
@@ -472,7 +531,7 @@ const Map = ({
           width: "100%",
           backgroundColor: "transparent",
         }}
-      ></div>
+      />
     </div>
   );
 };

@@ -108,6 +108,9 @@ def process_samples_by_profile(
                 "QC_Status": normalise_missing(
                     sample_data.get("qc_status", {}).get("status")
                 ),
+                "Sequencing_Platform": normalise_missing(
+                    sample_data.get("sequencing", {}).get("platform")
+                ),
             }
 
             if (analysis_profile or "").lower() in set(AVAILABLE_PROFILES):

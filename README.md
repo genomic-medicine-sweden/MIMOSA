@@ -241,6 +241,9 @@ From the **Samples** page, a pre-formatted Excel template for bulk correction ca
 
 The downloaded file can be edited and re-uploaded via the existing Excel bulk update functionality.
 
+Geographical metadata can also be pre-populated for samples that have not yet been uploaded via the **Pending Samples** page (admin only). When a sample with the matching ID is later uploaded, the metadata is applied automatically.
+Unmatched entries expire and are removed after 30 days by default. See the [Pending Samples README](backend/src/pending-samples/README.md) for configuration and bulk upload details.
+
 ### conda environment
 
 ```
@@ -250,6 +253,10 @@ conda activate mimosa
 
 pip install -r scripts/requirements.txt
 ```
+
+## Changing the active map
+[configuring country maps](backend/README.md)
+
 
 ## Citation
 If you use MIMOSA, please cite the Zenodo record for the version used. The DOI https://doi.org/10.5281/zenodo.18770176 always resolves to the latest release.
