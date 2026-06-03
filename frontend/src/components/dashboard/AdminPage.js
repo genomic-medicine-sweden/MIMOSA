@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { ProgressSpinner } from "primereact/progressspinner";
@@ -9,12 +9,12 @@ import { InputText } from "primereact/inputtext";
 import { Toast } from "primereact/toast";
 
 import useCurrentUser from "@/hooks/useCurrentUser";
+import { useMapConfigContext } from "@/components/AppWrapper";
 import useUserManagement from "@/hooks/useUserManagement";
 import {
   fieldMeta,
   emailRegex,
   roleEditOptions,
-  countyEditOptions,
   generateRoleFilterOptions,
   generateCountyFilterOptions,
 } from "./admin/adminUtils";
@@ -29,6 +29,7 @@ import ChangePasswordDialog from "./admin/ChangePasswordDialog";
 
 export default function AdminPage() {
   const currentUser = useCurrentUser();
+  const { boundariesData, regionNameKey } = useMapConfigContext() ?? {};
 
   const {
     users,
@@ -65,6 +66,7 @@ export default function AdminPage() {
     email: "",
     role: "user",
     homeCounty: "",
+    outbreakAlerts: false,
     password: "",
     confirmPassword: "",
   });
@@ -76,6 +78,16 @@ export default function AdminPage() {
   const [passwordError, setPasswordError] = useState("");
 
   const toastRef = useRef(null);
+
+  const countyEditOptions = useMemo(
+    () =>
+      (boundariesData?.features ?? [])
+        .map((f) => f.properties?.[regionNameKey])
+        .filter(Boolean)
+        .sort()
+        .map((name) => ({ label: name, value: name })),
+    [boundariesData, regionNameKey],
+  );
 
   const roleFilterOptions = generateRoleFilterOptions(users);
   const countyFilterOptions = generateCountyFilterOptions(users);
@@ -295,8 +307,9 @@ export default function AdminPage() {
         firstName: "",
         lastName: "",
         email: "",
-        role: "",
+        role: "user",
         homeCounty: "",
+        outbreakAlerts: false,
         password: "",
         confirmPassword: "",
       });
@@ -322,7 +335,6 @@ export default function AdminPage() {
     !newUser.lastName.trim() ||
     !newUser.email.trim() ||
     !newUser.role ||
-    !newUser.homeCounty ||
     !newUser.password ||
     !newUser.confirmPassword ||
     newUser.password !== newUser.confirmPassword;
