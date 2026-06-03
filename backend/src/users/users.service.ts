@@ -3,11 +3,32 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './users.schema';
 import * as bcrypt from 'bcrypt';
-import { parseCounty } from './county';
+import { MapConfigService } from '../map-config/map-config.service';
+import mapConfig from '../config/map-config';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  private countyIndex: Map<string, string> | null = null;
+
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly mapConfigService: MapConfigService,
+  ) {}
+
+  private getCountyIndex(): Map<string, string> {
+    if (this.countyIndex) return this.countyIndex;
+    const boundaries = this.mapConfigService.getBoundaries();
+    const nameKey = mapConfig.regionNameKey;
+    this.countyIndex = new Map<string, string>();
+    for (const feature of boundaries?.features ?? []) {
+      const name = feature.properties?.[nameKey];
+      if (typeof name === 'string' && name.trim()) {
+        const key = name.trim().replace(/\s+/g, ' ').toLowerCase();
+        this.countyIndex.set(key, name.trim().replace(/\s+/g, ' '));
+      }
+    }
+    return this.countyIndex;
+  }
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email: email.toLowerCase() }).exec();
@@ -36,11 +57,15 @@ export class UsersService {
       return obj;
     }
     if (value !== undefined) {
-      const parsed = parseCounty(value);
-      if (!parsed) {
+      if (typeof value !== 'string') {
         throw new BadRequestException(`Invalid homeCounty: ${String(value)}`);
       }
-      (obj as any).homeCounty = parsed;
+      const key = value.trim().replace(/\s+/g, ' ').toLowerCase();
+      const canonical = this.getCountyIndex().get(key);
+      if (!canonical) {
+        throw new BadRequestException(`Invalid homeCounty: ${String(value)}`);
+      }
+      (obj as any).homeCounty = canonical;
     }
     return obj;
   }
@@ -125,6 +150,7 @@ export class UsersService {
     email?: string;
     username?: string;
     homeCounty?: string;
+    outbreakAlerts?: boolean;
     role?: string;
     passwordHash: string;
   }): Promise<User> {
@@ -142,10 +168,15 @@ export class UsersService {
 
     this.normaliseHomeCounty(data);
 
+    const { outbreakAlerts, ...rest } = data;
+
     const user = new this.userModel({
-      ...data,
+      ...rest,
       role,
       email: data.email ? data.email.toLowerCase() : undefined,
+      notificationPreferences: {
+        outbreakAlerts: outbreakAlerts ?? false,
+      },
     });
     return user.save();
   }
