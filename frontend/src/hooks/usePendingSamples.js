@@ -15,7 +15,10 @@ export default function usePendingSamples() {
       const res = await apiFetch(`${apiBase}/api/pending-samples`);
       if (res?.ok) {
         const data = await res.json();
-        setPendingSamples(data);
+        const now = Date.now();
+        setPendingSamples(
+          data.filter((s) => new Date(s.expiresAt).getTime() > now),
+        );
       }
     } finally {
       setLoading(false);
@@ -24,12 +27,27 @@ export default function usePendingSamples() {
 
   useEffect(() => {
     fetchPendingSamples();
+    const interval = setInterval(fetchPendingSamples, 60_000);
+    return () => clearInterval(interval);
   }, [fetchPendingSamples]);
 
   const createPendingSample = useCallback(
     async (dto) => {
       const res = await apiFetch(`${apiBase}/api/pending-samples`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto),
+      });
+      if (res?.ok) await fetchPendingSamples();
+      return res;
+    },
+    [apiBase, fetchPendingSamples],
+  );
+
+  const updatePendingSample = useCallback(
+    async (id, dto) => {
+      const res = await apiFetch(`${apiBase}/api/pending-samples/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dto),
       });
@@ -54,6 +72,7 @@ export default function usePendingSamples() {
     pendingSamples,
     loading,
     createPendingSample,
+    updatePendingSample,
     deletePendingSample,
     refresh: fetchPendingSamples,
   };

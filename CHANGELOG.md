@@ -11,7 +11,8 @@
 - Bulk Excel upload for pending samples — download template, fill in entries, drag-and-drop or click to browse; invalid rows are flagged and skipped
 - Configurable pending sample expiry (default: 30 days)
 - Info dialog on the Pending Samples page
-
+- Outbreak alerts notification preference on user accounts
+- PATCH support for pending samples
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -19,12 +20,14 @@
 - Improved map interaction behaviour with updated bounds fitting, resize handling, and smoother zoom controls
 - Country boundary source is now configurable per map (local file, API, or both); startup fails fast if no source is configured
 - Data passed to FilteringLogic is now pre-filtered to the active country  boundary, with manual coordinates validated via point-in-polygon
-
+- County/region options are now derived dynamically from map config instead of a hardcoded list
+- Home county is no longer required when creating a user
 
 ### Fixed
 - Fixed region matching for UK map boundaries
 - Manual coordinate validation no longer accepts points outside country boundaries via a bounding-box buffer
 - Fixed the notifications settings page showing stale preference data by refreshing user settings from the API on load.
+- Client-side expiry filtering and auto-refresh to pending samples
 
 
 ## [v0.5.0]

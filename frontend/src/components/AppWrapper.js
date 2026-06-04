@@ -69,4 +69,3 @@ const styles = {
   },
   text: { fontSize: 14, color: "#555", textAlign: "center" },
 };
-

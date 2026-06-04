@@ -1,7 +1,10 @@
+"use client";
+
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
 import { FloatLabel } from "primereact/floatlabel";
+import { InputSwitch } from "primereact/inputswitch";
 
 export default function AddUserDialog({
   visible,
@@ -81,11 +84,23 @@ export default function AddUserDialog({
 
         <div className="field col-12">
           <Dropdown
-            value={user.homeCounty}
+            value={user.homeCounty || null}
             options={countyOptions}
-            onChange={(e) => setUser({ ...user, homeCounty: e.value })}
-            placeholder="Select County"
+            onChange={(e) => setUser({ ...user, homeCounty: e.value ?? "" })}
+            placeholder="Select County (optional)"
+            showClear
           />
+        </div>
+
+        <div className="field col-12 flex align-items-center gap-3 mt-1">
+          <InputSwitch
+            inputId="outbreakAlerts"
+            checked={!!user.outbreakAlerts}
+            onChange={(e) => setUser({ ...user, outbreakAlerts: e.value })}
+          />
+          <label htmlFor="outbreakAlerts" className="cursor-pointer">
+            Outbreak alerts
+          </label>
         </div>
 
         <div className="field col-6">

@@ -1,5 +1,3 @@
-import { getPostcodeCoordinates } from "@/utils/coordinates";
-
 export const fieldMeta = {
   firstName: { label: "First Name" },
   lastName: { label: "Last Name" },
@@ -14,16 +12,6 @@ export const roleEditOptions = [
   { label: "Admin", value: "admin" },
   { label: "User", value: "user" },
 ];
-
-export const countyEditOptions = Array.from(
-  new Set(
-    Object.values(getPostcodeCoordinates())
-      .map((entry) => entry.County)
-      .filter((county) => county && county !== "0"),
-  ),
-)
-  .sort()
-  .map((county) => ({ label: county, value: county }));
 
 export const generateRoleFilterOptions = (users) =>
   Array.from(new Set(users.map((u) => u.role)))
