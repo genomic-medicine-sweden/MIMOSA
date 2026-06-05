@@ -13,6 +13,7 @@
 - Info dialog on the Pending Samples page
 - Outbreak alerts notification preference on user accounts
 - PATCH support for pending samples
+- Sample and group exclusion support for clustering workflows.
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js

@@ -213,6 +213,8 @@ Optional flags:
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
 * `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s). When clustering, previously analyzed samples for the same profile are automatically included to preserve cluster stability.
+* `--exclude-samples <sample_id> [<sample_id> ...] | <file>`: Exclude specific samples from all processing. Pass one or more sample IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
+* `--exclude-groups <group_id> [<group_id> ...] | <file>`: Exclude entire Bonsai groups from processing. Pass one or more group IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
 
 ### Supplementary metadata
 
