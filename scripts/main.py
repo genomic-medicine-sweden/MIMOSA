@@ -34,6 +34,24 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
 
+def parse_exclusions(values):
+    """
+    Return a set of IDs from an inline list or a file path.
+    """
+    if not values:
+        return set()
+    if len(values) == 1 and os.path.isfile(values[0]):
+        ids = set()
+        with open(values[0], newline="", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                ids.add(line.split(",")[0].strip())
+        return ids
+    return set(values)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Process sample data, run ReporTree, and upload results to MIMOSA."
@@ -54,6 +72,22 @@ def parse_args():
         help="Force clustering even if no new samples are detected.",
     )
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "--exclude-samples",
+        required=False,
+        nargs="+",
+        default=None,
+        metavar="ID_OR_FILE",
+        help="Sample IDs to exclude, or path to a file with one ID per line.",
+    )
+    parser.add_argument(
+        "--exclude-groups",
+        required=False,
+        nargs="+",
+        default=None,
+        metavar="ID_OR_FILE",
+        help="Group IDs to exclude, or path to a file with one ID per line.",
+    )
 
     args = parser.parse_args()
 
@@ -123,6 +157,14 @@ def decide_clustering(profile, new_ids, args, is_interactive):
 def main():
     args, target_profiles = parse_args()
 
+    excluded_samples = parse_exclusions(args.exclude_samples)
+    excluded_groups = parse_exclusions(args.exclude_groups)
+
+    if excluded_samples:
+        print(f"Excluding {len(excluded_samples)} sample(s).")
+    if excluded_groups:
+        print(f"Excluding {len(excluded_groups)} group(s).")
+
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
 
@@ -152,6 +194,9 @@ def main():
         if args.groups:
             group_sample_ids = set()
             for gid in args.groups:
+                if gid in excluded_groups:
+                    print(f"Skipping excluded group: {gid}")
+                    continue
                 group_sample_ids.update(
                     fetch_group(credentials["bonsai_api_url"], token, gid)
                 )
@@ -161,7 +206,7 @@ def main():
             profile_samples = [s for s in all_samples if s.get("profile") == profile]
             profile_all_ids = {
                 s["sample_id"] for s in profile_samples if "sample_id" in s
-            }
+            } - excluded_samples
 
             if group_sample_ids is not None:
                 group_ids = profile_all_ids & group_sample_ids
