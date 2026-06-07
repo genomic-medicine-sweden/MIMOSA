@@ -47,6 +47,9 @@ REPORTREE_DEFAULTS = {
 #     },
 # }
 
+# QC-status filtering
+ALLOWED_QC_STATUSES = {"passed"}
+
 REPORTREE_PROFILE_PARAMS = {}
 
 

@@ -16,7 +16,7 @@ from api import (
     validate_groups,
     authenticate_mimosa_user,
 )
-from upload import upload_similarity
+from upload import upload_similarity, delete_features
 from process_similarity import process_similarity
 from MIMOSA import mimosa
 
@@ -28,7 +28,7 @@ from mimosa_state import (
     set_profile_mode,
 )
 from mimosa_runner import run_stage
-from constants import AVAILABLE_PROFILES
+from constants import AVAILABLE_PROFILES, ALLOWED_QC_STATUSES
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -201,11 +201,32 @@ def main():
                     fetch_group(credentials["bonsai_api_url"], token, gid)
                 )
 
+        allowed_qc_upper = (
+            {s.upper() for s in ALLOWED_QC_STATUSES} if ALLOWED_QC_STATUSES else None
+        )
+
         filtered_scope = {}
         for profile in target_profiles:
             profile_samples = [s for s in all_samples if s.get("profile") == profile]
+
+            if allowed_qc_upper:
+                qc_excluded_for_profile = set()
+                passing_samples = []
+                for s in profile_samples:
+                    sid = s.get("sample_id")
+                    if not sid:
+                        continue
+                    raw = (s.get("qc_status") or {}).get("status")
+                    if raw is None or raw.upper() not in allowed_qc_upper:
+                        qc_excluded_for_profile.add(sid)
+                    else:
+                        passing_samples.append(s)
+            else:
+                passing_samples = profile_samples
+                qc_excluded_for_profile = set()
+
             profile_all_ids = {
-                s["sample_id"] for s in profile_samples if "sample_id" in s
+                s["sample_id"] for s in passing_samples if "sample_id" in s
             } - excluded_samples
 
             if group_sample_ids is not None:
@@ -217,6 +238,7 @@ def main():
                 filtered_scope[profile] = {
                     "group_ids": group_ids,
                     "profile_all_ids": profile_all_ids,
+                    "qc_excluded": qc_excluded_for_profile,
                 }
 
         if filtered_scope:
@@ -240,6 +262,7 @@ def main():
         for profile, scope in filtered_scope.items():
             group_ids = scope["group_ids"]
             profile_all_ids = scope["profile_all_ids"]
+            qc_excluded_for_profile = scope.get("qc_excluded", set())
 
             analyzed_ids = get_analyzed_sample_ids(profile=profile)
 
@@ -270,6 +293,13 @@ def main():
                         run_clustering=False,
                     )
                     all_ids_for_similarity.update(existing_ids)
+                    newly_qc_failed = qc_excluded_for_profile & analyzed_ids
+                    if newly_qc_failed:
+                        print(
+                            f"[{profile}] WARNING: {len(newly_qc_failed)} previously-analyzed sample(s) "
+                            f"now have a disallowed QC status: {sorted(newly_qc_failed)}\n"
+                            f"[{profile}] Re-run without --update-only to trigger re-clustering."
+                        )
                 except Exception as e:
                     print(f"[{profile}] ERROR in update-only mode: {e}")
                     clustering_failed_profiles.add(profile)
@@ -287,6 +317,18 @@ def main():
             else:
                 target_ids = existing_ids
 
+            newly_qc_failed = qc_excluded_for_profile & analyzed_ids
+            if newly_qc_failed and not run_clustering:
+                print(
+                    f"[{profile}] WARNING: {len(newly_qc_failed)} previously-analyzed sample(s) "
+                    f"now have a disallowed QC status: {sorted(newly_qc_failed)}"
+                )
+                print(
+                    f"[{profile}] Triggering re-cluster to remove them from cluster assignments..."
+                )
+                run_clustering = True
+                target_ids = clustering_ids
+
             try:
                 did_cluster = mimosa(
                     profile,
@@ -300,6 +342,24 @@ def main():
                     run_clustering=run_clustering,
                     is_interactive=is_interactive,
                 )
+
+                if did_cluster and newly_qc_failed:
+                    proceed = True
+                    if is_interactive:
+                        answer = (
+                            input(
+                                f"[{profile}] Remove {len(newly_qc_failed)} QC-excluded "
+                                f"sample(s) from the database? (yes/no): "
+                            )
+                            .strip()
+                            .lower()
+                        )
+                        proceed = answer in ("yes", "y")
+                    if proceed:
+                        delete_features(newly_qc_failed, profile, upload_token)
+                    else:
+                        print(f"[{profile}] Skipping deletion of QC-excluded samples.")
+
             except Exception as e:
                 print(f"\n[{profile}] *** CLUSTERING FAILED ***")
                 print(f"[{profile}] Error: {e}")
