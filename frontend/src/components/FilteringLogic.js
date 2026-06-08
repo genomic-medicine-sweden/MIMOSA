@@ -130,6 +130,8 @@ const FilteringLogic = ({
 
       const postcode = item.properties.PostCode;
 
+      if (item.properties.Cluster_ID === "Unknown") return false;
+
       if (
         Cluster_IDFilter.length > 0 &&
         !Cluster_IDFilter.includes(item.properties.Cluster_ID)
