@@ -14,6 +14,11 @@
 - Outbreak alerts notification preference on user accounts
 - PATCH support for pending samples
 - Sample and group exclusion support for clustering workflows.
+- Sample filtering by configurable QC status; samples outside the allowed set are excluded before clustering and trigger a re-cluster if previously analyzed
+- `delete_features()` removes QC-excluded samples from the features collection post-clustering
+- Batch audit log (`qc_deletion` event) recorded when QC-excluded samples are deleted
+- QC Deletion events shown in dashboard logs with a side-panel listing affected sample IDs
+
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -23,12 +28,17 @@
 - Data passed to FilteringLogic is now pre-filtered to the active country  boundary, with manual coordinates validated via point-in-polygon
 - County/region options are now derived dynamically from map config instead of a hardcoded list
 - Home county is no longer required when creating a user
+- Log timestamps now use timezone-aware UTC
+- Log schema extended to support batch audit event fields
+
 
 ### Fixed
 - Fixed region matching for UK map boundaries
 - Manual coordinate validation no longer accepts points outside country boundaries via a bounding-box buffer
 - Fixed the notifications settings page showing stale preference data by refreshing user settings from the API on load.
 - Client-side expiry filtering and auto-refresh to pending samples
+- Nomenclature file now scoped to the current run's samples only
+- Map filter excludes items with `Cluster_ID = "Unknown"`
 
 
 ## [v0.5.0]
