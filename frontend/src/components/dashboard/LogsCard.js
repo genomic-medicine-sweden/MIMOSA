@@ -5,6 +5,15 @@ export default function LogsCard() {
   const { logs } = useAppData();
 
   const entries = logs.flatMap((log) => {
+    if (log.event === "qc_deletion") {
+      return [
+        {
+          sample_id: `${log.deleted_count} samples removed`,
+          type: "QC Deletion",
+          date: log.added_at,
+        },
+      ];
+    }
     const edits =
       log.updates?.map((update) => ({
         sample_id: log.sample_id,
