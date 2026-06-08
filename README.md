@@ -216,6 +216,31 @@ Optional flags:
 * `--exclude-samples <sample_id> [<sample_id> ...] | <file>`: Exclude specific samples from all processing. Pass one or more sample IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
 * `--exclude-groups <group_id> [<group_id> ...] | <file>`: Exclude entire Bonsai groups from processing. Pass one or more group IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
 
+### QC status filtering
+
+MIMOSA can be configured to only process samples whose QC status is in an allowed set. This is controlled by `ALLOWED_QC_STATUSES` in `scripts/constants.py`:
+
+```
+# Default — only "passed" samples are allowed:
+ALLOWED_QC_STATUSES = {"passed"}
+
+# Also allow samples not yet processed:
+ALLOWED_QC_STATUSES = {"passed", "unprocessed"}
+
+# Disable filtering — allow all QC statuses:
+ALLOWED_QC_STATUSES = set()
+```
+
+Samples whose `QC_Status` is not in this set are skipped during processing. If the pipeline detects that a previously-analyzed sample's QC status has changed to a disallowed value, it will automatically:
+
+1. Trigger a re-cluster using only the passing samples
+2. Prompt for confirmation (in interactive mode) before removing the QC-excluded sample(s) from the database
+3. Delete those samples from the database after successful re-clustering
+
+In non-interactive (automation) mode the deletion proceeds without prompting. In `--update-only` mode a warning is printed instead and neither re-clustering nor deletion occurs.
+
+
+
 ### Supplementary metadata
 
 Example of `supplementary_metadata.csv`:
