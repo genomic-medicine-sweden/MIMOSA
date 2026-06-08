@@ -120,9 +120,10 @@ def _write_cluster_composition(path, partition_col, assigned):
             writer.writerow([partition_col, label, 1, sample_id])
 
 
-def _get_nomenclature_file(profile, profile_dir, is_interactive):
+def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None):
     """
-    Fetch the latest clustering document for this profile
+    Fetch the latest clustering document for this profile.
+    Only writes nomenclature entries for samples in the current run.
     """
     mongo_uri = os.getenv("MONGO_URI")
     db_name = os.getenv("MONGO_DB_NAME")
@@ -173,6 +174,8 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive):
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(["sample", stored_partition])
         for entry in results:
+            if sample_ids is not None and entry["ID"] not in sample_ids:
+                continue
             cluster_id = entry["Cluster_ID"]
             label = (
                 f"cluster_{cluster_id}"
@@ -310,7 +313,9 @@ def mimosa(
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
         return False
 
-    nomenclature_file = _get_nomenclature_file(profile, profile_dir, is_interactive)
+    nomenclature_file = _get_nomenclature_file(
+        profile, profile_dir, is_interactive, sample_ids=set(sample_ids)
+    )
 
     run_stage(
         state,
