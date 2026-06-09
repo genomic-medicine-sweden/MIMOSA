@@ -18,6 +18,10 @@
 - `delete_features()` removes QC-excluded samples from the features collection post-clustering
 - Batch audit log (`qc_deletion` event) recorded when QC-excluded samples are deleted
 - QC Deletion events shown in dashboard logs with a side-panel listing affected sample IDs
+- `alertVisibilityDays`  and `alertMinGrowthForRefresh`  config fields per outbreak profile
+- `lastGrowthAt`, `lastTotal`, and `lastRefreshTotal` fields on Notification documents
+- Idle status annotation on outbreaks — tracks days since last meaningful growth
+- Expand/collapse toggle in the alert panel for idle outbreaks
 
 
 ### Changed
@@ -30,6 +34,8 @@
 - Home county is no longer required when creating a user
 - Log timestamps now use timezone-aware UTC
 - Log schema extended to support batch audit event fields
+- Existing alerts now update growth tracking fields on each outbreak check
+- Outbreak data refetches whenever an SSE event is received, and polls every 5 minutes
 
 
 ### Fixed
