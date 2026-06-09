@@ -76,6 +76,20 @@ These are two separate concepts:
 - **Notification threshold** — the minimum number of cases a cluster must have before *a specific user* is notified. This is configured per user in the **Settings** page and can be set equal to or higher than the outbreak threshold, but never lower.
 
 
+### Alert visibility
+
+Outbreak alerts are displayed in the dashboard banner as long as the cluster remains active. After a configurable period of inactivity (no meaningful growth), alerts are **collapsed** rather than removed — they can be expanded at any time by clicking "Show older alerts" in the banner. The full history is always available on the **Notifications** page.
+
+Two settings in `backend/src/config/outbreak-rules.json` control this behaviour:
+
+| Setting | Default | Description |
+|---|---|---|
+| `alertVisibilityDays` | `14` | Days without meaningful growth before an alert is collapsed. Set to `null` to keep all alerts expanded indefinitely. |
+| `alertMinGrowthForRefresh` | `2` | Minimum cumulative increase in cluster size required to reset the visibility timer. |
+
+These can be set globally under `default` or overridden per analysis profile under `profiles`. See `backend/src/config/README.md` for details.
+
+
 ### User preferences
 
 Once notifications are enabled, each user can configure their preferences from the **Settings** page:
