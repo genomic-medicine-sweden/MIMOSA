@@ -36,6 +36,24 @@ export class NotificationsService {
     private readonly mailService: MailService,
   ) {}
 
+  private getAlertRules(analysis_profile: string): {
+    detectionThreshold: number;
+    alertMinGrowthForRefresh: number;
+  } {
+    const profiles = outbreakRules.profiles as Record<
+      string,
+      { detectionThreshold: number; alertMinGrowthForRefresh?: number }
+    >;
+    const profile = profiles[analysis_profile];
+    return {
+      detectionThreshold:
+        profile?.detectionThreshold ?? outbreakRules.default.detectionThreshold,
+      alertMinGrowthForRefresh:
+        profile?.alertMinGrowthForRefresh ??
+        outbreakRules.default.alertMinGrowthForRefresh,
+    };
+  }
+
   @OnEvent('outbreaks.detected')
   async handleOutbreakDetected(event: OutbreakDetectedEvent) {
     const { analysis_profile, outbreaks } = event;
@@ -50,10 +68,33 @@ export class NotificationsService {
       analysis_profile,
     });
 
-    const alreadySentIds = new Set(alreadySent.map((n) => n.clusterId));
+    const alreadySentMap = new Map(alreadySent.map((n) => [n.clusterId, n]));
+
+    const rules = this.getAlertRules(analysis_profile);
+    const now = new Date();
+
+    for (const o of outbreaks) {
+      const existing = alreadySentMap.get(o.clusterId);
+      if (!existing) continue;
+
+      const lastRefreshTotal = existing.lastRefreshTotal ?? o.total;
+      const cumulativeGrowth = Math.max(0, o.total - lastRefreshTotal);
+
+      const update: Record<string, unknown> = { lastTotal: o.total };
+
+      if (cumulativeGrowth >= rules.alertMinGrowthForRefresh) {
+        update.lastGrowthAt = now;
+        update.lastRefreshTotal = o.total;
+      }
+
+      await this.notificationModel.updateOne(
+        { _id: existing._id },
+        { $set: update },
+      );
+    }
 
     const newOutbreaks = outbreaks.filter(
-      (o) => !alreadySentIds.has(o.clusterId),
+      (o) => !alreadySentMap.has(o.clusterId),
     );
 
     if (!newOutbreaks.length) {
@@ -137,7 +178,10 @@ export class NotificationsService {
         counties: o.counties,
         sampleIds: o.sampleIds,
         analysis_profile: o.analysis_profile,
-        sentAt: new Date(),
+        sentAt: now,
+        lastGrowthAt: now,
+        lastTotal: o.total,
+        lastRefreshTotal: o.total,
       })),
     );
 

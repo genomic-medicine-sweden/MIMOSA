@@ -45,7 +45,8 @@ export default function AppWrapper() {
     );
   }
 
-  const { data, similarity, logs, dateRange, setDateRange } = appData;
+  const { data, similarity, logs, dateRange, setDateRange, dataVersion } =
+    appData;
 
   return (
     <MapConfigContext.Provider value={mapConfig}>
@@ -55,6 +56,7 @@ export default function AppWrapper() {
         dateRange={dateRange}
         setDateRange={setDateRange}
         logs={logs}
+        dataVersion={dataVersion}
       />
     </MapConfigContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export default function useOutbreaks(analysisProfile) {
+export default function useOutbreaks(analysisProfile, dataVersion = 0) {
   const [outbreaks, setOutbreaks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,6 +37,11 @@ export default function useOutbreaks(analysisProfile) {
 
   useEffect(() => {
     fetchOutbreaks();
+  }, [analysisProfile, dataVersion]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchOutbreaks, 5 * 60_000);
+    return () => clearInterval(interval);
   }, [analysisProfile]);
 
   return {

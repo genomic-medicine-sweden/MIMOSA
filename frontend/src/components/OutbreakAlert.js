@@ -4,6 +4,20 @@ import { Button } from "primereact/button";
 
 const OutbreakAlert = ({ outbreaks }) => {
   const [isMinimised, setIsMinimised] = useState(false);
+  const [idleExpanded, setIdleExpanded] = useState(() => {
+    try {
+      return sessionStorage.getItem("outbreakAlert_idleExpanded") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleIdleExpanded = (value) => {
+    setIdleExpanded(value);
+    try {
+      sessionStorage.setItem("outbreakAlert_idleExpanded", String(value));
+    } catch {}
+  };
 
   const hasOutbreaks = Array.isArray(outbreaks) && outbreaks.length > 0;
   if (!hasOutbreaks) {
@@ -26,6 +40,36 @@ const OutbreakAlert = ({ outbreaks }) => {
       />
     );
   }
+
+  const activeOutbreaks = outbreaks.filter((o) => !o.isIdle);
+  const idleOutbreaks = outbreaks.filter((o) => o.isIdle);
+
+  const minIdleDays =
+    idleOutbreaks.length > 0
+      ? Math.min(...idleOutbreaks.map((o) => o.daysSinceLastGrowth ?? 14))
+      : null;
+
+  const showIdle = idleExpanded || activeOutbreaks.length === 0;
+
+  const renderCluster = (cluster) => (
+    <div
+      key={cluster.clusterId}
+      style={{ marginBottom: "0.5rem", lineHeight: 1.3 }}
+    >
+      {cluster.summary || (
+        <>
+          <strong>Cluster {cluster.clusterId}</strong> — {cluster.total} case
+          {cluster.total !== 1 ? "s" : ""} in{" "}
+          {cluster.counties.map((c, i) => (
+            <span key={i}>
+              {typeof c === "string" ? c : c.county}
+              {i < cluster.counties.length - 1 ? ", " : ""}
+            </span>
+          ))}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <Card
@@ -84,26 +128,37 @@ const OutbreakAlert = ({ outbreaks }) => {
           overflowY: "auto",
         }}
       >
-        {outbreaks.map((cluster) => (
-          <div
-            key={cluster.clusterId}
-            style={{ marginBottom: "0.5rem", lineHeight: 1.3 }}
-          >
-            {cluster.summary || (
-              <>
-                <strong>Cluster {cluster.clusterId}</strong> — {cluster.total}{" "}
-                case
-                {cluster.total !== 1 ? "s" : ""} in{" "}
-                {cluster.counties.map((c, i) => (
-                  <span key={i}>
-                    {typeof c === "string" ? c : c.county}
-                    {i < cluster.counties.length - 1 ? ", " : ""}
-                  </span>
-                ))}
-              </>
+        {activeOutbreaks.map(renderCluster)}
+
+        {idleOutbreaks.length > 0 && (
+          <>
+            {showIdle && activeOutbreaks.length > 0 && (
+              <div
+                style={{
+                  borderTop: "1px solid #e0e0e0",
+                  margin: "0.5rem 0",
+                }}
+              />
             )}
-          </div>
-        ))}
+            {showIdle && idleOutbreaks.map(renderCluster)}
+            {!idleExpanded && activeOutbreaks.length > 0 && (
+              <Button
+                label={`Show ${idleOutbreaks.length} older alert${idleOutbreaks.length !== 1 ? "s" : ""} · no new samples in ${minIdleDays}+ days`}
+                className="p-button-text p-button-sm"
+                style={{ padding: 0, color: "#888", fontSize: "0.8rem" }}
+                onClick={() => toggleIdleExpanded(true)}
+              />
+            )}
+            {idleExpanded && activeOutbreaks.length > 0 && (
+              <Button
+                label="Hide older alerts"
+                className="p-button-text p-button-sm"
+                style={{ padding: 0, color: "#888", fontSize: "0.8rem" }}
+                onClick={() => toggleIdleExpanded(false)}
+              />
+            )}
+          </>
+        )}
       </div>
     </Card>
   );

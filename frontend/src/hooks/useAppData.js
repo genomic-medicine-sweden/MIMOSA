@@ -11,6 +11,7 @@ export default function useAppData() {
   const [logs, setLogs] = useState([]);
   const [clusters, setClusters] = useState({});
   const [hasNewData, setHasNewData] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -108,6 +109,7 @@ export default function useAppData() {
 
     es.onmessage = () => {
       setHasNewData(true);
+      setDataVersion((v) => v + 1);
       fetchData();
     };
 
@@ -126,5 +128,6 @@ export default function useAppData() {
     dateRange,
     setDateRange,
     hasNewData,
+    dataVersion,
   };
 }

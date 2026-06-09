@@ -1,12 +1,17 @@
 {
   "default": {
     "detectionThreshold": 2,
-    "requireCountyResolution": true
+    "requireCountyResolution": true,
+    "alertVisibilityDays": 14,
+    "alertMinGrowthForRefresh": 2
   },
   "profiles": {
     "staphylococcus_aureus": {
       "detectionThreshold": 2,
-      "requireCountyResolution": true
+      "requireCountyResolution": true,
+      "alertVisibilityDays": 14,
+      "alertMinGrowthForRefresh": 2 
     }
   }
 }
+

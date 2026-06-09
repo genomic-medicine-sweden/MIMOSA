@@ -15,7 +15,14 @@ import { useMapConfigContext } from "@/components/AppWrapper";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
+const App = ({
+  data,
+  similarity,
+  dateRange,
+  setDateRange,
+  logs,
+  dataVersion,
+}) => {
   const {
     postcodeCoordinates = {},
     hospitalCoordinates = {},
@@ -36,6 +43,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
     return data.filter((item) => {
       const { PostCode, Hospital, manualCoordinates } = item.properties;
 
+      // No postcode and no manual coords — can't confirm foreign, keep it
       if (!PostCode?.trim() && manualCoordinates?.lat == null) return true;
 
       if (resolvePostcodeKey(PostCode)) return true;
@@ -116,7 +124,7 @@ const App = ({ data, similarity, dateRange, setDateRange, logs }) => {
     setInfoContent(content);
   };
 
-  const { outbreaks } = useOutbreaks(analysisProfile);
+  const { outbreaks } = useOutbreaks(analysisProfile, dataVersion);
   return (
     <div className="container">
       <header className="header">

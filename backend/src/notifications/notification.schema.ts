@@ -20,6 +20,15 @@ export class Notification extends Document {
 
   @Prop({ default: Date.now })
   sentAt: Date;
+
+  @Prop({ default: Date.now })
+  lastGrowthAt: Date;
+
+  @Prop({ required: false })
+  lastTotal?: number;
+
+  @Prop({ required: false })
+  lastRefreshTotal?: number;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
