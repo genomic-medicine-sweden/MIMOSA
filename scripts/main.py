@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import os
 import sys
 import tempfile
 import shutil
+import time
 from dotenv import load_dotenv
 from pathlib import Path
 from pymongo import MongoClient
 
+from log_setup import configure_logging
 from api import (
     load_credentials,
     get_access_token,
@@ -15,6 +18,8 @@ from api import (
     fetch_group,
     validate_groups,
     authenticate_mimosa_user,
+    get_current_user,
+    send_pipeline_alert,
 )
 from upload import upload_similarity, delete_features
 from process_similarity import process_similarity
@@ -29,6 +34,18 @@ from mimosa_state import (
 )
 from mimosa_runner import run_stage
 from constants import AVAILABLE_PROFILES, ALLOWED_QC_STATUSES
+
+log = logging.getLogger(__name__)
+
+
+class ErrorCollectingHandler(logging.Handler):
+    def __init__(self):
+        super().__init__(level=logging.ERROR)
+        self.messages = []
+
+    def emit(self, record):
+        self.messages.append(record.getMessage())
+
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -72,6 +89,14 @@ def parse_args():
         help="Force clustering even if no new samples are detected.",
     )
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "--email",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="ADDRESS",
+        help="Send a failure alert email on errors. Without a value, sends to the authenticated user. With a value, sends to that address.",
+    )
     parser.add_argument(
         "--exclude-samples",
         required=False,
@@ -136,11 +161,11 @@ def decide_clustering(profile, new_ids, args, is_interactive):
     Decide whether to run clustering for a profile.
     """
     if new_ids:
-        print(f"[{profile}] New samples detected")
+        log.info(f"profile={profile} event=new_samples count={len(new_ids)}")
         return True
 
     if args.re_cluster:
-        print(f"[{profile}] --re-cluster set")
+        log.info(f"profile={profile} event=recluster_forced")
         return True
 
     if is_interactive:
@@ -149,21 +174,26 @@ def decide_clustering(profile, new_ids, args, is_interactive):
             .strip()
             .lower()
         )
-        return user_input in ("yes", "y")
+        decision = user_input in ("yes", "y")
+        log.info(
+            f"profile={profile} event=recluster_user_decision decision={'yes' if decision else 'no'}"
+        )
+        return decision
 
     return False
 
 
 def main():
+    configure_logging()
     args, target_profiles = parse_args()
 
     excluded_samples = parse_exclusions(args.exclude_samples)
     excluded_groups = parse_exclusions(args.exclude_groups)
 
     if excluded_samples:
-        print(f"Excluding {len(excluded_samples)} sample(s).")
+        log.info(f"event=samples_excluded count={len(excluded_samples)}")
     if excluded_groups:
-        print(f"Excluding {len(excluded_groups)} group(s).")
+        log.info(f"event=groups_excluded count={len(excluded_groups)}")
 
     credentials = load_credentials(args.credentials)
     token = get_access_token(credentials)
@@ -184,9 +214,18 @@ def main():
     if args.save_files:
         os.makedirs(base_dir, exist_ok=True)
 
+    error_handler = None
+    if args.email is not None:
+        error_handler = ErrorCollectingHandler()
+        logging.getLogger().addHandler(error_handler)
+
     all_ids_for_similarity = set()
     clustering_failed_profiles = set()
+    filtered_scope = {}
     is_interactive = sys.stdin.isatty()
+
+    run_start = time.monotonic()
+    _interrupted = False
 
     try:
         all_samples = fetch_samples(credentials["bonsai_api_url"], token)
@@ -195,7 +234,7 @@ def main():
             group_sample_ids = set()
             for gid in args.groups:
                 if gid in excluded_groups:
-                    print(f"Skipping excluded group: {gid}")
+                    log.info(f"event=group_skipped group={gid}")
                     continue
                 group_sample_ids.update(
                     fetch_group(credentials["bonsai_api_url"], token, gid)
@@ -256,7 +295,7 @@ def main():
 
             render_pipeline_state(pipeline_state)
         else:
-            print("No samples found matching the specified filters.")
+            log.info("event=no_samples_found")
             return
 
         for profile, scope in filtered_scope.items():
@@ -268,6 +307,10 @@ def main():
 
             new_ids = group_ids - analyzed_ids
             existing_ids = group_ids & analyzed_ids
+            profile_start_time = time.monotonic()
+            log.info(
+                f"profile={profile} event=profile_start samples_total={len(group_ids)} new={len(new_ids)} existing={len(existing_ids)}"
+            )
 
             if group_sample_ids is not None:
                 already_analyzed_for_profile = analyzed_ids & profile_all_ids
@@ -278,7 +321,7 @@ def main():
             profile_dir = os.path.join(base_dir, profile)
 
             if args.update_only:
-                print(f"[{profile}] Update-only mode: metadata sync only")
+                log.info(f"profile={profile} event=update_only_mode")
 
                 try:
                     mimosa(
@@ -295,15 +338,16 @@ def main():
                     all_ids_for_similarity.update(existing_ids)
                     newly_qc_failed = qc_excluded_for_profile & analyzed_ids
                     if newly_qc_failed:
-                        print(
-                            f"[{profile}] WARNING: {len(newly_qc_failed)} previously-analyzed sample(s) "
-                            f"now have a disallowed QC status: {sorted(newly_qc_failed)}\n"
-                            f"[{profile}] Re-run without --update-only to trigger re-clustering."
+                        log.warning(
+                            f"profile={profile} event=qc_status_changed count={len(newly_qc_failed)} action=re-run_without_update-only"
                         )
                 except Exception as e:
-                    print(f"[{profile}] ERROR in update-only mode: {e}")
+                    log.error(f'profile={profile} event=error message="{e}"')
                     clustering_failed_profiles.add(profile)
 
+                log.info(
+                    f"profile={profile} event=profile_complete duration={time.monotonic() - profile_start_time:.1f}s"
+                )
                 continue
 
             run_clustering = decide_clustering(profile, new_ids, args, is_interactive)
@@ -319,12 +363,8 @@ def main():
 
             newly_qc_failed = qc_excluded_for_profile & analyzed_ids
             if newly_qc_failed and not run_clustering:
-                print(
-                    f"[{profile}] WARNING: {len(newly_qc_failed)} previously-analyzed sample(s) "
-                    f"now have a disallowed QC status: {sorted(newly_qc_failed)}"
-                )
-                print(
-                    f"[{profile}] Triggering re-cluster to remove them from cluster assignments..."
+                log.warning(
+                    f"profile={profile} event=qc_status_changed count={len(newly_qc_failed)} action=recluster_triggered"
                 )
                 run_clustering = True
                 target_ids = clustering_ids
@@ -358,17 +398,17 @@ def main():
                     if proceed:
                         delete_features(newly_qc_failed, profile, upload_token)
                     else:
-                        print(f"[{profile}] Skipping deletion of QC-excluded samples.")
+                        log.info(
+                            f"profile={profile} event=qc_deletion_skipped count={len(newly_qc_failed)}"
+                        )
 
             except Exception as e:
-                print(f"\n[{profile}] *** CLUSTERING FAILED ***")
-                print(f"[{profile}] Error: {e}")
-                print(f"[{profile}] Metadata sync will still proceed")
+                log.error(f'profile={profile} event=clustering_failed message="{e}"')
                 clustering_failed_profiles.add(profile)
 
                 try:
-                    print(
-                        f"[{profile}] Attempting metadata sync for {len(existing_ids)} existing samples..."
+                    log.info(
+                        f"profile={profile} event=metadata_sync_fallback samples={len(existing_ids)}"
                     )
                     mimosa(
                         profile,
@@ -382,20 +422,20 @@ def main():
                         run_clustering=False,
                     )
                 except Exception as metadata_error:
-                    print(f"[{profile}] Metadata sync also failed: {metadata_error}")
+                    log.error(
+                        f'profile={profile} event=metadata_sync_failed message="{metadata_error}"'
+                    )
 
+            log.info(
+                f"profile={profile} event=profile_complete duration={time.monotonic() - profile_start_time:.1f}s"
+            )
             all_ids_for_similarity.update(group_ids)
 
         if args.run_similarity and all_ids_for_similarity:
-            print("\n" + "=" * 70)
-            print("Running similarity analysis...")
-            print("=" * 70)
-
             if clustering_failed_profiles:
-                print(
-                    f"\nWARNING: Clustering failed for profiles: {', '.join(sorted(clustering_failed_profiles))}"
+                log.warning(
+                    f"event=similarity_partial_data failed_profiles={len(clustering_failed_profiles)} samples={len(all_ids_for_similarity)}"
                 )
-                print("Similarity will run on available data.\n")
 
             try:
                 run_stage(
@@ -422,17 +462,50 @@ def main():
                     count=len(all_ids_for_similarity),
                 )
             except Exception as e:
-                print(f"Similarity analysis failed: {e}")
+                log.error(f'event=similarity_failed message="{e}"')
 
         if clustering_failed_profiles:
-            print(
-                f"Clustering failed for: {', '.join(sorted(clustering_failed_profiles))}"
+            log.error(
+                f"event=clustering_failed_summary profiles={', '.join(sorted(clustering_failed_profiles))}"
             )
-            print("Metadata was updated where possible.")
+
+    except KeyboardInterrupt:
+        _interrupted = True
+        raise
 
     finally:
         if not args.save_files and os.path.exists(base_dir):
             shutil.rmtree(base_dir, ignore_errors=True)
+        elapsed = time.monotonic() - run_start
+        if _interrupted:
+            log.warning(f"event=pipeline_interrupted duration={elapsed:.1f}s")
+        else:
+            log.info(
+                f"event=pipeline_complete duration={elapsed:.1f}s"
+                f" profiles_processed={len(filtered_scope)}"
+                f" samples_processed={len(all_ids_for_similarity)}"
+                f" failures={len(clustering_failed_profiles)}"
+            )
+
+        if not _interrupted and error_handler and error_handler.messages:
+            try:
+                alert_recipient = args.email if args.email else None
+                if not alert_recipient:
+                    try:
+                        me = get_current_user(upload_token)
+                        alert_recipient = me.get("email")
+                    except Exception:
+                        pass
+                if alert_recipient:
+                    send_pipeline_alert(
+                        upload_token,
+                        errors=error_handler.messages,
+                        profiles=list(filtered_scope.keys()),
+                        recipient=alert_recipient,
+                    )
+                    log.info(f"event=alert_sent recipient={alert_recipient}")
+            except Exception as alert_err:
+                log.warning(f'event=alert_send_failed message="{alert_err}"')
 
     render_runtime_summary(pipeline_state)
 
