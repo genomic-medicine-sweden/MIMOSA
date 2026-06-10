@@ -229,6 +229,8 @@ Optional flags:
 * `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s). When clustering, previously analyzed samples for the same profile are automatically included to preserve cluster stability.
 * `--exclude-samples <sample_id> [<sample_id> ...] | <file>`: Exclude specific samples from all processing. Pass one or more sample IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
 * `--exclude-groups <group_id> [<group_id> ...] | <file>`: Exclude entire Bonsai groups from processing. Pass one or more group IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
+* `--email [address]`: Send a failure alert email if the pipeline encounters any errors. Without a value, the alert is sent to the authenticated MIMOSA user. With a value (e.g. `--email you@example.com`), it is sent to that address instead.
+
 
 ### QC status filtering
 
