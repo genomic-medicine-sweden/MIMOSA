@@ -20,6 +20,14 @@ export default function SettingsPage() {
     name: "Unknown",
     email: "Unknown",
   });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored)?.role === "admin" : false;
+    } catch {
+      return false;
+    }
+  });
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,6 +36,7 @@ export default function SettingsPage() {
     frequency: "immediate",
     alertThreshold: {},
     counties: [],
+    pipelineFailureAlerts: false,
   });
   const [showInfo, setShowInfo] = useState(false);
 
@@ -60,6 +69,7 @@ export default function SettingsPage() {
           name: `${parsed.firstName || "Unknown"} ${parsed.lastName || ""}`.trim(),
           email: parsed.email || "Unknown",
         });
+        if (parsed.role === "admin") setIsAdmin(true);
         if (parsed.homeCounty) setCounty(parsed.homeCounty);
         if (parsed.notificationPreferences) {
           setNotificationPreferences({
@@ -68,6 +78,8 @@ export default function SettingsPage() {
             frequency: parsed.notificationPreferences.frequency ?? "daily",
             alertThreshold: parsed.notificationPreferences.alertThreshold ?? {},
             counties: parsed.notificationPreferences.counties ?? [],
+            pipelineFailureAlerts:
+              parsed.notificationPreferences.pipelineFailureAlerts ?? false,
           });
         }
       } catch (err) {
@@ -86,6 +98,7 @@ export default function SettingsPage() {
           name: `${fresh.firstName || "Unknown"} ${fresh.lastName || ""}`.trim(),
           email: fresh.email || "Unknown",
         });
+        if (fresh.role === "admin") setIsAdmin(true);
         if (fresh.homeCounty != null) setCounty(fresh.homeCounty);
         if (fresh.notificationPreferences) {
           setNotificationPreferences({
@@ -94,6 +107,8 @@ export default function SettingsPage() {
             frequency: fresh.notificationPreferences.frequency ?? "daily",
             alertThreshold: fresh.notificationPreferences.alertThreshold ?? {},
             counties: fresh.notificationPreferences.counties ?? [],
+            pipelineFailureAlerts:
+              fresh.notificationPreferences.pipelineFailureAlerts ?? false,
           });
         }
       })
@@ -319,6 +334,17 @@ export default function SettingsPage() {
             }
           />
         </div>
+        {isAdmin && (
+          <div className="flex align-items-center gap-3">
+            <span className="font-medium w-10rem">Pipeline Failures</span>
+            <InputSwitch
+              checked={notificationPreferences.pipelineFailureAlerts}
+              onChange={(e) =>
+                updateNotificationPreference("pipelineFailureAlerts", e.value)
+              }
+            />
+          </div>
+        )}
         <div className="flex align-items-center gap-3">
           <span className="font-medium w-10rem">Frequency</span>
           <Dropdown
@@ -355,6 +381,7 @@ export default function SettingsPage() {
       <NotificationInfoDialog
         visible={showInfo}
         onHide={() => setShowInfo(false)}
+        isAdmin={isAdmin}
       />
     </div>
   );

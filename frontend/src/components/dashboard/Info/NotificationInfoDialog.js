@@ -1,7 +1,7 @@
 "use client";
 import { Dialog } from "primereact/dialog";
 
-export default function NotificationInfoDialog({ visible, onHide }) {
+export default function NotificationInfoDialog({ visible, onHide, isAdmin }) {
   return (
     <Dialog
       header="Notification Settings"
@@ -34,6 +34,15 @@ export default function NotificationInfoDialog({ visible, onHide }) {
               </i>
             </span>
           </li>
+          {isAdmin && (
+            <li className="mt-2">
+              <b>Pipeline Failures:</b> Receive an email if the data pipeline
+              encounters errors during a run. This alert is sent to all admin
+              users who have this option enabled.
+              <br />
+              <span className="pl-3 mt-1 block text-color-secondary"></span>
+            </li>
+          )}
         </ul>
       </div>
     </Dialog>

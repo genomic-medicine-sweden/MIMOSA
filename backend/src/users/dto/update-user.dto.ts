@@ -23,6 +23,10 @@ class NotificationPreferencesDto {
   @IsOptional()
   @IsObject()
   alertThreshold?: Record<string, number>;
+
+  @IsOptional()
+  @IsBoolean()
+  pipelineFailureAlerts?: boolean;
 }
 export class UpdateUserFieldsDto {
   @ApiPropertyOptional()

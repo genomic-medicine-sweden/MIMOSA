@@ -264,6 +264,43 @@ def validate_groups(bonsai_api_url, token, group_ids):
         )
 
 
+def _mimosa_api_base():
+    domain = os.getenv("DOMAIN")
+    backend_port = os.getenv("BACKEND_PORT")
+    return (
+        os.getenv("MIMOSA_API_INTERNAL")
+        or os.getenv("MIMOSA_API_PRIVATE_URL_BASE")
+        or f"http://{domain}:{backend_port}"
+    )
+
+
+def get_current_user(upload_token):
+    """Fetch the authenticated user's profile from MIMOSA."""
+    response = requests.get(
+        f"{_mimosa_api_base()}/api/users/me",
+        headers=auth_headers(upload_token),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def send_pipeline_alert(upload_token, errors, profiles, recipient=None):
+    """Send a pipeline failure alert via the MIMOSA API."""
+    payload = {
+        "errors": errors,
+        "profiles": profiles,
+    }
+    if recipient:
+        payload["recipient"] = recipient
+    response = requests.post(
+        f"{_mimosa_api_base()}/api/mail/pipeline-alert",
+        headers={**auth_headers(upload_token), "Content-Type": "application/json"},
+        json=payload,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def fetch_group(bonsai_api_url, token, group_id):
     """
     Fetch a specific group by ID and return its included sample IDs.

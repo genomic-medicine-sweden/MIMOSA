@@ -37,6 +37,7 @@ export class User extends Document {
       },
       counties: { type: [String], default: [] },
       alertThreshold: { type: Map, of: Number, default: {} },
+      pipelineFailureAlerts: { type: Boolean, default: false },
     },
     default: {},
   })
@@ -45,6 +46,7 @@ export class User extends Document {
     frequency: 'immediate' | 'daily' | 'weekly';
     counties: string[];
     alertThreshold: Record<string, number>;
+    pipelineFailureAlerts: boolean;
   };
 
   @Prop({ default: Date.now })

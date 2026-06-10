@@ -15,8 +15,17 @@ const testTemplatePath = path.join(
   'src/mail/templates/test-email.html',
 );
 
+const pipelineAlertTemplatePath = path.join(
+  process.cwd(),
+  'src/mail/templates/pipeline-alert.html',
+);
+
 const baseTemplate = fs.readFileSync(templatePath, 'utf-8');
 const testTemplate = fs.readFileSync(testTemplatePath, 'utf-8');
+const pipelineAlertTemplate = fs.readFileSync(
+  pipelineAlertTemplatePath,
+  'utf-8',
+);
 
 function inject(template: string, data: Record<string, string>): string {
   let result = template;
@@ -169,6 +178,63 @@ export function buildWeeklySummaryText(outbreaks: OutbreakData[]): string {
       lines.push(`• ${o.summary}`);
     });
 
+  return lines.join('\n');
+}
+
+// Pipeline failure alert
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildPipelineErrorRows(errors: string[]): string {
+  return errors
+    .map(
+      (e, i) => `
+      <tr style="background:${i % 2 === 0 ? '#ffffff' : '#fafafa'};">
+        <td style="padding:12px; font-size:13px; font-family:monospace; color:#c0392b; word-break:break-all; line-height:1.5;">
+          ${escapeHtml(e)}
+        </td>
+      </tr>`,
+    )
+    .join('');
+}
+
+export function buildPipelineAlertEmail(
+  errors: string[],
+  profiles: string[],
+): string {
+  const timestamp = new Date().toUTCString();
+  const profilesText = profiles.length > 0 ? profiles.join(', ') : 'N/A';
+
+  return inject(pipelineAlertTemplate, {
+    timestamp,
+    alertBarLabel: 'PIPELINE FAILURE ALERT',
+    errorCount: String(errors.length),
+    errorCountPlural: errors.length === 1 ? '' : 's',
+    bodyText: `The MIMOSA pipeline encountered <b>${errors.length} error${errors.length === 1 ? '' : 's'}</b> during its run. Profiles processed: <b>${escapeHtml(profilesText)}</b>. Review the errors below and check the pipeline logs for details.`,
+    errorRows: buildPipelineErrorRows(errors),
+  });
+}
+
+export function buildPipelineAlertText(
+  errors: string[],
+  profiles: string[],
+): string {
+  const profilesText = profiles.length > 0 ? profiles.join(', ') : 'N/A';
+  const lines = [
+    'MIMOSA Pipeline Failure Alert',
+    '',
+    `Profiles: ${profilesText}`,
+    `Errors: ${errors.length}`,
+    '',
+    'Error details:',
+    ...errors.map((e) => `  ${e}`),
+  ];
   return lines.join('\n');
 }
 
