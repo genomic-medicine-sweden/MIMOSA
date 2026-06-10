@@ -22,6 +22,13 @@
 - `lastGrowthAt`, `lastTotal`, and `lastRefreshTotal` fields on Notification documents
 - Idle status annotation on outbreaks — tracks days since last meaningful growth
 - Expand/collapse toggle in the alert panel for idle outbreaks
+- Pipeline failure alert emails — admins can opt in via notification settings and receive an email when the pipeline errors
+- `-email` flag on the pipeline script to send failure alerts to the authenticated user or a specified address
+- Automation service sends failure alerts to opted-in users after exhausting retries
+- `pipelineFailureAlerts` user preference field and supporting backend query
+- `POST /api/mail/pipeline-alert` endpoint
+- Structured key=value log format across pipeline and automation, with per-run duration and summary metrics
+- Log file mount for the automation container
 
 
 ### Changed
@@ -36,6 +43,9 @@
 - Log schema extended to support batch audit event fields
 - Existing alerts now update growth tracking fields on each outbreak check
 - Outbreak data refetches whenever an SSE event is received, and polls every 5 minutes
+- QC status filtering disabled (allow all statuses)
+- `alertMinGrowthForRefresh` for staphylococcus lowered from 2 to 1
+- Similarity progress output suppressed when not running in a TTY
 
 
 ### Fixed
@@ -45,6 +55,7 @@
 - Client-side expiry filtering and auto-refresh to pending samples
 - Nomenclature file now scoped to the current run's samples only
 - Map filter excludes items with `Cluster_ID = "Unknown"`
+- Similarity errors now written to stderr instead of stdout
 
 
 ## [v0.5.0]
