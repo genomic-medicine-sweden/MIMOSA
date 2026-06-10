@@ -4,6 +4,7 @@ import datetime
 import requests
 import json
 import os
+import sys
 
 
 def submit_similarity_job(bonsai_api_url, token, sample_id):
@@ -61,11 +62,14 @@ def process_similarity(
             seen_samples.add(sample_id)
             unique_sample_ids.append(sample_id)
 
-    for sample in unique_sample_ids:
+    total = len(unique_sample_ids)
+    is_tty = sys.stdout.isatty()
+
+    for i, sample in enumerate(unique_sample_ids, 1):
         if progress_callback:
             progress_callback()
-        else:
-            print(f"\nSubmitting similarity job for sample: {sample}")
+        elif is_tty:
+            print(f"\r  Similarity: {sample} ({i}/{total})", end="", flush=True)
 
         try:
             job_id = submit_similarity_job(bonsai_api_url, token, sample)
@@ -113,7 +117,7 @@ def process_similarity(
             )
 
         except Exception as e:
-            print(f"Error processing sample {sample}: {e}")
+            print(f"Error processing sample {sample}: {e}", file=sys.stderr)
             similarity.append(
                 {
                     "ID": sample,
@@ -121,6 +125,9 @@ def process_similarity(
                     "createdAt": datetime.datetime.utcnow().isoformat(),
                 }
             )
+
+    if is_tty and not progress_callback:
+        print()
 
     if save_files:
         os.makedirs(output_dir, exist_ok=True)
