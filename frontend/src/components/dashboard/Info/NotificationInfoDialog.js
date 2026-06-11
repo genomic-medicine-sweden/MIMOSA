@@ -34,13 +34,44 @@ export default function NotificationInfoDialog({ visible, onHide, isAdmin }) {
               </i>
             </span>
           </li>
+          <li className="mt-2">
+            <b>Growth Alerts:</b> Opt-in notifications for existing clusters
+            that grow after they were first detected. These are always delivered
+            as a digest on the schedule set by <i>Growth frequency</i> —
+            regardless of your outbreak alert frequency.
+            <ul className="pl-3 mt-1">
+              <li>
+                <b>Growth type:</b> Choose what triggers a growth notification:
+                <ul className="pl-3">
+                  <li>
+                    <i>Absolute growth</i> — cluster has grown by at least N
+                    samples since the last notification.
+                  </li>
+                  <li>
+                    <i>Total size reached</i> — cluster total has crossed N
+                    samples (fires once when the threshold is crossed).
+                  </li>
+                  <li>
+                    <i>Percent increase</i> — cluster has grown by at least N%
+                    since the last notification.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <b>Growth value:</b> The numeric threshold for the chosen type.
+              </li>
+              <li>
+                <b>Growth frequency:</b> How often growth digests are sent
+                (daily or weekly).
+              </li>
+            </ul>
+          </li>
           {isAdmin && (
             <li className="mt-2">
               <b>Pipeline Failures:</b> Receive an email if the data pipeline
               encounters errors during a run. This alert is sent to all admin
               users who have this option enabled.
               <br />
-              <span className="pl-3 mt-1 block text-color-secondary"></span>
             </li>
           )}
         </ul>

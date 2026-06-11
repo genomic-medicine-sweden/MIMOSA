@@ -8,6 +8,7 @@ import { Password } from "primereact/password";
 import { FloatLabel } from "primereact/floatlabel";
 import { Button } from "primereact/button";
 import { InputSwitch } from "primereact/inputswitch";
+import { InputNumber } from "primereact/inputnumber";
 import { useMapConfigContext } from "@/components/AppWrapper";
 import NotificationInfoDialog from "@/components/dashboard/Info/NotificationInfoDialog";
 import useOutbreakRules from "@/hooks/useOutbreakRules";
@@ -37,6 +38,9 @@ export default function SettingsPage() {
     alertThreshold: {},
     counties: [],
     pipelineFailureAlerts: false,
+    growthAlerts: false,
+    growthThreshold: { type: "absolute", value: 5 },
+    growthFrequency: "daily",
   });
   const [showInfo, setShowInfo] = useState(false);
 
@@ -53,6 +57,23 @@ export default function SettingsPage() {
     { label: "Daily", value: "daily" },
     { label: "Weekly", value: "weekly" },
   ];
+
+  const growthTypeOptions = [
+    { label: "Absolute growth", value: "absolute" },
+    { label: "Total size reached", value: "total" },
+    { label: "Percent increase", value: "percent" },
+  ];
+
+  const growthFrequencyOptions = [
+    { label: "Daily", value: "daily" },
+    { label: "Weekly", value: "weekly" },
+  ];
+
+  const growthValueLabel = {
+    absolute: "samples grown",
+    total: "total samples",
+    percent: "percent (%)",
+  };
 
   const getClusterSizeOptions = (threshold) =>
     Array.from({ length: 20 }, (_, i) => ({
@@ -80,6 +101,13 @@ export default function SettingsPage() {
             counties: parsed.notificationPreferences.counties ?? [],
             pipelineFailureAlerts:
               parsed.notificationPreferences.pipelineFailureAlerts ?? false,
+            growthAlerts: parsed.notificationPreferences.growthAlerts ?? false,
+            growthThreshold: parsed.notificationPreferences.growthThreshold ?? {
+              type: "absolute",
+              value: 5,
+            },
+            growthFrequency:
+              parsed.notificationPreferences.growthFrequency ?? "daily",
           });
         }
       } catch (err) {
@@ -109,6 +137,13 @@ export default function SettingsPage() {
             counties: fresh.notificationPreferences.counties ?? [],
             pipelineFailureAlerts:
               fresh.notificationPreferences.pipelineFailureAlerts ?? false,
+            growthAlerts: fresh.notificationPreferences.growthAlerts ?? false,
+            growthThreshold: fresh.notificationPreferences.growthThreshold ?? {
+              type: "absolute",
+              value: 5,
+            },
+            growthFrequency:
+              fresh.notificationPreferences.growthFrequency ?? "daily",
           });
         }
       })
@@ -325,6 +360,7 @@ export default function SettingsPage() {
             onClick={() => setShowInfo(true)}
           />
         </div>
+
         <div className="flex align-items-center gap-3">
           <span className="font-medium w-10rem">Outbreak Alerts</span>
           <InputSwitch
@@ -334,17 +370,6 @@ export default function SettingsPage() {
             }
           />
         </div>
-        {isAdmin && (
-          <div className="flex align-items-center gap-3">
-            <span className="font-medium w-10rem">Pipeline Failures</span>
-            <InputSwitch
-              checked={notificationPreferences.pipelineFailureAlerts}
-              onChange={(e) =>
-                updateNotificationPreference("pipelineFailureAlerts", e.value)
-              }
-            />
-          </div>
-        )}
         <div className="flex align-items-center gap-3">
           <span className="font-medium w-10rem">Frequency</span>
           <Dropdown
@@ -352,15 +377,19 @@ export default function SettingsPage() {
             options={frequencyOptions}
             onChange={(e) => updateNotificationPreference("frequency", e.value)}
             disabled={!notificationPreferences.outbreakAlerts}
-            style={{ width: "14rem" }}
+            style={{ width: "12rem" }}
           />
         </div>
         {thresholdEntries.map(({ key, threshold }) => (
           <div className="flex align-items-center gap-3" key={key}>
             <label className="font-medium w-10rem">
-              {profileKeys.length > 0
-                ? `Alert Threshold (${key})`
-                : "Alert Treshold"}
+              {profileKeys.length > 0 ? (
+                <>
+                  Threshold <i>{key.replace(/_/g, " ")}</i>
+                </>
+              ) : (
+                "Alert Threshold"
+              )}
             </label>
             <Dropdown
               value={notificationPreferences.alertThreshold?.[key] ?? threshold}
@@ -372,10 +401,92 @@ export default function SettingsPage() {
                 })
               }
               disabled={!notificationPreferences.outbreakAlerts}
-              style={{ width: "14rem" }}
+              style={{ width: "12rem" }}
             />
           </div>
         ))}
+
+        <div className="flex align-items-center gap-3 mt-4">
+          <span className="font-medium w-10rem">Growth Alerts</span>
+          <InputSwitch
+            checked={notificationPreferences.growthAlerts}
+            disabled={!notificationPreferences.outbreakAlerts}
+            onChange={(e) =>
+              updateNotificationPreference("growthAlerts", e.value)
+            }
+          />
+        </div>
+        {notificationPreferences.growthAlerts && (
+          <>
+            <div className="flex align-items-center gap-3">
+              <span className="font-medium w-10rem">Growth frequency</span>
+              <Dropdown
+                value={notificationPreferences.growthFrequency}
+                options={growthFrequencyOptions}
+                onChange={(e) =>
+                  updateNotificationPreference("growthFrequency", e.value)
+                }
+                style={{ width: "12rem" }}
+              />
+            </div>
+            <div className="flex align-items-center gap-3">
+              <span className="font-medium w-10rem">Growth type</span>
+              <Dropdown
+                value={notificationPreferences.growthThreshold.type}
+                options={growthTypeOptions}
+                onChange={(e) =>
+                  updateNotificationPreference("growthThreshold", {
+                    ...notificationPreferences.growthThreshold,
+                    type: e.value,
+                  })
+                }
+                style={{ width: "12rem" }}
+              />
+            </div>
+            <div className="flex align-items-center gap-3">
+              <span className="font-medium w-10rem">Growth value</span>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <InputNumber
+                  value={notificationPreferences.growthThreshold.value}
+                  onValueChange={(e) =>
+                    updateNotificationPreference("growthThreshold", {
+                      ...notificationPreferences.growthThreshold,
+                      value: e.value ?? 1,
+                    })
+                  }
+                  min={1}
+                  max={
+                    notificationPreferences.growthThreshold.type === "percent"
+                      ? 1000
+                      : 10000
+                  }
+                  inputStyle={{ width: "6rem" }}
+                />
+                <span className="text-500 text-sm">
+                  {
+                    growthValueLabel[
+                      notificationPreferences.growthThreshold.type
+                    ]
+                  }
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {isAdmin && (
+          <div className="flex align-items-center gap-3 mt-4">
+            <span className="font-medium w-10rem">Pipeline Failures</span>
+            <InputSwitch
+              checked={notificationPreferences.pipelineFailureAlerts}
+              onChange={(e) =>
+                updateNotificationPreference("pipelineFailureAlerts", e.value)
+              }
+            />
+          </div>
+        )}
       </div>
 
       <NotificationInfoDialog
