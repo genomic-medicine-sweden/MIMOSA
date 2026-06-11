@@ -38,6 +38,16 @@ export class User extends Document {
       counties: { type: [String], default: [] },
       alertThreshold: { type: Map, of: Number, default: {} },
       pipelineFailureAlerts: { type: Boolean, default: false },
+      growthAlerts: { type: Boolean, default: false },
+      growthThreshold: {
+        type: Object,
+        default: { type: 'absolute', value: 5 },
+      },
+      growthFrequency: {
+        type: String,
+        enum: ['daily', 'weekly'],
+        default: 'daily',
+      },
     },
     default: {},
   })
@@ -47,6 +57,9 @@ export class User extends Document {
     counties: string[];
     alertThreshold: Record<string, number>;
     pipelineFailureAlerts: boolean;
+    growthAlerts: boolean;
+    growthThreshold: { type: 'absolute' | 'total' | 'percent'; value: number };
+    growthFrequency: 'daily' | 'weekly';
   };
 
   @Prop({ default: Date.now })

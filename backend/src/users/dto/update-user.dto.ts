@@ -5,11 +5,23 @@ import {
   IsEmail,
   IsBoolean,
   IsEnum,
+  IsNumber,
   Min,
   ValidateNested,
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+class GrowthThresholdDto {
+  @IsOptional()
+  @IsEnum(['absolute', 'total', 'percent'])
+  type?: 'absolute' | 'total' | 'percent';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  value?: number;
+}
 
 class NotificationPreferencesDto {
   @IsOptional()
@@ -27,6 +39,19 @@ class NotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   pipelineFailureAlerts?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  growthAlerts?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GrowthThresholdDto)
+  growthThreshold?: GrowthThresholdDto;
+
+  @IsOptional()
+  @IsEnum(['daily', 'weekly'])
+  growthFrequency?: 'daily' | 'weekly';
 }
 export class UpdateUserFieldsDto {
   @ApiPropertyOptional()
