@@ -123,15 +123,15 @@ def parse_args():
         target_profiles = AVAILABLE_PROFILES
     elif args.profile is None:
         target_profiles = AVAILABLE_PROFILES
-    elif "All" in args.profile:
+    elif any(x.lower() == "all" for x in args.profile):
         target_profiles = AVAILABLE_PROFILES
     else:
-        target_profiles = [
-            p for p in AVAILABLE_PROFILES if p in [x.lower() for x in args.profile]
-        ]
+        requested = [x.lower() for x in args.profile]
+        target_profiles = [p for p in AVAILABLE_PROFILES if p in requested]
 
     if not target_profiles:
-        raise SystemExit("No valid profiles selected.")
+        available = ", ".join(AVAILABLE_PROFILES)
+        raise SystemExit(f"No valid profiles selected. Available profiles: {available}")
 
     return args, target_profiles
 
