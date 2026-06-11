@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import * as turf from "@turf/turf";
 import FilteringLogic from "@/components/FilteringLogic";
@@ -12,6 +12,7 @@ import ImageExport from "@/components/export/ImageExport";
 import { generateInfoContent } from "@/utils/info";
 import useOutbreaks from "@/hooks/useOutbreaks";
 import { useMapConfigContext } from "@/components/AppWrapper";
+import { apiFetch } from "@/utils/apiFetch";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -22,6 +23,7 @@ const App = ({
   setDateRange,
   logs,
   dataVersion,
+  clusteringByProfile,
 }) => {
   const {
     postcodeCoordinates = {},
@@ -85,9 +87,58 @@ const App = ({
   const [selectedCounty, setSelectedCounty] = useState("All");
   const [countyFilter, setCountyFilter] = useState([]);
   const [visualisedData, setVisualisedData] = useState([]);
-  const [analysisProfile, setAnalysisProfile] = useState(
-    "staphylococcus_aureus",
-  );
+  const [analysisProfile, setAnalysisProfile] = useState(null);
+  const hasInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (analysisProfile !== null) {
+      localStorage.setItem("lastAnalysisProfile", analysisProfile);
+    }
+  }, [analysisProfile]);
+
+  useEffect(() => {
+    if (hasInitializedRef.current) return;
+    if (!data || data.length === 0) return;
+
+    hasInitializedRef.current = true;
+
+    const profilesWithData = new Set(
+      data.map((item) => item.properties.analysis_profile).filter(Boolean),
+    );
+    if (profilesWithData.size === 0) return;
+
+    const pickFallback = () => {
+      const stored = localStorage.getItem("lastAnalysisProfile");
+      if (stored && profilesWithData.has(stored)) return stored;
+
+      let latestProfile = null;
+      let latestDate = null;
+      for (const [profile, run] of Object.entries(clusteringByProfile ?? {})) {
+        if (!profilesWithData.has(profile)) continue;
+        const date = new Date(run.createdAt);
+        if (!latestDate || date > latestDate) {
+          latestDate = date;
+          latestProfile = profile;
+        }
+      }
+      if (latestProfile) return latestProfile;
+
+      return [...profilesWithData][0];
+    };
+
+    const apiBase = process.env.NEXT_PUBLIC_API_URL;
+    apiFetch(`${apiBase}/api/outbreaks/active-profiles`)
+      .then((res) => res.json())
+      .then((activeProfiles) => {
+        const activeWithData = Array.isArray(activeProfiles)
+          ? activeProfiles.find((p) => profilesWithData.has(p))
+          : null;
+        setAnalysisProfile(activeWithData ?? pickFallback());
+      })
+      .catch(() => {
+        setAnalysisProfile(pickFallback());
+      });
+  }, [data, clusteringByProfile]);
 
   const [shapeByPlatform, setShapeByPlatform] = useState(false);
 

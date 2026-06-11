@@ -45,8 +45,15 @@ export default function AppWrapper() {
     );
   }
 
-  const { data, similarity, logs, dateRange, setDateRange, dataVersion } =
-    appData;
+  const {
+    data,
+    similarity,
+    logs,
+    clusteringByProfile,
+    dateRange,
+    setDateRange,
+    dataVersion,
+  } = appData;
 
   return (
     <MapConfigContext.Provider value={mapConfig}>
@@ -57,6 +64,7 @@ export default function AppWrapper() {
         setDateRange={setDateRange}
         logs={logs}
         dataVersion={dataVersion}
+        clusteringByProfile={clusteringByProfile}
       />
     </MapConfigContext.Provider>
   );
