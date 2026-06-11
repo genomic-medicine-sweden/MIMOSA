@@ -21,6 +21,12 @@ export class PendingNotification extends Document {
   @Prop()
   summary: string;
 
+  @Prop({ required: true, enum: ['outbreak', 'growth'], default: 'outbreak' })
+  type: 'outbreak' | 'growth';
+
+  @Prop({ required: false })
+  previousTotal?: number;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 }
@@ -28,4 +34,7 @@ export class PendingNotification extends Document {
 export const PendingNotificationSchema =
   SchemaFactory.createForClass(PendingNotification);
 
-PendingNotificationSchema.index({ userId: 1, clusterId: 1 }, { unique: true });
+PendingNotificationSchema.index(
+  { userId: 1, clusterId: 1, type: 1 },
+  { unique: true },
+);

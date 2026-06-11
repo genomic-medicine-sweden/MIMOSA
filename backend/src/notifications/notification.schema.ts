@@ -29,6 +29,9 @@ export class Notification extends Document {
 
   @Prop({ required: false })
   lastRefreshTotal?: number;
+
+  @Prop({ required: false })
+  lastNotifiedTotal?: number;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
