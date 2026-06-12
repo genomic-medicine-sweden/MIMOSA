@@ -290,6 +290,23 @@ export class OutbreaksService implements OnModuleInit {
     });
   }
 
+  async getAllProfiles(): Promise<string[]> {
+    return this.featureModel.distinct('properties.analysis_profile');
+  }
+
+  async getActiveProfiles(): Promise<string[]> {
+    const profiles = await this.featureModel.distinct(
+      'properties.analysis_profile',
+    );
+    const results = await Promise.all(
+      profiles.map(async (profile: string) => {
+        const outbreaks = await this.getLatestOutbreaks(profile);
+        return outbreaks.length > 0 ? profile : null;
+      }),
+    );
+    return results.filter((p: string | null): p is string => p !== null);
+  }
+
   async getLatestOutbreaks(
     analysis_profile: string,
   ): Promise<OutbreakResult[]> {
@@ -314,4 +331,3 @@ export class OutbreaksService implements OnModuleInit {
     return this.annotateIdleStatus(baseResults, analysis_profile);
   }
 }
-

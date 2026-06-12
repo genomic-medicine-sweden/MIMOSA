@@ -8,6 +8,20 @@ import outbreakRules from '../config/outbreak-rules.json';
 export class OutbreaksController {
   constructor(private readonly outbreaksService: OutbreaksService) {}
 
+  @Get('all-profiles')
+  @ApiOperation({ summary: 'Get all profiles that have uploaded data' })
+  async getAllProfiles(): Promise<string[]> {
+    return this.outbreaksService.getAllProfiles();
+  }
+
+  @Get('active-profiles')
+  @ApiOperation({
+    summary: 'Get profiles that currently have active outbreaks',
+  })
+  async getActiveProfiles(): Promise<string[]> {
+    return this.outbreaksService.getActiveProfiles();
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get current outbreaks' })
   async getOutbreaks(@Query('analysis_profile') analysis_profile?: string) {
