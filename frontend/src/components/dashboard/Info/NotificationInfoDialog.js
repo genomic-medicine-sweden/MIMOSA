@@ -22,14 +22,13 @@ export default function NotificationInfoDialog({ visible, onHide, isAdmin }) {
           </li>
           <li>
             <b>Alert Threshold:</b> The minimum number of cases in a cluster
-            required for <u>you</u> to be notified.
-            <br />
-            If multiple analysis profiles are configured, each profile can have
-            its own threshold.
+            required for <u>you</u> to be notified. There is a <i>default</i>{" "}
+            threshold that applies to any profile without its own entry, plus an
+            individual threshold for each configured analysis profile.
             <br />
             <span className="pl-3 mt-1 block text-color-secondary">
               <i>
-                Note: you cannot set a threshold below the outbreak threshold
+                Note: you cannot set a threshold below the detection threshold
                 for that profile.
               </i>
             </span>

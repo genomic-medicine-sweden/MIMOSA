@@ -43,6 +43,7 @@ export default function SettingsPage() {
     growthFrequency: "daily",
   });
   const [showInfo, setShowInfo] = useState(false);
+  const [activeProfiles, setActiveProfiles] = useState([]);
 
   const toast = useRef(null);
   const rules = useOutbreakRules();
@@ -114,6 +115,13 @@ export default function SettingsPage() {
         console.error(err);
       }
     }
+
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/outbreaks/all-profiles`)
+      .then((res) => res?.json())
+      .then((profiles) => {
+        if (Array.isArray(profiles)) setActiveProfiles(profiles);
+      })
+      .catch(() => {});
 
     apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`)
       .then((res) => res?.json())
@@ -271,15 +279,25 @@ export default function SettingsPage() {
   };
 
   const profileKeys = Object.keys(rules?.profiles ?? {});
-  const thresholdEntries =
-    profileKeys.length > 0
-      ? profileKeys.map((p) => ({
+  const allProfileKeys = rules
+    ? [...new Set([...profileKeys, ...activeProfiles])]
+    : [];
+  const thresholdEntries = rules
+    ? [
+        {
+          key: "default",
+          threshold: rules.default.detectionThreshold,
+          isDefault: true,
+        },
+        ...allProfileKeys.map((p) => ({
           key: p,
-          threshold: rules.profiles[p].detectionThreshold,
-        }))
-      : rules
-        ? [{ key: "default", threshold: rules.default.detectionThreshold }]
-        : [];
+          threshold:
+            rules.profiles[p]?.detectionThreshold ??
+            rules.default.detectionThreshold,
+          isDefault: false,
+        })),
+      ]
+    : [];
 
   return (
     <div className="p-4 max-w-xl mx-auto">
@@ -309,7 +327,7 @@ export default function SettingsPage() {
         />
       </div>
 
-      <div className="mt-6 mb-2">
+      <div className="mt-2 mb-2">
         <h3 className="text-xl font-semibold mb-4">Password</h3>
         <div className="flex flex-wrap gap-6">
           <FloatLabel>
@@ -352,7 +370,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="flex flex-column gap-3 mt-4">
+      <div className="flex flex-column gap-3 mt-8">
         <div className="flex align-items-center gap-2">
           <h2 className="text-xl font-semibold m-0">Notifications</h2>
           <i
@@ -380,31 +398,66 @@ export default function SettingsPage() {
             style={{ width: "12rem" }}
           />
         </div>
-        {thresholdEntries.map(({ key, threshold }) => (
-          <div className="flex align-items-center gap-3" key={key}>
-            <label className="font-medium w-10rem">
-              {profileKeys.length > 0 ? (
-                <>
-                  Threshold <i>{key.replace(/_/g, " ")}</i>
-                </>
-              ) : (
-                "Alert Threshold"
-              )}
-            </label>
-            <Dropdown
-              value={notificationPreferences.alertThreshold?.[key] ?? threshold}
-              options={getClusterSizeOptions(threshold)}
-              onChange={(e) =>
-                updateNotificationPreference("alertThreshold", {
-                  ...notificationPreferences.alertThreshold,
-                  [key]: e.value,
-                })
-              }
-              disabled={!notificationPreferences.outbreakAlerts}
-              style={{ width: "12rem" }}
-            />
+        {thresholdEntries.length > 0 && (
+          <div className="flex flex-column gap-2">
+            <span className="font-medium">Alert Thresholds</span>
+
+            {/* Default threshold on its own row */}
+            {thresholdEntries
+              .filter((e) => e.isDefault)
+              .map(({ key, threshold }) => (
+                <div className="flex align-items-center gap-3" key={key}>
+                  <label className="text-color-secondary w-10rem">
+                    Default
+                  </label>
+                  <Dropdown
+                    value={
+                      notificationPreferences.alertThreshold?.[key] ?? threshold
+                    }
+                    options={getClusterSizeOptions(threshold)}
+                    onChange={(e) =>
+                      updateNotificationPreference("alertThreshold", {
+                        ...notificationPreferences.alertThreshold,
+                        [key]: e.value,
+                      })
+                    }
+                    disabled={!notificationPreferences.outbreakAlerts}
+                    style={{ width: "12rem" }}
+                  />
+                </div>
+              ))}
+
+            {/* Per-profile thresholds in a wrapping grid */}
+            {allProfileKeys.length > 0 && (
+              <div className="flex flex-wrap gap-3 mt-1">
+                {thresholdEntries
+                  .filter((e) => !e.isDefault)
+                  .map(({ key, threshold }) => (
+                    <div className="flex flex-column gap-1" key={key}>
+                      <label className="text-sm text-color-secondary">
+                        <i>{key.replace(/_/g, " ")}</i>
+                      </label>
+                      <Dropdown
+                        value={
+                          notificationPreferences.alertThreshold?.[key] ??
+                          threshold
+                        }
+                        options={getClusterSizeOptions(threshold)}
+                        onChange={(e) =>
+                          updateNotificationPreference("alertThreshold", {
+                            ...notificationPreferences.alertThreshold,
+                            [key]: e.value,
+                          })
+                        }
+                        disabled={!notificationPreferences.outbreakAlerts}
+                        style={{ width: "10rem" }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
-        ))}
+        )}
 
         <div className="flex align-items-center gap-3 mt-4">
           <span className="font-medium w-10rem">Growth Alerts</span>
