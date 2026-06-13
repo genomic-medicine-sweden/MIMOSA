@@ -182,6 +182,7 @@ export class NotificationsService {
               total: c.outbreak.total,
               previousTotal: c.lastNotifiedTotal,
               counties: c.outbreak.counties,
+              hospitals: c.outbreak.hospitals,
               summary: c.outbreak.summary,
               analysis_profile: c.outbreak.analysis_profile,
             });
@@ -210,6 +211,7 @@ export class NotificationsService {
               $set: {
                 total: o.total,
                 counties: o.counties,
+                hospitals: o.hospitals ?? [],
                 analysis_profile: o.analysis_profile,
                 summary: o.summary,
                 type: 'outbreak',
@@ -230,6 +232,7 @@ export class NotificationsService {
               total: o.total,
               previousTotal: o.previousTotal,
               counties: o.counties,
+              hospitals: o.hospitals ?? [],
               analysis_profile: o.analysis_profile,
               summary: o.summary,
               type: 'growth',
@@ -265,6 +268,7 @@ export class NotificationsService {
         clusterId: o.clusterId,
         total: o.total,
         counties: o.counties,
+        hospitals: o.hospitals ?? [],
         sampleIds: o.sampleIds,
         analysis_profile: o.analysis_profile,
         sentAt: now,
@@ -323,6 +327,8 @@ export class NotificationsService {
         clusterId: p.clusterId,
         total: p.total,
         counties: p.counties,
+        hospitals: p.hospitals ?? [],
+        analysis_profile: p.analysis_profile,
         summary: p.summary || '',
       }));
 
@@ -331,6 +337,7 @@ export class NotificationsService {
         total: p.total,
         previousTotal: p.previousTotal ?? p.total,
         counties: p.counties,
+        hospitals: p.hospitals ?? [],
         summary: p.summary || '',
         analysis_profile: p.analysis_profile,
       }));
@@ -400,6 +407,8 @@ export class NotificationsService {
         clusterId: p.clusterId,
         total: p.total,
         counties: p.counties,
+        hospitals: p.hospitals ?? [],
+        analysis_profile: p.analysis_profile,
         summary: p.summary || '',
       }));
 
@@ -408,6 +417,7 @@ export class NotificationsService {
         total: p.total,
         previousTotal: p.previousTotal ?? p.total,
         counties: p.counties,
+        hospitals: p.hospitals ?? [],
         summary: p.summary || '',
         analysis_profile: p.analysis_profile,
       }));

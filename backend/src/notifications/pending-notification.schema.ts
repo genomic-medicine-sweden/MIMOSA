@@ -15,6 +15,9 @@ export class PendingNotification extends Document {
   @Prop({ type: [String], required: true })
   counties: string[];
 
+  @Prop({ type: [String], default: [] })
+  hospitals: string[] = [];
+
   @Prop({ required: true })
   analysis_profile: string;
 

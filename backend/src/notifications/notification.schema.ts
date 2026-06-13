@@ -13,6 +13,9 @@ export class Notification extends Document {
   counties: string[];
 
   @Prop({ type: [String], default: [] })
+  hospitals: string[] = [];
+
+  @Prop({ type: [String], default: [] })
   sampleIds: string[];
 
   @Prop({ required: false })

@@ -5,6 +5,7 @@ export class OutbreakDetectedEvent {
       clusterId: string;
       total: number;
       counties: string[];
+      hospitals: string[];
       sampleIds: string[];
       analysis_profile: string;
       summary: string;

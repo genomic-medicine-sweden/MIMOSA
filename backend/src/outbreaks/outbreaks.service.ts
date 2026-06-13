@@ -15,6 +15,7 @@ type OutbreakResult = {
   clusterId: string;
   total: number;
   counties: string[];
+  hospitals: string[];
   sampleIds: string[];
   analysis_profile: string;
   summary: string;
@@ -25,6 +26,7 @@ type OutbreakResult = {
 type ClusterEntry = {
   count: number;
   counties: Set<string>;
+  hospitals: Set<string>;
   sampleIds: string[];
 };
 
@@ -138,11 +140,16 @@ export class OutbreaksService implements OnModuleInit {
     );
   }
 
-  private async buildPostCodeMap(
+  private async buildLocationMap(
     ids: string[],
-  ): Promise<Record<string, string>> {
+  ): Promise<
+    Record<string, { county: string; hospital?: string; postcode?: string }>
+  > {
     const features = await this.featuresService.findByIds(ids);
-    const map: Record<string, string> = {};
+    const map: Record<
+      string,
+      { county: string; hospital?: string; postcode?: string }
+    > = {};
 
     for (const f of features) {
       const id = f.properties?.ID;
@@ -152,7 +159,11 @@ export class OutbreaksService implements OnModuleInit {
         manualCoordinates: f.properties?.manualCoordinates,
       });
       if (id && county) {
-        map[id] = county;
+        map[id] = {
+          county,
+          hospital: f.properties?.Hospital || undefined,
+          postcode: f.properties?.PostCode || undefined,
+        };
       }
     }
 
@@ -193,12 +204,16 @@ export class OutbreaksService implements OnModuleInit {
 
   private detectOutbreaks(
     results: { ID: string; Cluster_ID: string; Partition: string }[],
-    postCodeMap: Record<string, string>,
+    locationMap: Record<
+      string,
+      { county: string; hospital?: string; postcode?: string }
+    >,
     analysis_profile: string,
   ): {
     clusterId: string;
     total: number;
     counties: string[];
+    hospitals: string[];
     sampleIds: string[];
   }[] {
     const rules = this.getRules(analysis_profile);
@@ -207,26 +222,31 @@ export class OutbreaksService implements OnModuleInit {
     for (const r of results) {
       const clusterId = String(r.Cluster_ID);
       if (!clusterId || clusterId === 'Unknown') continue;
-      const county = postCodeMap[r.ID];
+      const location = locationMap[r.ID];
+      const county = location?.county;
       if (rules.requireCountyResolution && !county) continue;
       if (!clusterMap[clusterId]) {
         clusterMap[clusterId] = {
           count: 0,
           counties: new Set(),
+          hospitals: new Set(),
           sampleIds: [],
         };
       }
       clusterMap[clusterId].count += 1;
       if (county) clusterMap[clusterId].counties.add(county);
+      if (location?.hospital)
+        clusterMap[clusterId].hospitals.add(location.hospital);
       clusterMap[clusterId].sampleIds.push(r.ID);
     }
 
     return Object.entries(clusterMap)
       .filter(([_, { count }]) => count >= rules.detectionThreshold)
-      .map(([clusterId, { count, counties, sampleIds }]) => ({
+      .map(([clusterId, { count, counties, hospitals, sampleIds }]) => ({
         clusterId,
         total: count,
         counties: [...counties],
+        hospitals: [...hospitals],
         sampleIds,
       }));
   }
@@ -315,15 +335,16 @@ export class OutbreaksService implements OnModuleInit {
     if (!clustering) return [];
 
     const ids = clustering.results.map((r) => r.ID);
-    const postCodeMap = await this.buildPostCodeMap(ids);
+    const locationMap = await this.buildLocationMap(ids);
     const outbreaks = this.detectOutbreaks(
       clustering.results,
-      postCodeMap,
+      locationMap,
       analysis_profile,
     );
 
     const baseResults = outbreaks.map((o) => ({
       ...o,
+      hospitals: o.hospitals,
       analysis_profile: clustering.analysis_profile,
       summary: this.formatOutbreak(o),
     }));
