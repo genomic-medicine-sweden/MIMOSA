@@ -29,6 +29,13 @@
 - `POST /api/mail/pipeline-alert` endpoint
 - Structured key=value log format across pipeline and automation, with per-run duration and summary metrics
 - Log file mount for the automation container
+- Growth alerts — opt-in notifications when existing clusters grow, with configurable threshold type (absolute growth, total size reached, or percent increase), value, and delivery frequency
+- Combined daily and weekly digest emails that include both new outbreaks and cluster growth in a single email with section headers
+- Analysis profile auto-selection on load based on last used profile, active outbreaks, or most recent clustering run
+- `GET /api/outbreaks/all-profiles` and `GET /api/outbreaks/active-profiles` endpoints
+- Default and per-profile alert thresholds in notification settings, drawn from all profiles with uploaded data
+- Hospital data included in outbreak detection, notification records, and email tables
+- Analysis profile column added to outbreak email tables
 
 
 ### Changed
@@ -46,7 +53,9 @@
 - QC status filtering disabled (allow all statuses)
 - `alertMinGrowthForRefresh` for staphylococcus lowered from 2 to 1
 - Similarity progress output suppressed when not running in a TTY
-
+- Pending notifications now scoped by type (`outbreak` or `growth`) so entries are tracked independently
+- `--profile` flag now case-insensitive; invalid input lists available profile
+- Alert threshold UI reorganised into a default row and a per-profile wrapping grid
 
 ### Fixed
 - Fixed region matching for UK map boundaries
