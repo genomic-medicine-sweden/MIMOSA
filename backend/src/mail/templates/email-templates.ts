@@ -5,6 +5,8 @@ export interface OutbreakData {
   clusterId: string;
   total: number;
   counties: string[];
+  hospitals?: string[];
+  analysis_profile: string;
   summary: string;
 }
 
@@ -13,6 +15,7 @@ export interface GrowthData {
   total: number;
   previousTotal: number;
   counties: string[];
+  hospitals?: string[];
   summary: string;
   analysis_profile: string;
 }
@@ -44,6 +47,10 @@ function inject(template: string, data: Record<string, string>): string {
   return result;
 }
 
+function formatProfile(profile: string): string {
+  return `<i>${profile.replace(/_/g, ' ')}</i>`;
+}
+
 function buildOutbreakRows(outbreaks: OutbreakData[]): string {
   const sorted = [...outbreaks].sort((a, b) => b.total - a.total);
 
@@ -54,11 +61,17 @@ function buildOutbreakRows(outbreaks: OutbreakData[]): string {
         <td style="padding:14px 12px; font-weight:bold; color:#111; vertical-align:top;">
           ${o.clusterId}
         </td>
+        <td style="padding:14px 12px; color:#555; vertical-align:top; font-size:13px;">
+          ${formatProfile(o.analysis_profile)}
+        </td>
         <td align="center" style="padding:14px 12px; font-weight:bold; color:#111; vertical-align:top; white-space:nowrap;">
           ${o.total} case${o.total > 1 ? 's' : ''}
         </td>
-        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; min-width:180px; line-height:1.5;">
+        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; line-height:1.5;">
           ${o.counties.join('<br/>')}
+        </td>
+        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; line-height:1.5;">
+          ${o.hospitals?.join('<br/>') || '—'}
         </td>
       </tr>
       `;
@@ -225,8 +238,11 @@ function buildGrowthRows(outbreaks: GrowthData[]): string {
           ${o.total} case${o.total !== 1 ? 's' : ''}
           <div style="font-size:12px; color:#c0392b; font-weight:normal;">+${growth} new</div>
         </td>
-        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; min-width:180px; line-height:1.5;">
+        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; line-height:1.5;">
           ${o.counties.join('<br/>')}
+        </td>
+        <td style="padding:14px 12px; color:#555; vertical-align:top; word-break:break-word; line-height:1.5;">
+          ${o.hospitals?.join('<br/>') || '—'}
         </td>
       </tr>`;
     })
