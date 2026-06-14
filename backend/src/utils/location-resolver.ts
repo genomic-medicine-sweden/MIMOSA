@@ -34,7 +34,7 @@ export class LocationResolver {
   private pointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
     let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [xi, yi] = ring[i];
+      const [xi, yi] = ring[i]; // GeoJSON order: [lng, lat]
       const [xj, yj] = ring[j];
       const intersect =
         yi > lat !== yj > lat &&
@@ -50,7 +50,7 @@ export class LocationResolver {
     for (const data of Object.values(this.postcodeCoordinates) as any[]) {
       const coords = data.coordinates;
       if (!Array.isArray(coords) || coords.length < 2) continue;
-      const [pcLat, pcLng] = coords;
+      const [pcLat, pcLng] = coords; // postcode format: [lat, lng]
       const dist = (pcLat - lat) ** 2 + (pcLng - lng) ** 2;
       if (dist < minDist) {
         minDist = dist;
@@ -117,6 +117,10 @@ export class LocationResolver {
       );
     }
     return undefined;
+  }
+
+  getAllHospitalNames(): string[] {
+    return Object.keys(this.hospitalCoordinates).sort();
   }
 
   resolveToCounty({

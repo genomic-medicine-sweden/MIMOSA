@@ -314,6 +314,17 @@ export class OutbreaksService implements OnModuleInit {
     return this.featureModel.distinct('properties.analysis_profile');
   }
 
+  async getAllHospitals(): Promise<string[]> {
+    const fromRef = this.locationResolver.getAllHospitalNames();
+    const fromFeatures = (await this.featureModel.distinct(
+      'properties.Hospital',
+    )) as unknown[];
+    const fromFeaturesFiltered = fromFeatures.filter(
+      (h): h is string => typeof h === 'string' && h.trim() !== '',
+    );
+    return [...new Set([...fromRef, ...fromFeaturesFiltered])].sort();
+  }
+
   async getActiveProfiles(): Promise<string[]> {
     const profiles = await this.featureModel.distinct(
       'properties.analysis_profile',
