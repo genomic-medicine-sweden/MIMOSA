@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getPostcodeCoordinates } from "@/utils/coordinates";
 import { useMapConfigContext } from "@/components/AppWrapper";
 import { MultiSelect } from "primereact/multiselect";
@@ -35,6 +35,8 @@ const FilteringLogic = ({
   const [analysisProfileFilter, setAnalysisProfileFilter] =
     useState(analysisProfile);
 
+  const isFirstRender = useRef(true);
+
   const [Cluster_ID, setCluster_ID] = useState([]);
   const [analysisProfiles, setAnalysisProfiles] = useState([]);
   const [postcodes, setPostcodes] = useState([]);
@@ -51,6 +53,22 @@ const FilteringLogic = ({
   useEffect(() => {
     setAnalysisProfile(analysisProfileFilter);
   }, [analysisProfileFilter, setAnalysisProfile]);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setPostcodeFilter([]);
+    setIdFilter([]);
+    setHospitalFilter([]);
+    setPostalTownFilter([]);
+    setCluster_IDFilter([]);
+    setDateRange(null);
+    if (!(selectedCounty && selectedCounty !== "All")) {
+      setCountyFilter([]);
+    }
+  }, [analysisProfileFilter]);
 
   useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) return;
