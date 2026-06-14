@@ -158,7 +158,7 @@ export default function DashboardOverview({ data }) {
                           fontSize: "12px",
                         }}
                       >
-                        {row.profile.replace(/_/g, " ")}
+                        <em>{row.profile.replace(/_/g, " ")}</em>
                       </td>
                       <td
                         style={{
@@ -259,7 +259,7 @@ function NotificationsCard() {
                     fontSize: "12px",
                   }}
                 >
-                  {n.analysis_profile?.replace(/_/g, " ") ?? "—"}
+                  <em>{n.analysis_profile?.replace(/_/g, " ") ?? "—"}</em>
                 </td>
                 <td
                   style={{
