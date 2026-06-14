@@ -35,6 +35,12 @@ export class Notification extends Document {
 
   @Prop({ required: false })
   lastNotifiedTotal?: number;
+
+  @Prop({ type: [String], default: [] })
+  lastNotifiedHospitals: string[] = [];
+
+  @Prop({ type: [String], default: [] })
+  lastNotifiedCounties: string[] = [];
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

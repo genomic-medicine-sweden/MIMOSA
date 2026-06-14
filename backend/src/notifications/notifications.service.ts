@@ -80,6 +80,8 @@ export class NotificationsService {
       lastNotifiedTotal: number;
       lastRefreshTotal: number;
       growth: number;
+      newHospitals: string[];
+      newCounties: string[];
     };
 
     const growthCandidates: GrowthCandidate[] = [];
@@ -88,12 +90,18 @@ export class NotificationsService {
       if (!existing) continue;
       const lastNotifiedTotal = existing.lastNotifiedTotal ?? existing.total;
       const lastRefreshTotal = existing.lastRefreshTotal ?? existing.total;
+      const lastHospitals: string[] =
+        (existing as any).lastNotifiedHospitals ?? [];
+      const lastCounties: string[] =
+        (existing as any).lastNotifiedCounties ?? [];
       growthCandidates.push({
         existing,
         outbreak: o,
         lastNotifiedTotal,
         lastRefreshTotal,
         growth: Math.max(0, o.total - lastNotifiedTotal),
+        newHospitals: o.hospitals.filter((h) => !lastHospitals.includes(h)),
+        newCounties: o.counties.filter((c) => !lastCounties.includes(c)),
       });
     }
 
@@ -102,7 +110,10 @@ export class NotificationsService {
     );
 
     const hasGrowth = growthCandidates.some((c) => c.growth > 0);
-    if (!newOutbreaks.length && !hasGrowth) {
+    const hasLocationJoins = growthCandidates.some(
+      (c) => c.newHospitals.length > 0 || c.newCounties.length > 0,
+    );
+    if (!newOutbreaks.length && !hasGrowth && !hasLocationJoins) {
       console.log(
         `[Notifications] No new or growing clusters for ${analysis_profile}, skipping`,
       );
@@ -117,9 +128,11 @@ export class NotificationsService {
       return;
     }
 
-    const users = await this.userModel.find({
-      'notificationPreferences.outbreakAlerts': true,
-    });
+    const users = await this.userModel
+      .find({
+        'notificationPreferences.outbreakAlerts': true,
+      })
+      .lean();
 
     const profiles = outbreakRules.profiles as Record<
       string,
@@ -127,6 +140,7 @@ export class NotificationsService {
     >;
 
     const clustersNotified = new Set<string>();
+    const locationJoinNotified = new Set<string>();
     let totalSent = 0;
 
     for (const user of users) {
@@ -134,7 +148,18 @@ export class NotificationsService {
       const frequency = prefs.frequency || 'immediate';
       const alertThresholds =
         (prefs.alertThreshold as unknown as Record<string, number>) ?? {};
-      const counties = prefs.counties || [];
+      const watchProfiles: string[] = Array.isArray((prefs as any).profiles)
+        ? [...(prefs as any).profiles]
+        : [];
+      if (watchProfiles.length > 0 && !watchProfiles.includes(analysis_profile))
+        continue;
+
+      const watchCounties: string[] = Array.isArray(prefs.counties)
+        ? [...prefs.counties]
+        : [];
+      const watchHospitals: string[] = Array.isArray((prefs as any).hospitals)
+        ? [...(prefs as any).hospitals]
+        : [];
 
       const userNewOutbreaks = newOutbreaks.filter((o) => {
         const detectionThreshold =
@@ -145,8 +170,15 @@ export class NotificationsService {
           alertThresholds['default'] ??
           detectionThreshold;
         if (o.total < alertThreshold) return false;
-        if (counties.length > 0)
-          return o.counties.some((c) => counties.includes(c));
+        if (watchCounties.length > 0 || watchHospitals.length > 0) {
+          const countyMatch =
+            watchCounties.length > 0 &&
+            o.counties.some((c) => watchCounties.includes(c));
+          const hospitalMatch =
+            watchHospitals.length > 0 &&
+            o.hospitals.some((h) => watchHospitals.includes(h));
+          return countyMatch || hospitalMatch;
+        }
         return true;
       });
 
@@ -158,11 +190,15 @@ export class NotificationsService {
         };
         for (const c of growthCandidates) {
           if (c.growth <= 0) continue;
-          if (
-            counties.length > 0 &&
-            !c.outbreak.counties.some((co) => counties.includes(co))
-          )
-            continue;
+          if (watchCounties.length > 0 || watchHospitals.length > 0) {
+            const countyMatch =
+              watchCounties.length > 0 &&
+              c.outbreak.counties.some((co) => watchCounties.includes(co));
+            const hospitalMatch =
+              watchHospitals.length > 0 &&
+              c.outbreak.hospitals.some((h) => watchHospitals.includes(h));
+            if (!countyMatch && !hospitalMatch) continue;
+          }
 
           let triggered = false;
           if (gt.type === 'absolute') {
@@ -191,20 +227,69 @@ export class NotificationsService {
         }
       }
 
-      if (!userNewOutbreaks.length && !userGrowth.length) continue;
+      const userLocationJoins: OutbreakData[] = [];
+      for (const c of growthCandidates) {
+        // Hospital/county newly appearing in the cluster this run
+        const countyJoin =
+          watchCounties.length > 0 &&
+          c.newCounties.some((co) => watchCounties.includes(co));
+        const hospitalJoin =
+          watchHospitals.length > 0 &&
+          c.newHospitals.some((h) => watchHospitals.includes(h));
+
+        const countyActive =
+          !countyJoin &&
+          watchCounties.length > 0 &&
+          c.growth > 0 &&
+          c.outbreak.counties.some((co) => watchCounties.includes(co));
+        const hospitalActive =
+          !hospitalJoin &&
+          watchHospitals.length > 0 &&
+          c.growth > 0 &&
+          c.outbreak.hospitals.some((h) => watchHospitals.includes(h));
+
+        if (!countyJoin && !hospitalJoin && !countyActive && !hospitalActive)
+          continue;
+
+        const detectionThreshold =
+          profiles[c.outbreak.analysis_profile]?.detectionThreshold ??
+          outbreakRules.default.detectionThreshold;
+        const alertThreshold =
+          alertThresholds[c.outbreak.analysis_profile] ??
+          alertThresholds['default'] ??
+          detectionThreshold;
+        if (c.outbreak.total < alertThreshold) continue;
+
+        userLocationJoins.push({
+          clusterId: c.outbreak.clusterId,
+          total: c.outbreak.total,
+          counties: c.outbreak.counties,
+          hospitals: c.outbreak.hospitals,
+          summary: c.outbreak.summary,
+          analysis_profile: c.outbreak.analysis_profile,
+        });
+        locationJoinNotified.add(c.outbreak.clusterId);
+        if (countyActive || hospitalActive) {
+          clustersNotified.add(c.outbreak.clusterId);
+        }
+      }
+
+      const userAlertOutbreaks = [...userNewOutbreaks, ...userLocationJoins];
+
+      if (!userAlertOutbreaks.length && !userGrowth.length) continue;
 
       if (frequency === 'immediate') {
-        if (userNewOutbreaks.length) {
+        if (userAlertOutbreaks.length) {
           await this.mailService.sendMail(
             [user.email],
             'MIMOSA Outbreak Alert',
-            buildAlertEmail(userNewOutbreaks),
-            buildAlertText(userNewOutbreaks),
+            buildAlertEmail(userAlertOutbreaks),
+            buildAlertText(userAlertOutbreaks),
           );
           totalSent++;
         }
       } else {
-        for (const o of userNewOutbreaks) {
+        for (const o of userAlertOutbreaks) {
           await this.pendingNotificationModel.findOneAndUpdate(
             { userId: user._id, clusterId: o.clusterId, type: 'outbreak' },
             {
@@ -223,7 +308,6 @@ export class NotificationsService {
         }
       }
 
-      // Growth is always batched — dispatched on the user's growthFrequency schedule
       for (const o of userGrowth) {
         await this.pendingNotificationModel.findOneAndUpdate(
           { userId: user._id, clusterId: o.clusterId, type: 'growth' },
@@ -244,14 +328,14 @@ export class NotificationsService {
       }
     }
 
-    // Update existing notification records.
-    // lastNotifiedTotal resets when any growth notification fired (prevents
-    // re-alerting the same growth on the next check).
-    // lastRefreshTotal / lastGrowthAt are for idle-status tracking only.
     for (const c of growthCandidates) {
       const update: Record<string, unknown> = { lastTotal: c.outbreak.total };
       if (clustersNotified.has(c.outbreak.clusterId)) {
         update.lastNotifiedTotal = c.outbreak.total;
+      }
+      if (locationJoinNotified.has(c.outbreak.clusterId)) {
+        update.lastNotifiedHospitals = c.outbreak.hospitals;
+        update.lastNotifiedCounties = c.outbreak.counties;
       }
       if (c.growth >= rules.alertMinGrowthForRefresh) {
         update.lastGrowthAt = now;
@@ -276,6 +360,8 @@ export class NotificationsService {
         lastTotal: o.total,
         lastRefreshTotal: o.total,
         lastNotifiedTotal: o.total,
+        lastNotifiedHospitals: o.hospitals ?? [],
+        lastNotifiedCounties: o.counties,
       })),
     );
 
