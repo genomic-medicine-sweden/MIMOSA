@@ -36,9 +36,6 @@ function tryLoadJson(filename: string): any | null {
 
 function logBoundaryKeys(geojson: any): void {
   const keys = Object.keys(geojson?.features?.[0]?.properties ?? {});
-  console.log(
-    `[map-config] Boundary feature property keys: ${keys.join(', ')}`,
-  );
 }
 
 async function fetchGeoBoundaries(api: {
