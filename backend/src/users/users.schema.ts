@@ -36,6 +36,8 @@ export class User extends Document {
         default: 'daily',
       },
       counties: { type: [String], default: [] },
+      hospitals: { type: [String], default: [] },
+      profiles: { type: [String], default: [] },
       alertThreshold: { type: Map, of: Number, default: {} },
       pipelineFailureAlerts: { type: Boolean, default: false },
       growthAlerts: { type: Boolean, default: false },
@@ -55,6 +57,8 @@ export class User extends Document {
     outbreakAlerts: boolean;
     frequency: 'immediate' | 'daily' | 'weekly';
     counties: string[];
+    hospitals: string[];
+    profiles: string[];
     alertThreshold: Record<string, number>;
     pipelineFailureAlerts: boolean;
     growthAlerts: boolean;

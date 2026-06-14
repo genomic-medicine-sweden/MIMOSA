@@ -114,7 +114,7 @@ export class UsersService {
       .findOneAndUpdate(
         { email: lowerEmail },
         { $set: mongoUpdate },
-        { new: true },
+        { new: true, strict: false },
       )
       .exec();
   }

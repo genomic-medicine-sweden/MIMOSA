@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsNumber,
+  IsArray,
   Min,
   ValidateNested,
   IsObject,
@@ -35,6 +36,21 @@ class NotificationPreferencesDto {
   @IsOptional()
   @IsObject()
   alertThreshold?: Record<string, number>;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  counties?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  hospitals?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  profiles?: string[];
 
   @IsOptional()
   @IsBoolean()
