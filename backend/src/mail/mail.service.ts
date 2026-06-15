@@ -30,21 +30,44 @@ export class MailService {
 
   async sendMail(to: string[], subject: string, html: string, text: string) {
     if (!this.isEnabled()) {
-      console.warn('Notifications disabled — skipping email');
+      console.warn('[Mail] Notifications disabled — skipping email');
+      return { skipped: true };
+    }
+
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    if (!smtpHost || smtpHost === 'your.smtp.server') {
+      console.warn(
+        '[Mail] SMTP not configured — set MAIL_HOST (and related SMTP_* vars) in .env to enable email delivery',
+      );
       return { skipped: true };
     }
 
     const transporter = this.getTransporter();
 
-    await transporter.sendMail({
-      from: this.configService.get<string>('SMTP_FROM'),
-      to: to.join(','),
-      subject,
-      html,
-      text,
-    });
+    try {
+      await transporter.sendMail({
+        from: this.configService.get<string>('SMTP_FROM'),
+        to: to.join(','),
+        subject,
+        html,
+        text,
+      });
 
-    console.log(`Email sent to: ${to.join(', ')}`);
-    return { sent: true };
+      console.log(`[Mail] Sent to: ${to.join(', ')}`);
+      return { sent: true };
+    } catch (err: any) {
+      if (err?.code === 'EDNS' || err?.code === 'ENOTFOUND') {
+        console.error(
+          `[Mail] Cannot reach SMTP server "${smtpHost}" — check SMTP_HOST in .env`,
+        );
+      } else if (err?.code === 'ECONNREFUSED') {
+        console.error(
+          `[Mail] SMTP connection refused at "${smtpHost}:${this.configService.get('SMTP_PORT')}" — check SMTP_PORT and firewall rules`,
+        );
+      } else {
+        console.error(`[Mail] Failed to send email: ${err?.message ?? err}`);
+      }
+      return { skipped: true };
+    }
   }
 }
