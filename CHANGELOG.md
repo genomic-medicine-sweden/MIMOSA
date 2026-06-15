@@ -36,6 +36,9 @@
 - Default and per-profile alert thresholds in notification settings, drawn from all profiles with uploaded data
 - Hospital data included in outbreak detection, notification records, and email tables
 - Analysis profile column added to outbreak email tables
+- Hospital and species (profile) watchlists in notification preferences — alerts are filtered to matching clusters only
+- Alerts now also fire when a watched hospital or county newly joins an existing cluster
+- `GET /api/outbreaks/all-hospitals` endpoint
 
 
 ### Changed
@@ -56,6 +59,9 @@
 - Pending notifications now scoped by type (`outbreak` or `growth`) so entries are tracked independently
 - `--profile` flag now case-insensitive; invalid input lists available profile
 - Alert threshold UI reorganised into a default row and a per-profile wrapping grid
+- Settings page reorganised into Notifications and General tabs
+- Filters reset when switching analysis profile
+- Improve SMTP error handling
 
 ### Fixed
 - Fixed region matching for UK map boundaries
@@ -65,6 +71,7 @@
 - Nomenclature file now scoped to the current run's samples only
 - Map filter excludes items with `Cluster_ID = "Unknown"`
 - Similarity errors now written to stderr instead of stdout
+- Analysis profile names now consistently italicised across dashboard and samples view
 
 
 ## [v0.5.0]
