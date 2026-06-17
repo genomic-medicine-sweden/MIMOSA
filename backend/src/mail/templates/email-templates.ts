@@ -346,6 +346,57 @@ export function buildWeeklyDigestText(
 
 //  Text versions (fallbacks)
 
+export function buildWatchlistAlertEmail(
+  outbreaks: OutbreakData[],
+  watchedLocations: string[],
+): string {
+  const locationStr = watchedLocations.join(', ');
+  return buildBaseEmail(
+    outbreaks,
+    'WATCHED LOCATION ALERT',
+    `New outbreak activity at ${locationStr}`,
+    'has been detected.',
+    `MIMOSA has identified <b>${outbreaks.length} cluster${outbreaks.length === 1 ? '' : 's'}</b> involving your watched location${watchedLocations.length === 1 ? '' : 's'} <b>${locationStr}</b>. The table below summarises current case counts.`,
+    buildOutbreakRows(outbreaks),
+  );
+}
+
+export function buildWatchlistAlertText(
+  outbreaks: OutbreakData[],
+  watchedLocations: string[],
+): string {
+  const locationStr = watchedLocations.join(', ');
+  const lines = [
+    'MIMOSA Watched Location Alert',
+    '',
+    `Outbreak activity at: ${locationStr}`,
+    '',
+  ];
+  outbreaks
+    .sort((a, b) => b.total - a.total)
+    .forEach((o) => lines.push(`• ${o.summary}`));
+  return lines.join('\n');
+}
+
+export function buildWatchlistDigestEmail(outbreaks: OutbreakData[]): string {
+  return buildBaseEmail(
+    outbreaks,
+    'WATCHED LOCATION ALERT',
+    'Outbreak activity at your watched locations',
+    'has been detected.',
+    `MIMOSA recorded activity in <b>${outbreaks.length} cluster${outbreaks.length === 1 ? '' : 's'}</b> involving your watched hospitals or counties. The table below summarises current case counts.`,
+    buildOutbreakRows(outbreaks),
+  );
+}
+
+export function buildWatchlistDigestText(outbreaks: OutbreakData[]): string {
+  const lines = ['MIMOSA Watched Location Alert', ''];
+  outbreaks
+    .sort((a, b) => b.total - a.total)
+    .forEach((o) => lines.push(`• ${o.summary}`));
+  return lines.join('\n');
+}
+
 export function buildAlertText(outbreaks: OutbreakData[]): string {
   if (!outbreaks.length) {
     return 'MIMOSA Outbreak Alert\n\nNo outbreaks detected.';

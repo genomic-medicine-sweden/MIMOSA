@@ -24,8 +24,12 @@ export class PendingNotification extends Document {
   @Prop()
   summary: string;
 
-  @Prop({ required: true, enum: ['outbreak', 'growth'], default: 'outbreak' })
-  type: 'outbreak' | 'growth';
+  @Prop({
+    required: true,
+    enum: ['outbreak', 'growth', 'watchlist'],
+    default: 'outbreak',
+  })
+  type: 'outbreak' | 'growth' | 'watchlist';
 
   @Prop({ required: false })
   previousTotal?: number;

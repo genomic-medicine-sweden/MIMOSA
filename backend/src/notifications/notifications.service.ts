@@ -15,6 +15,10 @@ import outbreakRules from '../config/outbreak-rules.json';
 import {
   buildAlertEmail,
   buildAlertText,
+  buildWatchlistAlertEmail,
+  buildWatchlistAlertText,
+  buildWatchlistDigestEmail,
+  buildWatchlistDigestText,
   buildDailyDigestEmail,
   buildDailyDigestText,
   buildWeeklyDigestEmail,
@@ -160,6 +164,11 @@ export class NotificationsService {
       const watchHospitals: string[] = Array.isArray((prefs as any).hospitals)
         ? [...(prefs as any).hospitals]
         : [];
+      const watchlistMode: 'filter' | 'additional' =
+        (prefs as any).watchlistMode ?? 'filter';
+      const hasWatchlist =
+        watchCounties.length > 0 || watchHospitals.length > 0;
+      const isAdditionalMode = watchlistMode === 'additional' && hasWatchlist;
 
       const userNewOutbreaks = newOutbreaks.filter((o) => {
         const detectionThreshold =
@@ -170,7 +179,7 @@ export class NotificationsService {
           alertThresholds['default'] ??
           detectionThreshold;
         if (o.total < alertThreshold) return false;
-        if (watchCounties.length > 0 || watchHospitals.length > 0) {
+        if (!isAdditionalMode && hasWatchlist) {
           const countyMatch =
             watchCounties.length > 0 &&
             o.counties.some((c) => watchCounties.includes(c));
@@ -190,7 +199,7 @@ export class NotificationsService {
         };
         for (const c of growthCandidates) {
           if (c.growth <= 0) continue;
-          if (watchCounties.length > 0 || watchHospitals.length > 0) {
+          if (!isAdditionalMode && hasWatchlist) {
             const countyMatch =
               watchCounties.length > 0 &&
               c.outbreak.counties.some((co) => watchCounties.includes(co));
@@ -228,8 +237,8 @@ export class NotificationsService {
       }
 
       const userLocationJoins: OutbreakData[] = [];
+      const matchedWatchedLocations = new Set<string>();
       for (const c of growthCandidates) {
-        // Hospital/county newly appearing in the cluster this run
         const countyJoin =
           watchCounties.length > 0 &&
           c.newCounties.some((co) => watchCounties.includes(co));
@@ -260,6 +269,23 @@ export class NotificationsService {
           detectionThreshold;
         if (c.outbreak.total < alertThreshold) continue;
 
+        if (countyJoin)
+          c.newCounties
+            .filter((co) => watchCounties.includes(co))
+            .forEach((co) => matchedWatchedLocations.add(co));
+        if (hospitalJoin)
+          c.newHospitals
+            .filter((h) => watchHospitals.includes(h))
+            .forEach((h) => matchedWatchedLocations.add(h));
+        if (countyActive)
+          c.outbreak.counties
+            .filter((co) => watchCounties.includes(co))
+            .forEach((co) => matchedWatchedLocations.add(co));
+        if (hospitalActive)
+          c.outbreak.hospitals
+            .filter((h) => watchHospitals.includes(h))
+            .forEach((h) => matchedWatchedLocations.add(h));
+
         userLocationJoins.push({
           clusterId: c.outbreak.clusterId,
           total: c.outbreak.total,
@@ -273,13 +299,33 @@ export class NotificationsService {
           clustersNotified.add(c.outbreak.clusterId);
         }
       }
+      const watchedLocationsList = [...matchedWatchedLocations];
 
       const userAlertOutbreaks = [...userNewOutbreaks, ...userLocationJoins];
 
       if (!userAlertOutbreaks.length && !userGrowth.length) continue;
 
       if (frequency === 'immediate') {
-        if (userAlertOutbreaks.length) {
+        if (isAdditionalMode) {
+          if (userNewOutbreaks.length) {
+            await this.mailService.sendMail(
+              [user.email],
+              'MIMOSA Outbreak Alert',
+              buildAlertEmail(userNewOutbreaks),
+              buildAlertText(userNewOutbreaks),
+            );
+            totalSent++;
+          }
+          if (userLocationJoins.length) {
+            await this.mailService.sendMail(
+              [user.email],
+              'MIMOSA Outbreak Alert — watched location involved',
+              buildWatchlistAlertEmail(userLocationJoins, watchedLocationsList),
+              buildWatchlistAlertText(userLocationJoins, watchedLocationsList),
+            );
+            totalSent++;
+          }
+        } else if (userAlertOutbreaks.length) {
           await this.mailService.sendMail(
             [user.email],
             'MIMOSA Outbreak Alert',
@@ -289,22 +335,59 @@ export class NotificationsService {
           totalSent++;
         }
       } else {
-        for (const o of userAlertOutbreaks) {
-          await this.pendingNotificationModel.findOneAndUpdate(
-            { userId: user._id, clusterId: o.clusterId, type: 'outbreak' },
-            {
-              $set: {
-                total: o.total,
-                counties: o.counties,
-                hospitals: o.hospitals ?? [],
-                analysis_profile: o.analysis_profile,
-                summary: o.summary,
-                type: 'outbreak',
-                createdAt: new Date(),
+        if (isAdditionalMode) {
+          for (const o of userNewOutbreaks) {
+            await this.pendingNotificationModel.findOneAndUpdate(
+              { userId: user._id, clusterId: o.clusterId, type: 'outbreak' },
+              {
+                $set: {
+                  total: o.total,
+                  counties: o.counties,
+                  hospitals: o.hospitals ?? [],
+                  analysis_profile: o.analysis_profile,
+                  summary: o.summary,
+                  type: 'outbreak',
+                  createdAt: new Date(),
+                },
               },
-            },
-            { upsert: true, new: true },
-          );
+              { upsert: true, new: true },
+            );
+          }
+          for (const o of userLocationJoins) {
+            await this.pendingNotificationModel.findOneAndUpdate(
+              { userId: user._id, clusterId: o.clusterId, type: 'watchlist' },
+              {
+                $set: {
+                  total: o.total,
+                  counties: o.counties,
+                  hospitals: o.hospitals ?? [],
+                  analysis_profile: o.analysis_profile,
+                  summary: o.summary,
+                  type: 'watchlist',
+                  createdAt: new Date(),
+                },
+              },
+              { upsert: true, new: true },
+            );
+          }
+        } else {
+          for (const o of userAlertOutbreaks) {
+            await this.pendingNotificationModel.findOneAndUpdate(
+              { userId: user._id, clusterId: o.clusterId, type: 'outbreak' },
+              {
+                $set: {
+                  total: o.total,
+                  counties: o.counties,
+                  hospitals: o.hospitals ?? [],
+                  analysis_profile: o.analysis_profile,
+                  summary: o.summary,
+                  type: 'outbreak',
+                  createdAt: new Date(),
+                },
+              },
+              { upsert: true, new: true },
+            );
+          }
         }
       }
 
@@ -392,7 +475,7 @@ export class NotificationsService {
       const wantsGrowth =
         prefs.growthAlerts && prefs.growthFrequency === 'daily';
 
-      const [rawOutbreaks, rawGrowth] = await Promise.all([
+      const [rawOutbreaks, rawGrowth, rawWatchlist] = await Promise.all([
         wantsOutbreaks
           ? this.pendingNotificationModel.find({
               userId: user._id,
@@ -405,46 +488,78 @@ export class NotificationsService {
               type: 'growth',
             })
           : Promise.resolve([]),
+        wantsOutbreaks
+          ? this.pendingNotificationModel.find({
+              userId: user._id,
+              type: 'watchlist',
+            })
+          : Promise.resolve([]),
       ]);
 
-      if (!rawOutbreaks.length && !rawGrowth.length) continue;
+      if (!rawOutbreaks.length && !rawGrowth.length && !rawWatchlist.length)
+        continue;
 
-      const outbreakData: OutbreakData[] = rawOutbreaks.map((p) => ({
-        clusterId: p.clusterId,
-        total: p.total,
-        counties: p.counties,
-        hospitals: p.hospitals ?? [],
-        analysis_profile: p.analysis_profile,
-        summary: p.summary || '',
-      }));
+      if (rawOutbreaks.length || rawGrowth.length) {
+        const outbreakData: OutbreakData[] = rawOutbreaks.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          analysis_profile: p.analysis_profile,
+          summary: p.summary || '',
+        }));
 
-      const growthData: GrowthData[] = rawGrowth.map((p) => ({
-        clusterId: p.clusterId,
-        total: p.total,
-        previousTotal: p.previousTotal ?? p.total,
-        counties: p.counties,
-        hospitals: p.hospitals ?? [],
-        summary: p.summary || '',
-        analysis_profile: p.analysis_profile,
-      }));
+        const growthData: GrowthData[] = rawGrowth.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          previousTotal: p.previousTotal ?? p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          summary: p.summary || '',
+          analysis_profile: p.analysis_profile,
+        }));
 
-      await this.mailService.sendMail(
-        [user.email],
-        'MIMOSA Daily Outbreak Summary',
-        buildDailyDigestEmail(outbreakData, growthData),
-        buildDailyDigestText(outbreakData, growthData),
-      );
+        await this.mailService.sendMail(
+          [user.email],
+          'MIMOSA Daily Outbreak Summary',
+          buildDailyDigestEmail(outbreakData, growthData),
+          buildDailyDigestText(outbreakData, growthData),
+        );
 
-      if (rawOutbreaks.length)
+        if (rawOutbreaks.length)
+          await this.pendingNotificationModel.deleteMany({
+            userId: user._id,
+            type: 'outbreak',
+          });
+        if (rawGrowth.length)
+          await this.pendingNotificationModel.deleteMany({
+            userId: user._id,
+            type: 'growth',
+          });
+      }
+
+      if (rawWatchlist.length) {
+        const watchlistData: OutbreakData[] = rawWatchlist.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          analysis_profile: p.analysis_profile,
+          summary: p.summary || '',
+        }));
+
+        await this.mailService.sendMail(
+          [user.email],
+          'MIMOSA Daily Outbreak Summary — watched locations',
+          buildWatchlistDigestEmail(watchlistData),
+          buildWatchlistDigestText(watchlistData),
+        );
+
         await this.pendingNotificationModel.deleteMany({
           userId: user._id,
-          type: 'outbreak',
+          type: 'watchlist',
         });
-      if (rawGrowth.length)
-        await this.pendingNotificationModel.deleteMany({
-          userId: user._id,
-          type: 'growth',
-        });
+      }
     }
 
     console.log('[Notifications] Daily notifications sent');
@@ -472,7 +587,7 @@ export class NotificationsService {
       const wantsGrowth =
         prefs.growthAlerts && prefs.growthFrequency === 'weekly';
 
-      const [rawOutbreaks, rawGrowth] = await Promise.all([
+      const [rawOutbreaks, rawGrowth, rawWatchlist] = await Promise.all([
         wantsOutbreaks
           ? this.pendingNotificationModel.find({
               userId: user._id,
@@ -485,46 +600,78 @@ export class NotificationsService {
               type: 'growth',
             })
           : Promise.resolve([]),
+        wantsOutbreaks
+          ? this.pendingNotificationModel.find({
+              userId: user._id,
+              type: 'watchlist',
+            })
+          : Promise.resolve([]),
       ]);
 
-      if (!rawOutbreaks.length && !rawGrowth.length) continue;
+      if (!rawOutbreaks.length && !rawGrowth.length && !rawWatchlist.length)
+        continue;
 
-      const outbreakData: OutbreakData[] = rawOutbreaks.map((p) => ({
-        clusterId: p.clusterId,
-        total: p.total,
-        counties: p.counties,
-        hospitals: p.hospitals ?? [],
-        analysis_profile: p.analysis_profile,
-        summary: p.summary || '',
-      }));
+      if (rawOutbreaks.length || rawGrowth.length) {
+        const outbreakData: OutbreakData[] = rawOutbreaks.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          analysis_profile: p.analysis_profile,
+          summary: p.summary || '',
+        }));
 
-      const growthData: GrowthData[] = rawGrowth.map((p) => ({
-        clusterId: p.clusterId,
-        total: p.total,
-        previousTotal: p.previousTotal ?? p.total,
-        counties: p.counties,
-        hospitals: p.hospitals ?? [],
-        summary: p.summary || '',
-        analysis_profile: p.analysis_profile,
-      }));
+        const growthData: GrowthData[] = rawGrowth.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          previousTotal: p.previousTotal ?? p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          summary: p.summary || '',
+          analysis_profile: p.analysis_profile,
+        }));
 
-      await this.mailService.sendMail(
-        [user.email],
-        'MIMOSA Weekly Outbreak Summary',
-        buildWeeklyDigestEmail(outbreakData, growthData),
-        buildWeeklyDigestText(outbreakData, growthData),
-      );
+        await this.mailService.sendMail(
+          [user.email],
+          'MIMOSA Weekly Outbreak Summary',
+          buildWeeklyDigestEmail(outbreakData, growthData),
+          buildWeeklyDigestText(outbreakData, growthData),
+        );
 
-      if (rawOutbreaks.length)
+        if (rawOutbreaks.length)
+          await this.pendingNotificationModel.deleteMany({
+            userId: user._id,
+            type: 'outbreak',
+          });
+        if (rawGrowth.length)
+          await this.pendingNotificationModel.deleteMany({
+            userId: user._id,
+            type: 'growth',
+          });
+      }
+
+      if (rawWatchlist.length) {
+        const watchlistData: OutbreakData[] = rawWatchlist.map((p) => ({
+          clusterId: p.clusterId,
+          total: p.total,
+          counties: p.counties,
+          hospitals: p.hospitals ?? [],
+          analysis_profile: p.analysis_profile,
+          summary: p.summary || '',
+        }));
+
+        await this.mailService.sendMail(
+          [user.email],
+          'MIMOSA Weekly Outbreak Summary — watched locations',
+          buildWatchlistDigestEmail(watchlistData),
+          buildWatchlistDigestText(watchlistData),
+        );
+
         await this.pendingNotificationModel.deleteMany({
           userId: user._id,
-          type: 'outbreak',
+          type: 'watchlist',
         });
-      if (rawGrowth.length)
-        await this.pendingNotificationModel.deleteMany({
-          userId: user._id,
-          type: 'growth',
-        });
+      }
     }
 
     console.log('[Notifications] Weekly notifications sent');
