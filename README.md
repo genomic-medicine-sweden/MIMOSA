@@ -97,6 +97,7 @@ Once notifications are enabled, each user can configure their preferences from t
 - **Outbreak Alerts** — enable or disable email notifications entirely
 - **Frequency** — receive alerts immediately, or as a daily (08:00) or weekly (Monday 08:00) digest
 - **Alert Threshold** — per-profile minimum case count required to notify that user
+- **Pipeline Failures** *(admin only)* — receive an email when the automation pipeline encounters errors. Alerts are broadcast to all admin users who have this option enabled. For manual runs, use the `--email` flag instead.
 
 To verify that your SMTP configuration is working, send a test email via `GET /api/mail/test`.
 
