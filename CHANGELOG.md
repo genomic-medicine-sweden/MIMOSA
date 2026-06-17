@@ -39,7 +39,8 @@
 - Hospital and species (profile) watchlists in notification preferences — alerts are filtered to matching clusters only
 - Alerts now also fire when a watched hospital or county newly joins an existing cluster
 - `GET /api/outbreaks/all-hospitals` endpoint
-
+- Watchlist mode toggle — users with a hospital or county watchlist can choose between filtering alerts to watched locations only, or receiving all global alerts plus a separate watchlist-specific alert
+- Dedicated watchlist email templates and pending notification type for digest dispatch
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
