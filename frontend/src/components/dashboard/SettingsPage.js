@@ -17,8 +17,7 @@ import useOutbreakRules from "@/hooks/useOutbreakRules";
 import { apiFetch } from "@/utils/apiFetch";
 
 export default function SettingsPage() {
-  const { boundariesData, regionNameKey, hospitalCoordinates } =
-    useMapConfigContext();
+  const { boundariesData, regionNameKey, hospitalCoordinates } = useMapConfigContext();
   const [county, setCounty] = useState(null);
   const [userInfo, setUserInfo] = useState({
     name: "Unknown",
@@ -46,6 +45,7 @@ export default function SettingsPage() {
     growthAlerts: false,
     growthThreshold: { type: "absolute", value: 5 },
     growthFrequency: "daily",
+    watchlistMode: "filter",
   });
   const [showInfo, setShowInfo] = useState(false);
   const [activeProfiles, setActiveProfiles] = useState([]);
@@ -111,13 +111,17 @@ export default function SettingsPage() {
             profiles: parsed.notificationPreferences.profiles ?? [],
             pipelineFailureAlerts:
               parsed.notificationPreferences.pipelineFailureAlerts ?? false,
-            growthAlerts: parsed.notificationPreferences.growthAlerts ?? false,
-            growthThreshold: parsed.notificationPreferences.growthThreshold ?? {
-              type: "absolute",
-              value: 5,
-            },
+            growthAlerts:
+              parsed.notificationPreferences.growthAlerts ?? false,
+            growthThreshold:
+              parsed.notificationPreferences.growthThreshold ?? {
+                type: "absolute",
+                value: 5,
+              },
             growthFrequency:
               parsed.notificationPreferences.growthFrequency ?? "daily",
+            watchlistMode:
+              parsed.notificationPreferences.watchlistMode ?? "filter",
           });
         }
       } catch (err) {
@@ -127,9 +131,7 @@ export default function SettingsPage() {
 
     apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/outbreaks/all-profiles`)
       .then((res) => res?.json())
-      .then((profiles) => {
-        if (Array.isArray(profiles)) setActiveProfiles(profiles);
-      })
+      .then((profiles) => { if (Array.isArray(profiles)) setActiveProfiles(profiles); })
       .catch(() => {});
 
     apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`)
@@ -147,8 +149,7 @@ export default function SettingsPage() {
         if (fresh.homeCounty != null) setCounty(fresh.homeCounty);
         if (fresh.notificationPreferences) {
           setNotificationPreferences({
-            outbreakAlerts:
-              fresh.notificationPreferences.outbreakAlerts ?? false,
+            outbreakAlerts: fresh.notificationPreferences.outbreakAlerts ?? false,
             frequency: fresh.notificationPreferences.frequency ?? "daily",
             alertThreshold: fresh.notificationPreferences.alertThreshold ?? {},
             counties: fresh.notificationPreferences.counties ?? [],
@@ -157,12 +158,15 @@ export default function SettingsPage() {
             pipelineFailureAlerts:
               fresh.notificationPreferences.pipelineFailureAlerts ?? false,
             growthAlerts: fresh.notificationPreferences.growthAlerts ?? false,
-            growthThreshold: fresh.notificationPreferences.growthThreshold ?? {
-              type: "absolute",
-              value: 5,
-            },
+            growthThreshold:
+              fresh.notificationPreferences.growthThreshold ?? {
+                type: "absolute",
+                value: 5,
+              },
             growthFrequency:
               fresh.notificationPreferences.growthFrequency ?? "daily",
+            watchlistMode:
+              fresh.notificationPreferences.watchlistMode ?? "filter",
           });
         }
       })
@@ -324,10 +328,7 @@ export default function SettingsPage() {
               Notifications
               <i
                 className="pi pi-info-circle text-500 hover:text-700 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowInfo(true);
-                }}
+                onClick={(e) => { e.stopPropagation(); setShowInfo(true); }}
               />
             </span>
           }
@@ -347,9 +348,7 @@ export default function SettingsPage() {
               <Dropdown
                 value={notificationPreferences.frequency}
                 options={frequencyOptions}
-                onChange={(e) =>
-                  updateNotificationPreference("frequency", e.value)
-                }
+                onChange={(e) => updateNotificationPreference("frequency", e.value)}
                 disabled={!notificationPreferences.outbreakAlerts}
                 style={{ width: "12rem" }}
               />
@@ -362,14 +361,9 @@ export default function SettingsPage() {
                   .filter((e) => e.isDefault)
                   .map(({ key, threshold }) => (
                     <div className="flex align-items-center gap-3" key={key}>
-                      <label className="text-color-secondary w-10rem">
-                        Default
-                      </label>
+                      <label className="text-color-secondary w-10rem">Default</label>
                       <Dropdown
-                        value={
-                          notificationPreferences.alertThreshold?.[key] ??
-                          threshold
-                        }
+                        value={notificationPreferences.alertThreshold?.[key] ?? threshold}
                         options={getClusterSizeOptions(threshold)}
                         onChange={(e) =>
                           updateNotificationPreference("alertThreshold", {
@@ -393,10 +387,7 @@ export default function SettingsPage() {
                             <i>{key.replace(/_/g, " ")}</i>
                           </label>
                           <Dropdown
-                            value={
-                              notificationPreferences.alertThreshold?.[key] ??
-                              threshold
-                            }
+                            value={notificationPreferences.alertThreshold?.[key] ?? threshold}
                             options={getClusterSizeOptions(threshold)}
                             onChange={(e) =>
                               updateNotificationPreference("alertThreshold", {
@@ -421,13 +412,9 @@ export default function SettingsPage() {
               </span>
               <MultiSelect
                 value={notificationPreferences.profiles}
-                options={allProfileKeys.map((p) => ({
-                  label: p.replace(/_/g, " "),
-                  value: p,
-                }))}
+                options={allProfileKeys.map((p) => ({ label: p.replace(/_/g, " "), value: p }))}
                 onChange={(e) => {
-                  const val =
-                    e.value.length === allProfileKeys.length ? [] : e.value;
+                  const val = e.value.length === allProfileKeys.length ? [] : e.value;
                   updateNotificationPreference("profiles", val);
                 }}
                 placeholder="All species"
@@ -446,9 +433,7 @@ export default function SettingsPage() {
               <MultiSelect
                 value={notificationPreferences.counties}
                 options={counties}
-                onChange={(e) =>
-                  updateNotificationPreference("counties", e.value)
-                }
+                onChange={(e) => updateNotificationPreference("counties", e.value)}
                 placeholder="All counties"
                 disabled={!notificationPreferences.outbreakAlerts}
                 display="chip"
@@ -465,9 +450,7 @@ export default function SettingsPage() {
               <MultiSelect
                 value={notificationPreferences.hospitals}
                 options={allHospitals.map((h) => ({ label: h, value: h }))}
-                onChange={(e) =>
-                  updateNotificationPreference("hospitals", e.value)
-                }
+                onChange={(e) => updateNotificationPreference("hospitals", e.value)}
                 placeholder="All hospitals"
                 disabled={!notificationPreferences.outbreakAlerts}
                 display="chip"
@@ -475,6 +458,25 @@ export default function SettingsPage() {
                 style={{ width: "100%" }}
               />
             </div>
+
+            {(notificationPreferences.counties.length > 0 || notificationPreferences.hospitals.length > 0) && notificationPreferences.outbreakAlerts && (
+              <div className="flex flex-column gap-1">
+                <div className="flex align-items-center gap-3">
+                  <InputSwitch
+                    checked={notificationPreferences.watchlistMode === "additional"}
+                    onChange={(e) =>
+                      updateNotificationPreference("watchlistMode", e.value ? "additional" : "filter")
+                    }
+                  />
+                  <span className="font-medium">Also receive all global outbreak alerts</span>
+                </div>
+                <span className="text-sm text-color-secondary" style={{ paddingLeft: "3.5rem" }}>
+                  {notificationPreferences.watchlistMode === "additional"
+                    ? "You receive alerts for all outbreaks globally, plus an extra alert when a watched location is specifically involved."
+                    : "You only receive alerts for outbreaks involving your watched locations. Enable this to also receive all global alerts."}
+                </span>
+              </div>
+            )}
 
             <div className="flex align-items-center gap-3 mt-4">
               <span className="font-medium w-10rem">Growth Alerts</span>
@@ -515,13 +517,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex align-items-center gap-3">
                   <span className="font-medium w-10rem">Growth value</span>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <InputNumber
                       value={notificationPreferences.growthThreshold.value}
                       onValueChange={(e) =>
@@ -531,20 +527,11 @@ export default function SettingsPage() {
                         })
                       }
                       min={1}
-                      max={
-                        notificationPreferences.growthThreshold.type ===
-                        "percent"
-                          ? 1000
-                          : 10000
-                      }
+                      max={notificationPreferences.growthThreshold.type === "percent" ? 1000 : 10000}
                       inputStyle={{ width: "6rem" }}
                     />
                     <span className="text-500 text-sm">
-                      {
-                        growthValueLabel[
-                          notificationPreferences.growthThreshold.type
-                        ]
-                      }
+                      {growthValueLabel[notificationPreferences.growthThreshold.type]}
                     </span>
                   </div>
                 </div>
@@ -557,10 +544,7 @@ export default function SettingsPage() {
                 <InputSwitch
                   checked={notificationPreferences.pipelineFailureAlerts}
                   onChange={(e) =>
-                    updateNotificationPreference(
-                      "pipelineFailureAlerts",
-                      e.value,
-                    )
+                    updateNotificationPreference("pipelineFailureAlerts", e.value)
                   }
                 />
               </div>
@@ -635,6 +619,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </TabPanel>
+
       </TabView>
 
       <NotificationInfoDialog
@@ -645,3 +630,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
