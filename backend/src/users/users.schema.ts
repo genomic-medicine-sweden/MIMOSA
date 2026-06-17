@@ -50,6 +50,11 @@ export class User extends Document {
         enum: ['daily', 'weekly'],
         default: 'daily',
       },
+      watchlistMode: {
+        type: String,
+        enum: ['filter', 'additional'],
+        default: 'filter',
+      },
     },
     default: {},
   })
@@ -64,6 +69,7 @@ export class User extends Document {
     growthAlerts: boolean;
     growthThreshold: { type: 'absolute' | 'total' | 'percent'; value: number };
     growthFrequency: 'daily' | 'weekly';
+    watchlistMode: 'filter' | 'additional';
   };
 
   @Prop({ default: Date.now })

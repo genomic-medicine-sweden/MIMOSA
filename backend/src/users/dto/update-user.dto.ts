@@ -68,6 +68,10 @@ class NotificationPreferencesDto {
   @IsOptional()
   @IsEnum(['daily', 'weekly'])
   growthFrequency?: 'daily' | 'weekly';
+
+  @IsOptional()
+  @IsEnum(['filter', 'additional'])
+  watchlistMode?: 'filter' | 'additional';
 }
 export class UpdateUserFieldsDto {
   @ApiPropertyOptional()
