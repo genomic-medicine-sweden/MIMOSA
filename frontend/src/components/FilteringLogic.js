@@ -24,6 +24,9 @@ const FilteringLogic = ({
   setDateRange,
   analysisProfile,
   setAnalysisProfile,
+  showClusters,
+  showOutbreaks,
+  outbreaks,
 }) => {
   const { postcodePrefix = "" } = useMapConfigContext() ?? {};
 
@@ -69,7 +72,6 @@ const FilteringLogic = ({
       setCountyFilter([]);
     }
   }, [analysisProfileFilter]);
-
   useEffect(() => {
     if (!Array.isArray(data) || data.length === 0) return;
 
@@ -142,13 +144,26 @@ const FilteringLogic = ({
     setPostalTowns(postalTowns);
     setCounties(counties);
 
+    const outbreakClusterIds = new Set(
+      (outbreaks ?? []).map((o) => o.clusterId),
+    );
+
     const filtered = profileFilteredData.filter((item) => {
       const itemDate = new Date(item.properties.Date);
       itemDate.setHours(0, 0, 0, 0);
 
       const postcode = item.properties.PostCode;
+      const clusterId = item.properties.Cluster_ID;
 
-      if (item.properties.Cluster_ID === "Unknown") return false;
+      const isSingleton =
+        !clusterId ||
+        clusterId === "Unknown" ||
+        String(clusterId).toLowerCase().includes("singleton");
+
+      if (showClusters || showOutbreaks) {
+        if (isSingleton) return false;
+      }
+      if (showOutbreaks && !outbreakClusterIds.has(clusterId)) return false;
 
       if (
         Cluster_IDFilter.length > 0 &&
@@ -220,6 +235,9 @@ const FilteringLogic = ({
     Cluster_IDFilter,
     dateRange,
     setFilteredData,
+    showClusters,
+    showOutbreaks,
+    outbreaks,
   ]);
 
   const resetFilters = () => {

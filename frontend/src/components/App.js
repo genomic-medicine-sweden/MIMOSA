@@ -45,7 +45,6 @@ const App = ({
     return data.filter((item) => {
       const { PostCode, Hospital, manualCoordinates } = item.properties;
 
-      // No postcode and no manual coords — can't confirm foreign, keep it
       if (!PostCode?.trim() && manualCoordinates?.lat == null) return true;
 
       if (resolvePostcodeKey(PostCode)) return true;
@@ -141,6 +140,8 @@ const App = ({
   }, [data, clusteringByProfile]);
 
   const [shapeByPlatform, setShapeByPlatform] = useState(false);
+  const [showClusters, setShowClusters] = useState(false);
+  const [showOutbreaks, setShowOutbreaks] = useState(false);
 
   const mainContentRef = useRef(null);
   const infoRef = useRef({ countyCounts: {} });
@@ -206,6 +207,9 @@ const App = ({
             setDateRange={setDateRange}
             analysisProfile={analysisProfile}
             setAnalysisProfile={setAnalysisProfile}
+            showClusters={showClusters}
+            showOutbreaks={showOutbreaks}
+            outbreaks={outbreaks}
           />
         </div>
       </nav>
@@ -225,6 +229,10 @@ const App = ({
           outbreaks={outbreaks}
           shapeByPlatform={shapeByPlatform}
           setShapeByPlatform={setShapeByPlatform}
+          showClusters={showClusters}
+          setShowClusters={setShowClusters}
+          showOutbreaks={showOutbreaks}
+          setShowOutbreaks={setShowOutbreaks}
         />
       </aside>
 

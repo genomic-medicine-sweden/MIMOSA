@@ -4,6 +4,7 @@ import { SelectButton } from "primereact/selectbutton";
 import { Dropdown } from "primereact/dropdown";
 import { Slider } from "primereact/slider";
 import { InputSwitch } from "primereact/inputswitch";
+import { Checkbox } from "primereact/checkbox";
 import generateLegendItems, {
   generateShapeLegendItems,
 } from "@/components/Legend";
@@ -26,6 +27,10 @@ const SidePanel = ({
   outbreaks,
   shapeByPlatform,
   setShapeByPlatform,
+  showClusters,
+  setShowClusters,
+  showOutbreaks,
+  setShowOutbreaks,
 }) => {
   const { boundariesData, regionNameKey } = useMapConfigContext();
   const [selectedColor, setSelectedColor] = useState("Green");
@@ -139,6 +144,26 @@ const SidePanel = ({
         return (
           <div className="panel-content">
             <h3>Map Settings</h3>
+
+            <p>Show only</p>
+            <div className="flex flex-column gap-2">
+              <div className="flex align-items-center gap-2">
+                <Checkbox
+                  inputId="cb-clusters"
+                  checked={showClusters}
+                  onChange={(e) => setShowClusters(e.checked)}
+                />
+                <label htmlFor="cb-clusters">Clusters</label>
+              </div>
+              <div className="flex align-items-center gap-2">
+                <Checkbox
+                  inputId="cb-outbreaks"
+                  checked={showOutbreaks}
+                  onChange={(e) => setShowOutbreaks(e.checked)}
+                />
+                <label htmlFor="cb-outbreaks">Outbreaks</label>
+              </div>
+            </div>
 
             <p>Map Color</p>
             <Dropdown
