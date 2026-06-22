@@ -14,6 +14,12 @@ export class OutbreaksController {
     return this.outbreaksService.getAllProfiles();
   }
 
+  @Get('all-hospitals')
+  @ApiOperation({ summary: 'Get all hospitals that have uploaded data' })
+  async getAllHospitals(): Promise<string[]> {
+    return this.outbreaksService.getAllHospitals();
+  }
+
   @Get('active-profiles')
   @ApiOperation({
     summary: 'Get profiles that currently have active outbreaks',
