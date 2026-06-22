@@ -34,6 +34,23 @@ export default function NotificationInfoDialog({ visible, onHide, isAdmin }) {
             </span>
           </li>
           <li className="mt-2">
+            <b>County watchlist:</b> Restrict alerts to clusters that include at
+            least one of the selected counties. Leave empty to receive alerts
+            for all counties.
+          </li>
+          <li className="mt-2">
+            <b>Hospital watchlist:</b> Restrict alerts to clusters linked to at
+            least one of the selected hospitals. Leave empty to receive alerts
+            for all hospitals.
+            <br />
+            <span className="pl-3 mt-1 block text-color-secondary">
+              <i>
+                When both county and hospital watchlists are set, an alert is
+                sent if either a county <u>or</u> a hospital matches.
+              </i>
+            </span>
+          </li>
+          <li className="mt-2">
             <b>Growth Alerts:</b> Opt-in notifications for existing clusters
             that grow after they were first detected. These are always delivered
             as a digest on the schedule set by <i>Growth frequency</i> —
