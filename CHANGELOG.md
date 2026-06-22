@@ -41,6 +41,10 @@
 - `GET /api/outbreaks/all-hospitals` endpoint
 - Watchlist mode toggle — users with a hospital or county watchlist can choose between filtering alerts to watched locations only, or receiving all global alerts plus a separate watchlist-specific alert
 - Dedicated watchlist email templates and pending notification type for digest dispatch
+- Cluster and outbreak visibility filters in the map side panel — show only clustered samples or only samples belonging to active outbreaks
+- `GET /api/outbreaks/all-hospitals` endpoint now exposed via the controller
+- County and hospital watchlist behaviour documented in the notification info dialog
+
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -63,6 +67,8 @@
 - Settings page reorganised into Notifications and General tabs
 - Filters reset when switching analysis profile
 - Improve SMTP error handling
+- Hospital list in notification settings now fetched from the API rather than relying on the map config
+
 
 ### Fixed
 - Fixed region matching for UK map boundaries
