@@ -40,6 +40,10 @@ const TimelinePage = dynamic(
   () => import("@/components/dashboard/TimelinePage"),
   { ssr: false },
 );
+const ReportsPage = dynamic(
+  () => import("@/components/dashboard/ReportsPage"),
+  { ssr: false },
+);
 
 export default function DashboardPage() {
   const { viewMode } = useViewMode();
@@ -55,6 +59,7 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.MATRIX) return <MatrixPage />;
   if (viewMode === ViewModes.TREE) return <TreePage />;
   if (viewMode === ViewModes.TIMELINE) return <TimelinePage />;
+  if (viewMode === ViewModes.REPORTS) return <ReportsPage />;
 
   return <DashboardOverview data={data} logs={logs} />;
 }
