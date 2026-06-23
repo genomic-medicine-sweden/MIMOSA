@@ -44,6 +44,10 @@
 - Cluster and outbreak visibility filters in the map side panel — show only clustered samples or only samples belonging to active outbreaks
 - `GET /api/outbreaks/all-hospitals` endpoint now exposed via the controller
 - County and hospital watchlist behaviour documented in the notification info dialog
+- Info dialog on the tree page documenting view modes, layouts, and navigation
+- PNG export support for the tree page
+- PDF report generation — export active outbreaks and cluster summaries filtered by profile, date range, hospital, and county
+- `firstDetectedAt` and `lastGrowthAt` fields on outbreak API responses
 
 
 ### Changed
