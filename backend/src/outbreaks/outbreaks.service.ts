@@ -21,6 +21,8 @@ type OutbreakResult = {
   summary: string;
   isIdle: boolean;
   daysSinceLastGrowth: number | null;
+  firstDetectedAt: Date | null;
+  lastGrowthAt: Date | null;
 };
 
 type ClusterEntry = {
@@ -270,43 +272,66 @@ export class OutbreaksService implements OnModuleInit {
   }
 
   private async annotateIdleStatus(
-    outbreaks: Omit<OutbreakResult, 'isIdle' | 'daysSinceLastGrowth'>[],
+    outbreaks: Omit<
+      OutbreakResult,
+      'isIdle' | 'daysSinceLastGrowth' | 'firstDetectedAt' | 'lastGrowthAt'
+    >[],
     analysis_profile: string,
   ): Promise<OutbreakResult[]> {
     if (!outbreaks.length) return [];
 
     const rules = this.getRules(analysis_profile);
 
-    if (rules.alertVisibilityDays === null) {
-      return outbreaks.map((o) => ({
-        ...o,
-        isIdle: false,
-        daysSinceLastGrowth: null,
-      }));
-    }
-
     const notifications = await this.notificationModel.find({
       clusterId: { $in: outbreaks.map((o) => o.clusterId) },
       analysis_profile,
     });
 
-    const notifMap = new Map(notifications.map((n) => [n.clusterId, n]));
+    const notifMap = new Map<string, Notification>(
+      notifications.map((n: Notification) => [n.clusterId, n]),
+    );
+
+    if (rules.alertVisibilityDays === null) {
+      return outbreaks.map((o) => {
+        const notif = notifMap.get(o.clusterId);
+        return {
+          ...o,
+          isIdle: false,
+          daysSinceLastGrowth: null,
+          firstDetectedAt: notif?.sentAt ?? null,
+          lastGrowthAt: notif?.lastGrowthAt ?? null,
+        };
+      });
+    }
+
     const now = new Date();
 
     return outbreaks.map((o) => {
       const notif = notifMap.get(o.clusterId);
-      const lastGrowthAt = notif?.lastGrowthAt ?? notif?.sentAt ?? null;
+      const growthAt = notif?.lastGrowthAt ?? notif?.sentAt ?? null;
 
-      if (!lastGrowthAt) {
-        return { ...o, isIdle: false, daysSinceLastGrowth: null };
+      if (!growthAt) {
+        return {
+          ...o,
+          isIdle: false,
+          daysSinceLastGrowth: null,
+          firstDetectedAt: notif?.sentAt ?? null,
+          lastGrowthAt: notif?.lastGrowthAt ?? null,
+        };
       }
 
       const daysSinceLastGrowth = Math.floor(
-        (now.getTime() - lastGrowthAt.getTime()) / (24 * 60 * 60 * 1000),
+        (now.getTime() - growthAt.getTime()) / (24 * 60 * 60 * 1000),
       );
       const isIdle = daysSinceLastGrowth >= rules.alertVisibilityDays!;
 
-      return { ...o, isIdle, daysSinceLastGrowth };
+      return {
+        ...o,
+        isIdle,
+        daysSinceLastGrowth,
+        firstDetectedAt: notif?.sentAt ?? null,
+        lastGrowthAt: notif?.lastGrowthAt ?? null,
+      };
     });
   }
 

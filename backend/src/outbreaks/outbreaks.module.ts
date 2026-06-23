@@ -28,4 +28,3 @@ import { MapConfigModule } from '../map-config/map-config.module';
   exports: [OutbreaksService],
 })
 export class OutbreaksModule {}
-
