@@ -29,6 +29,8 @@ import {
 } from "./tree/colorByUtils";
 import TreeLegend from "./tree/TreeLegend";
 import ClusterPanel from "./tree/clusterPanel";
+import TreeInfoDialog from "./Info/TreeInfoDialog";
+import { exportElementAsPng } from "@/utils/exportImage";
 
 const DEFAULT_WIDTH = 900;
 const DEFAULT_HEIGHT = 800;
@@ -48,6 +50,7 @@ export default function TreePage() {
   const [colorBy, setColorBy] = useState("None");
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [clusterPalette, setClusterPalette] = useState(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   const { data } = useAppData();
   const analysisProfiles = useAnalysisProfiles(data);
@@ -216,6 +219,15 @@ export default function TreePage() {
       className={styles.treeContainer}
       style={{ display: "flex", flexDirection: "column", height: "100%" }}
     >
+      <div className="flex align-items-center gap-2 px-2 pt-2 mb-3">
+        <h2 className="text-xl font-semibold m-0">Tree</h2>
+        <i
+          className="pi pi-info-circle cursor-pointer text-500 hover:text-700"
+          style={{ fontSize: "1.2rem" }}
+          onClick={() => setShowInfo(true)}
+        />
+      </div>
+
       <div
         style={{
           display: "flex",
@@ -325,6 +337,20 @@ export default function TreePage() {
             outlined
             severity="secondary"
           />
+
+          <div style={{ width: "1px", height: "28px", background: "#ddd" }} />
+
+          <Button
+            icon="pi pi-download"
+            onClick={() =>
+              exportElementAsPng(containerRef.current, "MIMOSA_tree")
+            }
+            outlined
+            severity="secondary"
+            disabled={!newick || isLoading}
+            tooltip="Export PNG"
+            tooltipOptions={{ position: "bottom" }}
+          />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -370,6 +396,8 @@ export default function TreePage() {
           No tree data found for this profile.
         </div>
       )}
+
+      <TreeInfoDialog visible={showInfo} onHide={() => setShowInfo(false)} />
 
       <div
         style={{
