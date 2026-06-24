@@ -124,8 +124,8 @@ export default function DashboardOverview({ data }) {
                     {[
                       { label: "Cluster", align: "left" },
                       { label: "Profile", align: "left" },
-                      { label: "Incomplete", align: "right" },
-                      { label: "Total", align: "right" },
+                      { label: "Incomplete", align: "center" },
+                      { label: "Total", align: "center" },
                     ].map(({ label, align }) => (
                       <th
                         key={label}
@@ -162,16 +162,16 @@ export default function DashboardOverview({ data }) {
                       </td>
                       <td
                         style={{
-                          padding: "0.45rem 0.75rem",
-                          textAlign: "right",
+                          padding: "0.45rem 0.5rem 0.45rem 0",
+                          textAlign: "center",
                         }}
                       >
                         <span style={styles.badgeDanger}>{row.incomplete}</span>
                       </td>
                       <td
                         style={{
-                          padding: "0.45rem 0",
-                          textAlign: "right",
+                          padding: "0.45rem 0.5rem",
+                          textAlign: "center",
                           color: "#9ca3af",
                         }}
                       >
@@ -254,7 +254,7 @@ function NotificationsCard() {
                 </td>
                 <td
                   style={{
-                    padding: "0.45rem 0.5rem",
+                    padding: "0.45rem 0.5rem 0.45rem 0",
                     color: "#6b7280",
                     fontSize: "12px",
                   }}
@@ -263,7 +263,7 @@ function NotificationsCard() {
                 </td>
                 <td
                   style={{
-                    padding: "0.45rem 0",
+                    padding: "0.45rem 0.5rem 0.45rem 0",
                     textAlign: "right",
                     color: "#9ca3af",
                     fontSize: "12px",
@@ -347,7 +347,7 @@ const styles = {
   },
   empty: { fontSize: "13px", color: "#9ca3af", fontStyle: "italic", margin: 0 },
   th: {
-    padding: "0 0.5rem 0.5rem 0",
+    padding: "0.45rem 0.5rem 0.45rem 0",
     fontSize: "11px",
     fontWeight: 500,
     color: "#9ca3af",
