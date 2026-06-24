@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { FloatLabel } from "primereact/floatlabel";
 import { MultiSelect } from "primereact/multiselect";
@@ -166,7 +166,10 @@ function ClusterLegend({
           Singleton
         </span>
       )}
-      <span style={{ fontSize: "10px", color: "#ccc", marginLeft: "4px" }}>
+      <span
+        data-export-hide="true"
+        style={{ fontSize: "10px", color: "#ccc", marginLeft: "4px" }}
+      >
         Click a cluster or square to see its summary
       </span>
     </div>
@@ -433,6 +436,21 @@ export default function TimelinePage() {
     setFocusedCluster(null);
   };
 
+  const contentRef = useRef(null);
+
+  const handleExportPng = async () => {
+    if (!contentRef.current) return;
+    const domtoimage = (await import("dom-to-image")).default;
+    const dataUrl = await domtoimage.toPng(contentRef.current, {
+      bgcolor: "#ffffff",
+      filter: (node) => node.dataset?.exportHide !== "true",
+    });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `MIMOSA_timeline_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.png`;
+    a.click();
+  };
+
   const toggleFocusedCluster = (cid) =>
     setFocusedCluster((prev) => (prev === cid ? null : cid));
 
@@ -457,6 +475,7 @@ export default function TimelinePage() {
     return (
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
         <div
+          ref={contentRef}
           style={{
             background: "#fff",
             border: "1px solid #eee",
@@ -601,6 +620,19 @@ export default function TimelinePage() {
           severity="secondary"
           size="small"
           disabled={!hasFilters}
+        />
+
+        <div style={{ width: "1px", height: "28px", background: "#ddd" }} />
+
+        <Button
+          icon="pi pi-download"
+          onClick={handleExportPng}
+          outlined
+          severity="secondary"
+          size="small"
+          disabled={!clusterMap || clusterLoading || !timeplotRows.length}
+          tooltip="Export PNG"
+          tooltipOptions={{ position: "bottom" }}
         />
       </div>
 
