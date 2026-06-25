@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOAuth2, ApiExcludeController } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Response, Request } from 'express';
@@ -19,7 +20,14 @@ import { JwtAuthGuard } from './jwt.guard';
 @ApiOAuth2(['password'])
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly secureCookies: boolean;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {
+    this.secureCookies = config.get<string>('SECURE_COOKIES') === 'true';
+  }
 
   @Post('login')
   async login(
@@ -46,7 +54,7 @@ export class AuthController {
       res.cookie('access_token', result.access_token, {
         httpOnly: true,
         sameSite: 'strict',
-        secure: false,
+        secure: this.secureCookies,
       });
     }
 
@@ -65,7 +73,7 @@ export class AuthController {
     res.clearCookie('access_token', {
       httpOnly: true,
       sameSite: 'strict',
-      secure: false,
+      secure: this.secureCookies,
     });
     return { message: 'Logged out successfully' };
   }
