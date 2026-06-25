@@ -13,6 +13,7 @@ import {
 } from "./utils/Utils";
 
 import useAppData from "@/hooks/useAppData";
+import { formatDate } from "@/utils/date";
 
 const fmtLogVal = (val) => {
   if (val == null) return "";
@@ -32,8 +33,6 @@ const LogsPage = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  const formatDate = (date) => new Date(date).toLocaleString();
 
   const flattenedLogs = logs.flatMap((log) => {
     if (log.event === "qc_deletion") {

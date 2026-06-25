@@ -3,24 +3,12 @@
 import React, { useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Tag } from "primereact/tag";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Skeleton } from "primereact/skeleton";
 import { Message } from "primereact/message";
 import useNotifications from "@/hooks/useNotifications";
-
-function formatDate(raw) {
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return d.toLocaleString("sv-SE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDate } from "@/utils/date";
 
 function formatProfile(raw) {
   if (!raw) return "—";

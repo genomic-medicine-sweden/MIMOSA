@@ -3,23 +3,13 @@
 import { useMemo, useState } from "react";
 import LogsCard from "@/components/dashboard/LogsCard";
 import useNotifications from "@/hooks/useNotifications";
+import { formatDate } from "@/utils/date";
 
 const REQUIRED_FIELDS = ["Hospital", "PostCode", "Date"];
 const CLUSTER_PREVIEW = 5;
 
 function isIncomplete(sample) {
   return REQUIRED_FIELDS.some((f) => !sample.properties?.[f]?.trim());
-}
-
-function formatDate(raw) {
-  if (!raw) return "—";
-  return new Date(raw).toLocaleString("sv-SE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function DashboardOverview({ data }) {
