@@ -198,7 +198,9 @@ export default function TreePage() {
       try {
         displayRef.current.zoomScale(1);
         displayRef.current.update();
-      } catch (_) {}
+      } catch (err) {
+        console.error("[TreePage] phylotree update failed:", err);
+      }
     }
 
     if (containerRef.current) {

@@ -16,7 +16,9 @@ const OutbreakAlert = ({ outbreaks }) => {
     setIdleExpanded(value);
     try {
       sessionStorage.setItem("outbreakAlert_idleExpanded", String(value));
-    } catch {}
+    } catch (err) {
+      console.error("[OutbreakAlert] sessionStorage write failed:", err);
+    }
   };
 
   const hasOutbreaks = Array.isArray(outbreaks) && outbreaks.length > 0;

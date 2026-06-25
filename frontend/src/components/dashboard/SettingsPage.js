@@ -134,7 +134,9 @@ export default function SettingsPage() {
       .then((profiles) => {
         if (Array.isArray(profiles)) setActiveProfiles(profiles);
       })
-      .catch(() => {});
+      .catch((err) =>
+        console.error("[SettingsPage] Failed to load active profiles:", err),
+      );
 
     apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/outbreaks/all-hospitals`)
       .then((res) => res?.json())
@@ -179,7 +181,9 @@ export default function SettingsPage() {
           });
         }
       })
-      .catch(() => {});
+      .catch((err) =>
+        console.error("[SettingsPage] Failed to load user data:", err),
+      );
   }, []);
 
   const updateNotificationPreference = async (key, value) => {

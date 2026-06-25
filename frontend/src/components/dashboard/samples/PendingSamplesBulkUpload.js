@@ -160,7 +160,10 @@ export default function PendingSamplesBulkUpload({
       if (res?.ok) {
         created++;
       } else {
-        const body = await res?.json().catch(() => ({}));
+        const body = await res?.json().catch((err) => {
+          console.error("[BulkUpload] Failed to parse error response:", err);
+          return {};
+        });
         failedRows.push({
           ...row,
           errors: [body?.message || "Failed to save"],
