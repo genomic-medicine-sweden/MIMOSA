@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNumber,
   IsArray,
   Min,
@@ -96,7 +97,7 @@ export class UpdateUserFieldsDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsIn(['admin', 'user', 'automation'])
   role?: string;
 
   @ApiPropertyOptional()
