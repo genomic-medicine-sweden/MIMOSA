@@ -8,7 +8,7 @@ export class LogsService {
   constructor(@InjectModel(Log.name) private model: Model<Log>) {}
 
   async findAll(): Promise<Log[]> {
-    return this.model.find().sort({ added_at: 1 }).exec();
+    return this.model.find().sort({ added_at: -1 }).limit(500).exec();
   }
 
   async findBySampleId(sampleId: string): Promise<Log | null> {
