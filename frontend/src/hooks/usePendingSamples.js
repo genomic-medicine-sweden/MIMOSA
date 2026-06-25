@@ -23,7 +23,7 @@ export default function usePendingSamples() {
     } finally {
       setLoading(false);
     }
-  }, [apiBase]);
+  }, []);
 
   useEffect(() => {
     fetchPendingSamples();
@@ -41,7 +41,7 @@ export default function usePendingSamples() {
       if (res?.ok) await fetchPendingSamples();
       return res;
     },
-    [apiBase, fetchPendingSamples],
+    [fetchPendingSamples],
   );
 
   const updatePendingSample = useCallback(
@@ -54,7 +54,7 @@ export default function usePendingSamples() {
       if (res?.ok) await fetchPendingSamples();
       return res;
     },
-    [apiBase, fetchPendingSamples],
+    [fetchPendingSamples],
   );
 
   const deletePendingSample = useCallback(
@@ -65,7 +65,7 @@ export default function usePendingSamples() {
       if (res?.ok) await fetchPendingSamples();
       return res;
     },
-    [apiBase, fetchPendingSamples],
+    [fetchPendingSamples],
   );
 
   return {

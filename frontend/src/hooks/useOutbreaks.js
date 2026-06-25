@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export default function useOutbreaks(analysisProfile, dataVersion = 0) {
   const [outbreaks, setOutbreaks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchOutbreaks = async () => {
+  const fetchOutbreaks = useCallback(async () => {
     if (!analysisProfile) return;
 
     try {
@@ -33,16 +33,16 @@ export default function useOutbreaks(analysisProfile, dataVersion = 0) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [analysisProfile]);
 
   useEffect(() => {
     fetchOutbreaks();
-  }, [analysisProfile, dataVersion]);
+  }, [fetchOutbreaks, dataVersion]);
 
   useEffect(() => {
     const interval = setInterval(fetchOutbreaks, 5 * 60_000);
     return () => clearInterval(interval);
-  }, [analysisProfile]);
+  }, [fetchOutbreaks]);
 
   return {
     outbreaks,

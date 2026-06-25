@@ -45,7 +45,7 @@ export default function useDistance(analysisProfile) {
     };
 
     fetchDistance();
-  }, [analysisProfile, apiBase]);
+  }, [analysisProfile]);
 
   return {
     samples,
