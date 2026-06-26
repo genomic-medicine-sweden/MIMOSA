@@ -51,6 +51,7 @@
 - PNG export support for the matrix and timeline pages
 - Matrix now opens in a full-page view in a new tab
 - Type filter pills in the recent sample activity log card
+- Escherichia coli to available profiles
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -96,7 +97,7 @@
 - Stale closure and unnecessary dependency issues in several frontend hooks
 - Silent `catch` blocks replaced with `console.error` logging
 - MongoDB client now always closed in a `finally` block
-
+- Bumped js-cookie to ^3.0.7
 
 ## [v0.5.0]
 
