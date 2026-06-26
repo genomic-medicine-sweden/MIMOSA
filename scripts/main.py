@@ -147,12 +147,12 @@ def get_analyzed_sample_ids(profile=None):
 
     db_name = os.getenv("MONGO_DB_NAME")
     client = MongoClient(mongo_uri)
-    db = client[db_name]
-
-    query = {"properties.analysis_profile": profile} if profile else {}
-    feature_ids = set(db["features"].distinct("properties.ID", query))
-
-    client.close()
+    try:
+        db = client[db_name]
+        query = {"properties.analysis_profile": profile} if profile else {}
+        feature_ids = set(db["features"].distinct("properties.ID", query))
+    finally:
+        client.close()
     return feature_ids
 
 
