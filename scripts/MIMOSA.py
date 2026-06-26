@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+import logging
 import os
 import csv
 import json
 import traceback
 from dotenv import load_dotenv
+
+log = logging.getLogger(__name__)
 from pathlib import Path
 from pymongo import MongoClient
 from process_samples import process_samples_by_profile
@@ -124,6 +127,8 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
     """
     Fetch the latest clustering document for this profile.
     Only writes nomenclature entries for samples in the current run.
+    Without this filter, ReporTree sees absent samples' cluster names as "reserved"
+    and generates sub-cluster names (e.g. cluster_1.1) for surviving subsets.
     """
     mongo_uri = os.getenv("MONGO_URI")
     db_name = os.getenv("MONGO_DB_NAME")
@@ -146,11 +151,15 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
     stored_partition = results[0]["Partition"] if results else None
 
     if stored_partition != expected_partition:
-        print(
-            f"[{profile}] WARNING: Stored partition column is '{stored_partition}' "
-            f"but the current run expects '{expected_partition}'."
+        log.warning(
+            "[%s] Stored partition column is '%s' but the current run expects '%s'.",
+            profile,
+            stored_partition,
+            expected_partition,
         )
-        print(f"[{profile}] This likely means the clustering threshold has changed.")
+        log.warning(
+            "[%s] This likely means the clustering threshold has changed.", profile
+        )
 
         if is_interactive:
             answer = (
@@ -165,7 +174,7 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
                     f"[{profile}] Aborted by user due to partition mismatch."
                 )
         else:
-            print(f"[{profile}] skipping nomenclature file.")
+            log.warning("[%s] skipping nomenclature file.", profile)
 
         return None
 
@@ -280,8 +289,9 @@ def mimosa(
         return False
 
     if not run_clustering:
-        print(
-            f"[{profile}] Clustering skipped — no new samples and re-cluster not requested"
+        log.info(
+            "[%s] Clustering skipped — no new samples and re-cluster not requested",
+            profile,
         )
 
         run_stage(
@@ -430,7 +440,7 @@ def mimosa(
             count=sample_count,
         )
     else:
-        print("Distance matrix or Newick missing — skipping")
+        log.info("[%s] Distance matrix or Newick missing — skipping", profile)
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
 
     return True

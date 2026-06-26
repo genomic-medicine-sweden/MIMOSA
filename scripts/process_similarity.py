@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import logging
 import time
 import datetime
 import requests
 import json
 import os
 import sys
+from constants import REQUEST_TIMEOUT
+
+log = logging.getLogger(__name__)
 
 
 def submit_similarity_job(bonsai_api_url, token, sample_id):
@@ -22,7 +26,7 @@ def submit_similarity_job(bonsai_api_url, token, sample_id):
         "cluster_method": "single",
     }
 
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=data, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json().get("id")
 
@@ -34,7 +38,7 @@ def get_job_status(bonsai_api_url, token, job_id):
         "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -117,7 +121,7 @@ def process_similarity(
             )
 
         except Exception as e:
-            print(f"Error processing sample {sample}: {e}", file=sys.stderr)
+            log.error("Error processing sample %s: %s", sample, e)
             similarity.append(
                 {
                     "ID": sample,

@@ -1,10 +1,14 @@
 import json
+import logging
 import os
 import time
 import requests
 from requests.exceptions import ConnectionError
 from dotenv import load_dotenv
 from pathlib import Path
+from constants import REQUEST_TIMEOUT
+
+log = logging.getLogger(__name__)
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -106,6 +110,7 @@ def get_access_token(credentials):
                 "username": credentials["bonsai_username"],
                 "password": credentials["bonsai_password"],
             },
+            timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         return response.json().get("access_token")
@@ -150,6 +155,7 @@ def authenticate_mimosa_user(credentials):
                 "username": credentials["mimosa_username"],
                 "password": credentials["mimosa_password"],
             },
+            timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         return response.json().get("access_token")
@@ -176,6 +182,7 @@ def fetch_samples(bonsai_api_url, token):
             count_response = requests.get(
                 f"{bonsai_api_url}/samples/?limit=1",
                 headers=auth_headers(token),
+                timeout=REQUEST_TIMEOUT,
             )
             count_response.raise_for_status()
 
@@ -188,6 +195,7 @@ def fetch_samples(bonsai_api_url, token):
             response = requests.get(
                 f"{bonsai_api_url}/samples/?limit={total}",
                 headers=auth_headers(token),
+                timeout=REQUEST_TIMEOUT,
             )
             response.raise_for_status()
 
@@ -200,9 +208,13 @@ def fetch_samples(bonsai_api_url, token):
 
         except requests.exceptions.HTTPError as e:
             if attempt < max_retries - 1:
-                print(
-                    f"Bonsai API error (attempt {attempt + 1}/{max_retries}): {e.response.status_code} {e.response.reason}. Retrying in {retry_delay}s...",
-                    flush=True,
+                log.warning(
+                    "Bonsai API error (attempt %d/%d): %s %s. Retrying in %ds...",
+                    attempt + 1,
+                    max_retries,
+                    e.response.status_code,
+                    e.response.reason,
+                    retry_delay,
                 )
                 time.sleep(retry_delay)
             else:
@@ -212,9 +224,12 @@ def fetch_samples(bonsai_api_url, token):
 
         except (ConnectionError, requests.exceptions.RequestException) as e:
             if attempt < max_retries - 1:
-                print(
-                    f"Connection error (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...",
-                    flush=True,
+                log.warning(
+                    "Connection error (attempt %d/%d): %s. Retrying in %ds...",
+                    attempt + 1,
+                    max_retries,
+                    e,
+                    retry_delay,
                 )
                 time.sleep(retry_delay)
             else:
@@ -231,6 +246,7 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
     response = requests.get(
         f"{bonsai_api_url}/samples/{sample_id}",
         headers=auth_headers(token),
+        timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
 
@@ -279,6 +295,7 @@ def get_current_user(upload_token):
     response = requests.get(
         f"{_mimosa_api_base()}/api/users/me",
         headers=auth_headers(upload_token),
+        timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
     return response.json()
@@ -296,6 +313,7 @@ def send_pipeline_alert(upload_token, errors, profiles, recipient=None):
         f"{_mimosa_api_base()}/api/mail/pipeline-alert",
         headers={**auth_headers(upload_token), "Content-Type": "application/json"},
         json=payload,
+        timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
     return response.json()
@@ -309,6 +327,7 @@ def fetch_group(bonsai_api_url, token, group_id):
     response = requests.get(
         f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
         headers=auth_headers(token),
+        timeout=REQUEST_TIMEOUT,
     )
 
     if response.status_code in (404, 500):

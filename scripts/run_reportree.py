@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+import logging
 import os
 import shutil
 import subprocess
 
 from constants import get_reportree_params
+
+log = logging.getLogger(__name__)
 
 
 def run_reportree(
@@ -38,7 +41,7 @@ def run_reportree(
 
     output_prefix = os.path.join(output_folder, analysis_profile)
 
-    print(f"Running ReporTree for {analysis_profile}...")
+    log.info("Running ReporTree for %s...", analysis_profile)
 
     if shutil.which("reportree.py"):
         command = [
@@ -96,9 +99,9 @@ def run_reportree(
     result = subprocess.run(command, capture_output=True, text=True)
 
     if result.returncode == 0:
-        print(f"ReporTree completed for {analysis_profile}")
+        log.info("ReporTree completed for %s", analysis_profile)
     else:
-        print(f"ReporTree failed for {analysis_profile}:\n{result.stderr}")
+        log.error("ReporTree failed for %s:\n%s", analysis_profile, result.stderr)
         raise subprocess.CalledProcessError(
             result.returncode, command, output=result.stdout, stderr=result.stderr
         )
