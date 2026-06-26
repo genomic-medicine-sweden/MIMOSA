@@ -48,7 +48,9 @@
 - PNG export support for the tree page
 - PDF report generation — export active outbreaks and cluster summaries filtered by profile, date range, hospital, and county
 - `firstDetectedAt` and `lastGrowthAt` fields on outbreak API responses
-
+- PNG export support for the matrix and timeline pages
+- Matrix now opens in a full-page view in a new tab
+- Type filter pills in the recent sample activity log card
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -72,6 +74,14 @@
 - Filters reset when switching analysis profile
 - Improve SMTP error handling
 - Hospital list in notification settings now fetched from the API rather than relying on the map config
+- MatrixPage logic extracted into a reusable MatrixView component
+- Auth cookies now use the `SECURE_COOKIES` env variable instead of always being insecure
+- Global validation pipe now rejects unknown fields
+- Role field restricted to valid values (`admin`, `user`, `automation`)
+- Logs, and similarity queries capped at 500 documents
+- `formatDate` extracted into a shared utility
+- Request timeouts added to all outgoing HTTP calls in scripts
+- Remaining `print` statements in scripts migrated to structured logging
 
 
 ### Fixed
@@ -83,6 +93,9 @@
 - Map filter excludes items with `Cluster_ID = "Unknown"`
 - Similarity errors now written to stderr instead of stdout
 - Analysis profile names now consistently italicised across dashboard and samples view
+- Stale closure and unnecessary dependency issues in several frontend hooks
+- Silent `catch` blocks replaced with `console.error` logging
+- MongoDB client now always closed in a `finally` block
 
 
 ## [v0.5.0]
