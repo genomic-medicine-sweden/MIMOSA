@@ -114,7 +114,7 @@ export class UsersService {
       .findOneAndUpdate(
         { email: lowerEmail },
         { $set: mongoUpdate },
-        { new: true },
+        { new: true, strict: false },
       )
       .exec();
   }
@@ -179,6 +179,12 @@ export class UsersService {
       },
     });
     return user.save();
+  }
+
+  async findUsersWithPipelineAlerts(): Promise<User[]> {
+    return this.userModel
+      .find({ 'notificationPreferences.pipelineFailureAlerts': true })
+      .exec();
   }
 
   async findAll(): Promise<Omit<User, 'passwordHash' | '__v' | '_id'>[]> {

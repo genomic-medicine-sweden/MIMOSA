@@ -10,7 +10,9 @@ export default function useAppData() {
   const [dateRange, setDateRange] = useState(null);
   const [logs, setLogs] = useState([]);
   const [clusters, setClusters] = useState({});
+  const [clusteringByProfile, setClusteringByProfile] = useState({});
   const [hasNewData, setHasNewData] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -43,6 +45,8 @@ export default function useAppData() {
           }
         });
       }
+
+      setClusteringByProfile(clusteringByProfile);
 
       const clusterMapByProfile = {};
       Object.entries(clusteringByProfile).forEach(([profile, run]) => {
@@ -108,6 +112,7 @@ export default function useAppData() {
 
     es.onmessage = () => {
       setHasNewData(true);
+      setDataVersion((v) => v + 1);
       fetchData();
     };
 
@@ -123,8 +128,10 @@ export default function useAppData() {
     similarity,
     logs,
     clusters,
+    clusteringByProfile,
     dateRange,
     setDateRange,
     hasNewData,
+    dataVersion,
   };
 }

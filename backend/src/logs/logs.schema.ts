@@ -11,10 +11,19 @@ class UpdateEntry {
 
 @Schema()
 export class Log extends Document {
-  @Prop({ required: true, index: true }) sample_id: string;
-  @Prop({ required: true }) profile: string;
-  @Prop({ required: true }) added_at: Date;
+  // Per-sample log fields
+  @Prop({ index: true }) sample_id?: string;
+  @Prop() added_at?: Date;
   @Prop({ type: [UpdateEntry], default: [] }) updates: UpdateEntry[];
+
+  // Shared
+  @Prop({ required: true }) profile: string;
+
+  // Batch audit event fields
+  @Prop() event?: string;
+  @Prop() deleted_count?: number;
+  @Prop({ type: [String] }) deleted_ids?: string[];
+  @Prop() triggered_by?: string;
 }
 
 export const LogSchema = SchemaFactory.createForClass(Log);

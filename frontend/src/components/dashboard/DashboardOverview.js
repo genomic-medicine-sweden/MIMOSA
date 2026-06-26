@@ -3,23 +3,13 @@
 import { useMemo, useState } from "react";
 import LogsCard from "@/components/dashboard/LogsCard";
 import useNotifications from "@/hooks/useNotifications";
+import { formatDate } from "@/utils/date";
 
 const REQUIRED_FIELDS = ["Hospital", "PostCode", "Date"];
 const CLUSTER_PREVIEW = 5;
 
 function isIncomplete(sample) {
   return REQUIRED_FIELDS.some((f) => !sample.properties?.[f]?.trim());
-}
-
-function formatDate(raw) {
-  if (!raw) return "—";
-  return new Date(raw).toLocaleString("sv-SE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function DashboardOverview({ data }) {
@@ -124,8 +114,8 @@ export default function DashboardOverview({ data }) {
                     {[
                       { label: "Cluster", align: "left" },
                       { label: "Profile", align: "left" },
-                      { label: "Incomplete", align: "right" },
-                      { label: "Total", align: "right" },
+                      { label: "Incomplete", align: "center" },
+                      { label: "Total", align: "center" },
                     ].map(({ label, align }) => (
                       <th
                         key={label}
@@ -158,20 +148,20 @@ export default function DashboardOverview({ data }) {
                           fontSize: "12px",
                         }}
                       >
-                        {row.profile.replace(/_/g, " ")}
+                        <em>{row.profile.replace(/_/g, " ")}</em>
                       </td>
                       <td
                         style={{
-                          padding: "0.45rem 0.75rem",
-                          textAlign: "right",
+                          padding: "0.45rem 0.5rem 0.45rem 0",
+                          textAlign: "center",
                         }}
                       >
                         <span style={styles.badgeDanger}>{row.incomplete}</span>
                       </td>
                       <td
                         style={{
-                          padding: "0.45rem 0",
-                          textAlign: "right",
+                          padding: "0.45rem 0.5rem",
+                          textAlign: "center",
                           color: "#9ca3af",
                         }}
                       >
@@ -254,16 +244,16 @@ function NotificationsCard() {
                 </td>
                 <td
                   style={{
-                    padding: "0.45rem 0.5rem",
+                    padding: "0.45rem 0.5rem 0.45rem 0",
                     color: "#6b7280",
                     fontSize: "12px",
                   }}
                 >
-                  {n.analysis_profile?.replace(/_/g, " ") ?? "—"}
+                  <em>{n.analysis_profile?.replace(/_/g, " ") ?? "—"}</em>
                 </td>
                 <td
                   style={{
-                    padding: "0.45rem 0",
+                    padding: "0.45rem 0.5rem 0.45rem 0",
                     textAlign: "right",
                     color: "#9ca3af",
                     fontSize: "12px",
@@ -347,7 +337,7 @@ const styles = {
   },
   empty: { fontSize: "13px", color: "#9ca3af", fontStyle: "italic", margin: 0 },
   th: {
-    padding: "0 0.5rem 0.5rem 0",
+    padding: "0.45rem 0.5rem 0.45rem 0",
     fontSize: "11px",
     fontWeight: 500,
     color: "#9ca3af",

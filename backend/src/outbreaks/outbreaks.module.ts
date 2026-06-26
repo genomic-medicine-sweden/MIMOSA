@@ -4,6 +4,10 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ClusteringModule } from '../clustering/clustering.module';
 import { FeaturesModule } from '../features/features.module';
 import { Feature, FeatureSchema } from '../features/features.schema';
+import {
+  Notification,
+  NotificationSchema,
+} from '../notifications/notification.schema';
 import { OutbreaksService } from './outbreaks.service';
 import { OutbreaksController } from './outbreaks.controller';
 import { MapConfigModule } from '../map-config/map-config.module';
@@ -14,7 +18,10 @@ import { MapConfigModule } from '../map-config/map-config.module';
     ClusteringModule,
     FeaturesModule,
     MapConfigModule,
-    MongooseModule.forFeature([{ name: Feature.name, schema: FeatureSchema }]),
+    MongooseModule.forFeature([
+      { name: Feature.name, schema: FeatureSchema },
+      { name: Notification.name, schema: NotificationSchema },
+    ]),
   ],
   providers: [OutbreaksService],
   controllers: [OutbreaksController],

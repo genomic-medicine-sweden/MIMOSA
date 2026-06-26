@@ -76,6 +76,10 @@ def process_samples_by_profile(
         for sample_id in sample_ids:
             sample_data = fetch_sample_details(bonsai_api_url, token, sample_id)
 
+            qc_status = normalise_missing(
+                sample_data.get("qc_status", {}).get("status")
+            )
+
             sequencing_date = sample_data.get("sequencing_date")
 
             if sequencing_date and "T" in sequencing_date:
@@ -105,9 +109,7 @@ def process_samples_by_profile(
                 "Pipeline_Version": normalise_missing(pipeline_version),
                 "Pipeline_Date": normalise_missing(pipeline_date),
                 "Profile": normalise_missing(analysis_profile),
-                "QC_Status": normalise_missing(
-                    sample_data.get("qc_status", {}).get("status")
-                ),
+                "QC_Status": qc_status,
                 "Sequencing_Platform": normalise_missing(
                     sample_data.get("sequencing", {}).get("platform")
                 ),

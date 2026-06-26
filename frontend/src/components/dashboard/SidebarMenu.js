@@ -75,6 +75,13 @@ export default function SidebarMenu() {
           text
           onClick={() => setViewMode(ViewModes.TIMELINE)}
         />
+        <Button
+          label="Reports"
+          icon="pi pi-file-pdf"
+          className="w-full justify-start"
+          text
+          onClick={() => setViewMode(ViewModes.REPORTS)}
+        />
 
         {role === "admin" && (
           <Button

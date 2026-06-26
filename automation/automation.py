@@ -10,15 +10,13 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 from main import main as run_pipeline
+from log_setup import configure_logging
+from api import load_credentials, authenticate_mimosa_user, send_pipeline_alert
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [automation] %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 log = logging.getLogger(__name__)
 
 
@@ -26,13 +24,13 @@ def wait_for_backend(timeout=300, interval=5):
     base_url = os.getenv("MIMOSA_API_INTERNAL", "http://mimosa-backend:5000")
     url = f"{base_url}/api/users/me"
 
-    log.info("Waiting for backend to be ready...")
+    log.info(f"event=backend_wait timeout={timeout}s")
     elapsed = 0
 
     while elapsed < timeout:
         try:
             http_requests.get(url, timeout=3)
-            log.info("Backend is ready.")
+            log.info("event=backend_ready")
             return
         except Exception:
             time.sleep(interval)
@@ -74,13 +72,27 @@ def build_pipeline_argv():
     return argv
 
 
-def check_and_run():
-    log.info("Starting scheduled pipeline run...")
+def _send_failure_alert(error_message):
+    """Send a pipeline failure alert to all opted-in users."""
+    try:
+        credentials = load_credentials()
+        upload_token = authenticate_mimosa_user(credentials)
+        raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
+        profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
+        send_pipeline_alert(
+            upload_token,
+            errors=[error_message],
+            profiles=profiles,
+        )
+    except Exception as alert_err:
+        log.warning(f'event=alert_send_failed message="{alert_err}"')
 
+
+def check_and_run():
     try:
         argv = build_pipeline_argv()
     except ValueError as e:
-        log.error(f"Configuration error: {e}")
+        log.error(f'event=config_error message="{e}"')
         return
 
     os.environ["MIMOSA_AUTOMATION_MODE"] = "true"
@@ -92,30 +104,31 @@ def check_and_run():
     for attempt in range(max_retries):
         try:
             run_pipeline()
-            log.info("Pipeline completed successfully.")
             return
         except SystemExit as e:
             code = str(e)
             if code != "0":
-                log.error(f"Pipeline exited with code: {code}")
+                log.error(f"event=pipeline_exit_error exit_code={code}")
             return
         except Exception as e:
             if attempt < max_retries - 1:
                 log.warning(
-                    f"Attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {retry_delay}s..."
+                    f'event=pipeline_retry attempt={attempt + 1} max={max_retries} retry_in={retry_delay}s message="{e}"'
                 )
                 time.sleep(retry_delay)
             else:
                 log.error(
-                    f"Pipeline failed after {max_retries} attempts: {e}", exc_info=True
+                    f'event=pipeline_failed attempts={max_retries} message="{e}"',
+                    exc_info=True,
                 )
+                _send_failure_alert(str(e))
 
 
 def main():
     schedule_hours = float(os.getenv("AUTOMATION_SCHEDULE_HOURS", "1"))
     run_on_startup = os.getenv("AUTOMATION_RUN_ON_STARTUP", "false").lower() == "true"
 
-    log.info(f"MIMOSA automation starting. Schedule: every {schedule_hours} hour(s).")
+    log.info(f"event=automation_start schedule_hours={schedule_hours}")
 
     if run_on_startup:
         wait_for_backend()

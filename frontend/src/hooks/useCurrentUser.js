@@ -1,10 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { apiFetch } from "@/utils/apiFetch";
 
 export default function useCurrentUser() {
   const [user, setUser] = useState(null);
-  const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -18,20 +17,11 @@ export default function useCurrentUser() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`,
-        {
-          credentials: "include",
-        },
-      );
-      if (res.status === 401) {
-        localStorage.removeItem("user");
-        router.push("/login");
-      }
+    const interval = setInterval(() => {
+      apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`);
     }, 60000);
     return () => clearInterval(interval);
-  }, [router]);
+  }, []);
 
   return user;
 }

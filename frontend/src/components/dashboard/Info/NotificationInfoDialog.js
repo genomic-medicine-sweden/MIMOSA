@@ -1,7 +1,7 @@
 "use client";
 import { Dialog } from "primereact/dialog";
 
-export default function NotificationInfoDialog({ visible, onHide }) {
+export default function NotificationInfoDialog({ visible, onHide, isAdmin }) {
   return (
     <Dialog
       header="Notification Settings"
@@ -22,18 +22,74 @@ export default function NotificationInfoDialog({ visible, onHide }) {
           </li>
           <li>
             <b>Alert Threshold:</b> The minimum number of cases in a cluster
-            required for <u>you</u> to be notified.
-            <br />
-            If multiple analysis profiles are configured, each profile can have
-            its own threshold.
+            required for <u>you</u> to be notified. There is a <i>default</i>{" "}
+            threshold that applies to any profile without its own entry, plus an
+            individual threshold for each configured analysis profile.
             <br />
             <span className="pl-3 mt-1 block text-color-secondary">
               <i>
-                Note: you cannot set a threshold below the outbreak threshold
+                Note: you cannot set a threshold below the detection threshold
                 for that profile.
               </i>
             </span>
           </li>
+          <li className="mt-2">
+            <b>County watchlist:</b> Restrict alerts to clusters that include at
+            least one of the selected counties. Leave empty to receive alerts
+            for all counties.
+          </li>
+          <li className="mt-2">
+            <b>Hospital watchlist:</b> Restrict alerts to clusters linked to at
+            least one of the selected hospitals. Leave empty to receive alerts
+            for all hospitals.
+            <br />
+            <span className="pl-3 mt-1 block text-color-secondary">
+              <i>
+                When both county and hospital watchlists are set, an alert is
+                sent if either a county <u>or</u> a hospital matches.
+              </i>
+            </span>
+          </li>
+          <li className="mt-2">
+            <b>Growth Alerts:</b> Opt-in notifications for existing clusters
+            that grow after they were first detected. These are always delivered
+            as a digest on the schedule set by <i>Growth frequency</i> —
+            regardless of your outbreak alert frequency.
+            <ul className="pl-3 mt-1">
+              <li>
+                <b>Growth type:</b> Choose what triggers a growth notification:
+                <ul className="pl-3">
+                  <li>
+                    <i>Absolute growth</i> — cluster has grown by at least N
+                    samples since the last notification.
+                  </li>
+                  <li>
+                    <i>Total size reached</i> — cluster total has crossed N
+                    samples (fires once when the threshold is crossed).
+                  </li>
+                  <li>
+                    <i>Percent increase</i> — cluster has grown by at least N%
+                    since the last notification.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <b>Growth value:</b> The numeric threshold for the chosen type.
+              </li>
+              <li>
+                <b>Growth frequency:</b> How often growth digests are sent
+                (daily or weekly).
+              </li>
+            </ul>
+          </li>
+          {isAdmin && (
+            <li className="mt-2">
+              <b>Pipeline Failures:</b> Receive an email if the data pipeline
+              encounters errors during a run. This alert is sent to all admin
+              users who have this option enabled.
+              <br />
+            </li>
+          )}
         </ul>
       </div>
     </Dialog>

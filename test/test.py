@@ -4,9 +4,16 @@ import os
 import argparse
 import tempfile
 import json
-from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone
+
+SCRIPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+sys.path.insert(0, SCRIPT_DIR)
+
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 from upload import (
     upload_features,
@@ -15,15 +22,6 @@ from upload import (
     upload_distance,
 )
 from api import load_credentials, authenticate_mimosa_user
-
-from dotenv import load_dotenv
-from pathlib import Path
-
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(env_path)
-
-SCRIPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
-sys.path.insert(0, SCRIPT_DIR)
 
 
 def load_test_data():

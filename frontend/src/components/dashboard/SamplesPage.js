@@ -110,7 +110,7 @@ export default function SamplesPage() {
   const availableAnalysisProfileOptions = Array.from(
     new Set(samples.map((s) => s.properties.analysis_profile).filter(Boolean)),
   ).map((profile) => ({
-    label: profile,
+    label: profile.replace(/_/g, " "),
     value: profile,
   }));
 

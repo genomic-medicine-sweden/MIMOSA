@@ -3,24 +3,12 @@
 import React, { useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Tag } from "primereact/tag";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Skeleton } from "primereact/skeleton";
 import { Message } from "primereact/message";
 import useNotifications from "@/hooks/useNotifications";
-
-function formatDate(raw) {
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return d.toLocaleString("sv-SE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDate } from "@/utils/date";
 
 function formatProfile(raw) {
   if (!raw) return "—";
@@ -47,11 +35,7 @@ export default function NotificationsPage() {
       </span>
     );
   };
-  const sampleCountBody = (row) => (
-    <span style={{ display: "block", textAlign: "center" }}>
-      {row.total ?? row.sampleIds?.length ?? "—"}
-    </span>
-  );
+  const sampleCountBody = (row) => row.total ?? row.sampleIds?.length ?? "—";
 
   const sentAtBody = (row) => (
     <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>
@@ -120,14 +104,6 @@ export default function NotificationsPage() {
         </span>
       </div>
 
-      <style>{`
-        .p-datatable .p-datatable-thead > tr:first-child > th {
-          background-color: white !important;
-          border: none !important;
-          box-shadow: none !important;
-        }
-      `}</style>
-
       {notifications.length === 0 ? (
         <Message
           severity="info"
@@ -140,11 +116,10 @@ export default function NotificationsPage() {
           dataKey="_id"
           globalFilter={globalFilter}
           globalFilterFields={["clusterId", "analysis_profile", "counties"]}
-          scrollable
-          scrollHeight="520px"
           tableStyle={{ minWidth: "40rem" }}
           rowHover
           emptyMessage="No notifications match your search."
+          pt={{ thead: { style: { backgroundColor: "white" } } }}
         >
           <Column
             field="clusterId"
@@ -165,7 +140,9 @@ export default function NotificationsPage() {
             header="Samples"
             body={sampleCountBody}
             sortable
-            style={{ minWidth: "6rem", textAlign: "center" }}
+            align="center"
+            style={{ minWidth: "6rem" }}
+            headerStyle={{ minWidth: "6rem" }}
           />
           <Column
             field="counties"

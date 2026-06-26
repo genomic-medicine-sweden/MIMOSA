@@ -97,11 +97,12 @@ services:
     build:
       context: .
       dockerfile: "./automation/Dockerfile"
-    env_file: 
+    env_file:
       - .env
       - .env.automation
     volumes:
       - ./volumes/automation_tmp:/tmp/mimosa_automation
+      - ./.mimosa-automation.log:/app/.mimosa-automation.log
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -114,6 +115,7 @@ services:
     environment:
       - MONGO_URI=${MONGO_URI_INTERNAL}
       - MIMOSA_API_INTERNAL=http://mimosa-backend:${BACKEND_PORT}
+      - MIMOSA_LOG_PATH=/app/.mimosa-automation.log
     restart: unless-stopped
     networks:
       - mimosa-net
@@ -127,3 +129,4 @@ services:
 networks:
   mimosa-net:
     driver: bridge
+

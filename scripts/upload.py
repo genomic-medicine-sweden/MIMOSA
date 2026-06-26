@@ -5,7 +5,7 @@ import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from pathlib import Path
-from log_updates import log_sample_event
+from log_updates import log_sample_event, log_batch_deletion
 from requests.exceptions import RequestException
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -256,6 +256,37 @@ def upload_distance(data_file_path, upload_token=None):
         print(f"Distance data stored for {distance_data.get('analysis_profile')}")
     except Exception as err:
         print("Error uploading distance data:", err)
+    finally:
+        client.close()
+
+
+def delete_features(sample_ids, profile, upload_token=None):
+    """Remove QC-excluded samples from the features collection."""
+    if not upload_token:
+        raise RuntimeError("upload_token is required for authenticated upload.")
+    uploader_email = validate_upload_token(upload_token)
+
+    if not sample_ids:
+        return
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    collection = db["features"]
+
+    try:
+        result = collection.delete_many(
+            {
+                "properties.ID": {"$in": list(sample_ids)},
+                "properties.analysis_profile": profile,
+            }
+        )
+        if result.deleted_count:
+            print(
+                f"[{profile}] Removed {result.deleted_count} QC-excluded sample(s) from features."
+            )
+            log_batch_deletion(db, sample_ids, profile, deleted_by=uploader_email)
+    except Exception as err:
+        print(f"[{profile}] Error deleting features: {err}")
     finally:
         client.close()
 

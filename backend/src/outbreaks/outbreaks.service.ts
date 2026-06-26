@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClusteringService } from '../clustering/clustering.service';
 import { FeaturesService } from '../features/features.service';
 import { Feature } from '../features/features.schema';
+import { Notification } from '../notifications/notification.schema';
 import { OutbreakDetectedEvent } from './outbreak-detected.event';
 import { LocationResolver } from '../utils/location-resolver';
 import outbreakRules from '../config/outbreak-rules.json';
@@ -14,14 +15,20 @@ type OutbreakResult = {
   clusterId: string;
   total: number;
   counties: string[];
+  hospitals: string[];
   sampleIds: string[];
   analysis_profile: string;
   summary: string;
+  isIdle: boolean;
+  daysSinceLastGrowth: number | null;
+  firstDetectedAt: Date | null;
+  lastGrowthAt: Date | null;
 };
 
 type ClusterEntry = {
   count: number;
   counties: Set<string>;
+  hospitals: Set<string>;
   sampleIds: string[];
 };
 
@@ -34,6 +41,8 @@ export class OutbreaksService implements OnModuleInit {
     private readonly featuresService: FeaturesService,
     @InjectModel(Feature.name)
     private readonly featureModel: Model<Feature>,
+    @InjectModel(Notification.name)
+    private readonly notificationModel: Model<Notification>,
     private readonly eventEmitter: EventEmitter2,
     private readonly locationResolver: LocationResolver,
   ) {}
@@ -50,6 +59,7 @@ export class OutbreaksService implements OnModuleInit {
         const analysis_profile = change.fullDocument?.analysis_profile;
         if (!analysis_profile) return;
         this.scheduleOutbreakCheck(analysis_profile);
+        this.eventEmitter.emit('features.changed', { operationType: 'insert' });
       } catch (err) {
         console.error('[Outbreaks] Clustering change error:', err);
       }
@@ -132,11 +142,16 @@ export class OutbreaksService implements OnModuleInit {
     );
   }
 
-  private async buildPostCodeMap(
+  private async buildLocationMap(
     ids: string[],
-  ): Promise<Record<string, string>> {
+  ): Promise<
+    Record<string, { county: string; hospital?: string; postcode?: string }>
+  > {
     const features = await this.featuresService.findByIds(ids);
-    const map: Record<string, string> = {};
+    const map: Record<
+      string,
+      { county: string; hospital?: string; postcode?: string }
+    > = {};
 
     for (const f of features) {
       const id = f.properties?.ID;
@@ -146,7 +161,11 @@ export class OutbreaksService implements OnModuleInit {
         manualCoordinates: f.properties?.manualCoordinates,
       });
       if (id && county) {
-        map[id] = county;
+        map[id] = {
+          county,
+          hospital: f.properties?.Hospital || undefined,
+          postcode: f.properties?.PostCode || undefined,
+        };
       }
     }
 
@@ -156,22 +175,47 @@ export class OutbreaksService implements OnModuleInit {
   private getRules(analysis_profile: string): {
     detectionThreshold: number;
     requireCountyResolution: boolean;
+    alertVisibilityDays: number | null;
+    alertMinGrowthForRefresh: number;
   } {
     const profiles = outbreakRules.profiles as Record<
       string,
-      { detectionThreshold: number; requireCountyResolution: boolean }
+      {
+        detectionThreshold: number;
+        requireCountyResolution: boolean;
+        alertVisibilityDays?: number | null;
+        alertMinGrowthForRefresh?: number;
+      }
     >;
-    return profiles[analysis_profile] ?? outbreakRules.default;
+    const profile = profiles[analysis_profile];
+    return {
+      detectionThreshold:
+        profile?.detectionThreshold ?? outbreakRules.default.detectionThreshold,
+      requireCountyResolution:
+        profile?.requireCountyResolution ??
+        outbreakRules.default.requireCountyResolution,
+      alertVisibilityDays:
+        profile?.alertVisibilityDays !== undefined
+          ? profile.alertVisibilityDays
+          : outbreakRules.default.alertVisibilityDays,
+      alertMinGrowthForRefresh:
+        profile?.alertMinGrowthForRefresh ??
+        outbreakRules.default.alertMinGrowthForRefresh,
+    };
   }
 
   private detectOutbreaks(
     results: { ID: string; Cluster_ID: string; Partition: string }[],
-    postCodeMap: Record<string, string>,
+    locationMap: Record<
+      string,
+      { county: string; hospital?: string; postcode?: string }
+    >,
     analysis_profile: string,
   ): {
     clusterId: string;
     total: number;
     counties: string[];
+    hospitals: string[];
     sampleIds: string[];
   }[] {
     const rules = this.getRules(analysis_profile);
@@ -180,26 +224,31 @@ export class OutbreaksService implements OnModuleInit {
     for (const r of results) {
       const clusterId = String(r.Cluster_ID);
       if (!clusterId || clusterId === 'Unknown') continue;
-      const county = postCodeMap[r.ID];
+      const location = locationMap[r.ID];
+      const county = location?.county;
       if (rules.requireCountyResolution && !county) continue;
       if (!clusterMap[clusterId]) {
         clusterMap[clusterId] = {
           count: 0,
           counties: new Set(),
+          hospitals: new Set(),
           sampleIds: [],
         };
       }
       clusterMap[clusterId].count += 1;
       if (county) clusterMap[clusterId].counties.add(county);
+      if (location?.hospital)
+        clusterMap[clusterId].hospitals.add(location.hospital);
       clusterMap[clusterId].sampleIds.push(r.ID);
     }
 
     return Object.entries(clusterMap)
       .filter(([_, { count }]) => count >= rules.detectionThreshold)
-      .map(([clusterId, { count, counties, sampleIds }]) => ({
+      .map(([clusterId, { count, counties, hospitals, sampleIds }]) => ({
         clusterId,
         total: count,
         counties: [...counties],
+        hospitals: [...hospitals],
         sampleIds,
       }));
   }
@@ -222,6 +271,98 @@ export class OutbreaksService implements OnModuleInit {
     return `Cluster ${o.clusterId} — ${o.total} case${o.total !== 1 ? 's' : ''} ${formatCounties()}`;
   }
 
+  private async annotateIdleStatus(
+    outbreaks: Omit<
+      OutbreakResult,
+      'isIdle' | 'daysSinceLastGrowth' | 'firstDetectedAt' | 'lastGrowthAt'
+    >[],
+    analysis_profile: string,
+  ): Promise<OutbreakResult[]> {
+    if (!outbreaks.length) return [];
+
+    const rules = this.getRules(analysis_profile);
+
+    const notifications = await this.notificationModel.find({
+      clusterId: { $in: outbreaks.map((o) => o.clusterId) },
+      analysis_profile,
+    });
+
+    const notifMap = new Map<string, Notification>(
+      notifications.map((n: Notification) => [n.clusterId, n]),
+    );
+
+    if (rules.alertVisibilityDays === null) {
+      return outbreaks.map((o) => {
+        const notif = notifMap.get(o.clusterId);
+        return {
+          ...o,
+          isIdle: false,
+          daysSinceLastGrowth: null,
+          firstDetectedAt: notif?.sentAt ?? null,
+          lastGrowthAt: notif?.lastGrowthAt ?? null,
+        };
+      });
+    }
+
+    const now = new Date();
+
+    return outbreaks.map((o) => {
+      const notif = notifMap.get(o.clusterId);
+      const growthAt = notif?.lastGrowthAt ?? notif?.sentAt ?? null;
+
+      if (!growthAt) {
+        return {
+          ...o,
+          isIdle: false,
+          daysSinceLastGrowth: null,
+          firstDetectedAt: notif?.sentAt ?? null,
+          lastGrowthAt: notif?.lastGrowthAt ?? null,
+        };
+      }
+
+      const daysSinceLastGrowth = Math.floor(
+        (now.getTime() - growthAt.getTime()) / (24 * 60 * 60 * 1000),
+      );
+      const isIdle = daysSinceLastGrowth >= rules.alertVisibilityDays!;
+
+      return {
+        ...o,
+        isIdle,
+        daysSinceLastGrowth,
+        firstDetectedAt: notif?.sentAt ?? null,
+        lastGrowthAt: notif?.lastGrowthAt ?? null,
+      };
+    });
+  }
+
+  async getAllProfiles(): Promise<string[]> {
+    return this.featureModel.distinct('properties.analysis_profile');
+  }
+
+  async getAllHospitals(): Promise<string[]> {
+    const fromRef = this.locationResolver.getAllHospitalNames();
+    const fromFeatures = (await this.featureModel.distinct(
+      'properties.Hospital',
+    )) as unknown[];
+    const fromFeaturesFiltered = fromFeatures.filter(
+      (h): h is string => typeof h === 'string' && h.trim() !== '',
+    );
+    return [...new Set([...fromRef, ...fromFeaturesFiltered])].sort();
+  }
+
+  async getActiveProfiles(): Promise<string[]> {
+    const profiles = await this.featureModel.distinct(
+      'properties.analysis_profile',
+    );
+    const results = await Promise.all(
+      profiles.map(async (profile: string) => {
+        const outbreaks = await this.getLatestOutbreaks(profile);
+        return outbreaks.length > 0 ? profile : null;
+      }),
+    );
+    return results.filter((p: string | null): p is string => p !== null);
+  }
+
   async getLatestOutbreaks(
     analysis_profile: string,
   ): Promise<OutbreakResult[]> {
@@ -230,17 +371,20 @@ export class OutbreaksService implements OnModuleInit {
     if (!clustering) return [];
 
     const ids = clustering.results.map((r) => r.ID);
-    const postCodeMap = await this.buildPostCodeMap(ids);
+    const locationMap = await this.buildLocationMap(ids);
     const outbreaks = this.detectOutbreaks(
       clustering.results,
-      postCodeMap,
+      locationMap,
       analysis_profile,
     );
 
-    return outbreaks.map((o) => ({
+    const baseResults = outbreaks.map((o) => ({
       ...o,
+      hospitals: o.hospitals,
       analysis_profile: clustering.analysis_profile,
       summary: this.formatOutbreak(o),
     }));
+
+    return this.annotateIdleStatus(baseResults, analysis_profile);
   }
 }

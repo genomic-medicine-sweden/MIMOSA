@@ -13,6 +13,44 @@
 - Info dialog on the Pending Samples page
 - Outbreak alerts notification preference on user accounts
 - PATCH support for pending samples
+- Sample and group exclusion support for clustering workflows.
+- Sample filtering by configurable QC status; samples outside the allowed set are excluded before clustering and trigger a re-cluster if previously analyzed
+- `delete_features()` removes QC-excluded samples from the features collection post-clustering
+- Batch audit log (`qc_deletion` event) recorded when QC-excluded samples are deleted
+- QC Deletion events shown in dashboard logs with a side-panel listing affected sample IDs
+- `alertVisibilityDays`  and `alertMinGrowthForRefresh`  config fields per outbreak profile
+- `lastGrowthAt`, `lastTotal`, and `lastRefreshTotal` fields on Notification documents
+- Idle status annotation on outbreaks — tracks days since last meaningful growth
+- Expand/collapse toggle in the alert panel for idle outbreaks
+- Pipeline failure alert emails — admins can opt in via notification settings and receive an email when the pipeline errors
+- `-email` flag on the pipeline script to send failure alerts to the authenticated user or a specified address
+- Automation service sends failure alerts to opted-in users after exhausting retries
+- `pipelineFailureAlerts` user preference field and supporting backend query
+- `POST /api/mail/pipeline-alert` endpoint
+- Structured key=value log format across pipeline and automation, with per-run duration and summary metrics
+- Log file mount for the automation container
+- Growth alerts — opt-in notifications when existing clusters grow, with configurable threshold type (absolute growth, total size reached, or percent increase), value, and delivery frequency
+- Combined daily and weekly digest emails that include both new outbreaks and cluster growth in a single email with section headers
+- Analysis profile auto-selection on load based on last used profile, active outbreaks, or most recent clustering run
+- `GET /api/outbreaks/all-profiles` and `GET /api/outbreaks/active-profiles` endpoints
+- Default and per-profile alert thresholds in notification settings, drawn from all profiles with uploaded data
+- Hospital data included in outbreak detection, notification records, and email tables
+- Analysis profile column added to outbreak email tables
+- Hospital and species (profile) watchlists in notification preferences — alerts are filtered to matching clusters only
+- Alerts now also fire when a watched hospital or county newly joins an existing cluster
+- `GET /api/outbreaks/all-hospitals` endpoint
+- Watchlist mode toggle — users with a hospital or county watchlist can choose between filtering alerts to watched locations only, or receiving all global alerts plus a separate watchlist-specific alert
+- Dedicated watchlist email templates and pending notification type for digest dispatch
+- Cluster and outbreak visibility filters in the map side panel — show only clustered samples or only samples belonging to active outbreaks
+- `GET /api/outbreaks/all-hospitals` endpoint now exposed via the controller
+- County and hospital watchlist behaviour documented in the notification info dialog
+- Info dialog on the tree page documenting view modes, layouts, and navigation
+- PNG export support for the tree page
+- PDF report generation — export active outbreaks and cluster summaries filtered by profile, date range, hospital, and county
+- `firstDetectedAt` and `lastGrowthAt` fields on outbreak API responses
+- PNG export support for the matrix and timeline pages
+- Matrix now opens in a full-page view in a new tab
+- Type filter pills in the recent sample activity log card
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -22,12 +60,42 @@
 - Data passed to FilteringLogic is now pre-filtered to the active country  boundary, with manual coordinates validated via point-in-polygon
 - County/region options are now derived dynamically from map config instead of a hardcoded list
 - Home county is no longer required when creating a user
+- Log timestamps now use timezone-aware UTC
+- Log schema extended to support batch audit event fields
+- Existing alerts now update growth tracking fields on each outbreak check
+- Outbreak data refetches whenever an SSE event is received, and polls every 5 minutes
+- QC status filtering disabled (allow all statuses)
+- `alertMinGrowthForRefresh` for staphylococcus lowered from 2 to 1
+- Similarity progress output suppressed when not running in a TTY
+- Pending notifications now scoped by type (`outbreak` or `growth`) so entries are tracked independently
+- `--profile` flag now case-insensitive; invalid input lists available profile
+- Alert threshold UI reorganised into a default row and a per-profile wrapping grid
+- Settings page reorganised into Notifications and General tabs
+- Filters reset when switching analysis profile
+- Improve SMTP error handling
+- Hospital list in notification settings now fetched from the API rather than relying on the map config
+- MatrixPage logic extracted into a reusable MatrixView component
+- Auth cookies now use the `SECURE_COOKIES` env variable instead of always being insecure
+- Global validation pipe now rejects unknown fields
+- Role field restricted to valid values (`admin`, `user`, `automation`)
+- Logs, and similarity queries capped at 500 documents
+- `formatDate` extracted into a shared utility
+- Request timeouts added to all outgoing HTTP calls in scripts
+- Remaining `print` statements in scripts migrated to structured logging
+
 
 ### Fixed
 - Fixed region matching for UK map boundaries
 - Manual coordinate validation no longer accepts points outside country boundaries via a bounding-box buffer
 - Fixed the notifications settings page showing stale preference data by refreshing user settings from the API on load.
 - Client-side expiry filtering and auto-refresh to pending samples
+- Nomenclature file now scoped to the current run's samples only
+- Map filter excludes items with `Cluster_ID = "Unknown"`
+- Similarity errors now written to stderr instead of stdout
+- Analysis profile names now consistently italicised across dashboard and samples view
+- Stale closure and unnecessary dependency issues in several frontend hooks
+- Silent `catch` blocks replaced with `console.error` logging
+- MongoDB client now always closed in a `finally` block
 
 
 ## [v0.5.0]

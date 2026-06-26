@@ -8,6 +8,6 @@ export class SimilarityService {
   constructor(@InjectModel(Similarity.name) private model: Model<Similarity>) {}
 
   async findAll(): Promise<Similarity[]> {
-    return this.model.find().exec();
+    return this.model.find().limit(500).exec();
   }
 }

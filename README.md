@@ -76,6 +76,20 @@ These are two separate concepts:
 - **Notification threshold** — the minimum number of cases a cluster must have before *a specific user* is notified. This is configured per user in the **Settings** page and can be set equal to or higher than the outbreak threshold, but never lower.
 
 
+### Alert visibility
+
+Outbreak alerts are displayed in the dashboard banner as long as the cluster remains active. After a configurable period of inactivity (no meaningful growth), alerts are **collapsed** rather than removed — they can be expanded at any time by clicking "Show older alerts" in the banner. The full history is always available on the **Notifications** page.
+
+Two settings in `backend/src/config/outbreak-rules.json` control this behaviour:
+
+| Setting | Default | Description |
+|---|---|---|
+| `alertVisibilityDays` | `14` | Days without meaningful growth before an alert is collapsed. Set to `null` to keep all alerts expanded indefinitely. |
+| `alertMinGrowthForRefresh` | `2` | Minimum cumulative increase in cluster size required to reset the visibility timer. |
+
+These can be set globally under `default` or overridden per analysis profile under `profiles`. See `backend/src/config/README.md` for details.
+
+
 ### User preferences
 
 Once notifications are enabled, each user can configure their preferences from the **Settings** page:
@@ -83,6 +97,7 @@ Once notifications are enabled, each user can configure their preferences from t
 - **Outbreak Alerts** — enable or disable email notifications entirely
 - **Frequency** — receive alerts immediately, or as a daily (08:00) or weekly (Monday 08:00) digest
 - **Alert Threshold** — per-profile minimum case count required to notify that user
+- **Pipeline Failures** *(admin only)* — receive an email when the automation pipeline encounters errors. Alerts are broadcast to all admin users who have this option enabled. For manual runs, use the `--email` flag instead.
 
 To verify that your SMTP configuration is working, send a test email via `GET /api/mail/test`.
 
@@ -213,6 +228,35 @@ Optional flags:
 * `--save_files`: Save intermediate and final output files to the specified `--output` directory.
 * `--debug`: Show full error tracebacks for debugging.
 * `--groups <group_id> [<group_id> ...]`: Only process samples belonging to the specified Bonsai group(s). When clustering, previously analyzed samples for the same profile are automatically included to preserve cluster stability.
+* `--exclude-samples <sample_id> [<sample_id> ...] | <file>`: Exclude specific samples from all processing. Pass one or more sample IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
+* `--exclude-groups <group_id> [<group_id> ...] | <file>`: Exclude entire Bonsai groups from processing. Pass one or more group IDs directly, or a single path to a plain-text or CSV file (lines starting with `#` are ignored).
+* `--email [address]`: Send a failure alert email if the pipeline encounters any errors. Without a value, the alert is sent to the authenticated MIMOSA user. With a value (e.g. `--email you@example.com`), it is sent to that address instead.
+
+
+### QC status filtering
+
+MIMOSA can be configured to only process samples whose QC status is in an allowed set. This is controlled by `ALLOWED_QC_STATUSES` in `scripts/constants.py`:
+
+```
+# Default — only "passed" samples are allowed:
+ALLOWED_QC_STATUSES = {"passed"}
+
+# Also allow samples not yet processed:
+ALLOWED_QC_STATUSES = {"passed", "unprocessed"}
+
+# Disable filtering — allow all QC statuses:
+ALLOWED_QC_STATUSES = set()
+```
+
+Samples whose `QC_Status` is not in this set are skipped during processing. If the pipeline detects that a previously-analyzed sample's QC status has changed to a disallowed value, it will automatically:
+
+1. Trigger a re-cluster using only the passing samples
+2. Prompt for confirmation (in interactive mode) before removing the QC-excluded sample(s) from the database
+3. Delete those samples from the database after successful re-clustering
+
+In non-interactive (automation) mode the deletion proceeds without prompting. In `--update-only` mode a warning is printed instead and neither re-clustering nor deletion occurs.
+
+
 
 ### Supplementary metadata
 
