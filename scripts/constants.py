@@ -3,6 +3,29 @@ AVAILABLE_PROFILES = [
     "klebsiella_pneumoniae",
 ]
 
+
+REPORTREE_DEFAULTS = {
+    "threshold": 9,
+    "method": "MSTreeV2",
+    "analysis": "grapetree",
+}
+
+# Only list profiles that need to deviate from REPORTREE_DEFAULTS.
+# Example:
+# REPORTREE_PROFILE_PARAMS = {
+#     "klebsiella_pneumoniae": {
+#         "threshold": 7,
+#     },
+# }
+
+# QC-status filtering
+ALLOWED_QC_STATUSES = {"passed"}
+
+
+# ---------------------------------------------------------------------------
+
+REQUEST_TIMEOUT = 30
+
 BASE_METADATA_FIELDS = {
     "PostCode",
     "Hospital",
@@ -33,22 +56,6 @@ CGMLST_MISSING_CODES = {
     "ALM",
 }
 
-REPORTREE_DEFAULTS = {
-    "threshold": 9,
-    "method": "MSTreeV2",
-    "analysis": "grapetree",
-}
-
-# Only list profiles that need to deviate from REPORTREE_DEFAULTS.
-# Example:
-# REPORTREE_PROFILE_PARAMS = {
-#     "klebsiella_pneumoniae": {
-#         "threshold": 7,
-#     },
-# }
-
-# QC-status filtering
-ALLOWED_QC_STATUSES = {"passed"}
 
 REPORTREE_PROFILE_PARAMS = {}
 
