@@ -1,6 +1,7 @@
 AVAILABLE_PROFILES = [
     "staphylococcus_aureus",
     "klebsiella_pneumoniae",
+    "escherichia_coli",
 ]
 
 
