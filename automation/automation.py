@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
+import hashlib
+import json
 import logging
 import os
 import sys
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests as http_requests
 from dotenv import load_dotenv
@@ -18,6 +22,47 @@ load_dotenv(env_path)
 
 configure_logging()
 log = logging.getLogger(__name__)
+
+_pipeline_lock = threading.Lock()
+
+
+def _safe_check_and_run():
+    if not _pipeline_lock.acquire(blocking=False):
+        log.info("event=trigger_skipped reason=already_running")
+        return False
+    try:
+        check_and_run()
+    finally:
+        _pipeline_lock.release()
+    return True
+
+
+class _TriggerHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path == "/trigger":
+            threading.Thread(target=_safe_check_and_run, daemon=True).start()
+            body = json.dumps({"triggered": True}).encode()
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+def _start_trigger_server():
+    port = int(os.getenv("AUTOMATION_TRIGGER_PORT", "8081"))
+    try:
+        server = HTTPServer(("0.0.0.0", port), _TriggerHandler)
+        log.info("event=trigger_server_start port=%d", port)
+        server.serve_forever()
+    except Exception as e:
+        log.warning("event=trigger_server_failed error=%s", e)
 
 
 def wait_for_backend(timeout=300, interval=5):
@@ -39,14 +84,24 @@ def wait_for_backend(timeout=300, interval=5):
     raise RuntimeError("Backend did not become ready within 5 minutes.")
 
 
-def build_pipeline_argv():
-    raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
-    profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
+def _bonsai_enabled():
+    return os.getenv("AUTOMATION_BONSAI_ENABLED", "true").lower() != "false"
+
+
+def build_pipeline_argv(new_tsv_paths=None, profile_override=None):
+    if profile_override:
+        profiles = [profile_override]
+    else:
+        raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
+        profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
 
     argv = ["automation"]
 
     if profiles:
         argv.extend(["--profile", *profiles])
+
+    if not _bonsai_enabled():
+        argv.extend(["--bonsai", "false"])
 
     use_update_only = os.getenv("AUTOMATION_UPDATE_ONLY", "false").lower() == "true"
     use_re_cluster = os.getenv("AUTOMATION_RE_CLUSTER", "false").lower() == "true"
@@ -69,13 +124,18 @@ def build_pipeline_argv():
     if os.getenv("AUTOMATION_RUN_SIMILARITY", "false").lower() == "true":
         argv.append("--run-similarity")
 
+    if new_tsv_paths:
+        argv.extend(["--chewbbaca", *new_tsv_paths])
+
     return argv
 
 
 def _send_failure_alert(error_message):
-    """Send a pipeline failure alert to all opted-in users."""
+    """
+    Send a pipeline failure alert to all opted-in users.
+    """
     try:
-        credentials = load_credentials()
+        credentials = load_credentials(require_bonsai=_bonsai_enabled())
         upload_token = authenticate_mimosa_user(credentials)
         raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
         profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
@@ -88,9 +148,9 @@ def _send_failure_alert(error_message):
         log.warning(f'event=alert_send_failed message="{alert_err}"')
 
 
-def check_and_run():
+def check_and_run(new_tsv_paths=None, profile_override=None):
     try:
-        argv = build_pipeline_argv()
+        argv = build_pipeline_argv(new_tsv_paths, profile_override)
     except ValueError as e:
         log.error(f'event=config_error message="{e}"')
         return
@@ -124,19 +184,114 @@ def check_and_run():
                 _send_failure_alert(str(e))
 
 
+def _md5(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _scan_watch_dir(dir_path, profile, collection):
+    from pathlib import Path as _Path
+
+    dir_path = _Path(dir_path)
+    tsv_files = list(dir_path.glob("*.tsv"))
+    if not tsv_files:
+        return
+
+    file_hashes = {_md5(f): f for f in tsv_files}
+    seen = {
+        doc["md5"]
+        for doc in collection.find({"md5": {"$in": list(file_hashes)}}, {"md5": 1})
+    }
+    new_file_map = {md5: path for md5, path in file_hashes.items() if md5 not in seen}
+    skipped = len(file_hashes) - len(new_file_map)
+    if skipped:
+        log.info(
+            "event=watch_skip reason=already_processed profile=%s count=%d",
+            profile,
+            skipped,
+        )
+    if new_file_map:
+        new_files = [str(p) for p in new_file_map.values()]
+        log.info("event=watch_trigger profile=%s files=%d", profile, len(new_files))
+        with _pipeline_lock:
+            check_and_run(new_tsv_paths=new_files, profile_override=profile)
+        now = time.time()
+        collection.insert_many(
+            [
+                {
+                    "filename": _Path(p).name,
+                    "md5": md5,
+                    "profile": profile,
+                    "processed_at": now,
+                }
+                for md5, p in new_file_map.items()
+            ]
+        )
+
+
+def _watch_directory(db):
+    config_path = os.getenv("CHEWBBACA_WATCH_CONFIG")
+    interval_hours = float(os.getenv("CHEWBBACA_WATCH_INTERVAL", "24"))
+    interval_seconds = interval_hours * 3600
+    collection = db["processed_files"]
+
+    try:
+        with open(config_path) as f:
+            raw = json.load(f)
+    except Exception as e:
+        log.error("event=watch_config_error path=%s error=%s", config_path, e)
+        return
+
+    config = {
+        profile: ([dirs] if isinstance(dirs, str) else dirs)
+        for profile, dirs in raw.items()
+    }
+
+    log.info(
+        "event=watch_start profiles=%d interval_hours=%.4g", len(config), interval_hours
+    )
+
+    while True:
+        try:
+            for profile, dirs in config.items():
+                for dir_path in dirs:
+                    _scan_watch_dir(dir_path, profile, collection)
+        except Exception as e:
+            log.warning("event=watch_error error=%s", e)
+
+        time.sleep(interval_seconds)
+
+
 def main():
     schedule_hours = float(os.getenv("AUTOMATION_SCHEDULE_HOURS", "1"))
     run_on_startup = os.getenv("AUTOMATION_RUN_ON_STARTUP", "false").lower() == "true"
 
     log.info(f"event=automation_start schedule_hours={schedule_hours}")
 
+    threading.Thread(target=_start_trigger_server, daemon=True).start()
+
+    watch_config = os.getenv("CHEWBBACA_WATCH_CONFIG")
+    if watch_config:
+        from pymongo import MongoClient
+
+        mongo_uri = os.getenv("MONGO_URI")
+        if not mongo_uri:
+            log.warning("event=watch_disabled reason=MONGO_URI_not_set")
+        else:
+            client = MongoClient(mongo_uri)
+            db = client[os.getenv("MONGO_DB_NAME")]
+            threading.Thread(target=_watch_directory, args=(db,), daemon=True).start()
+
     if run_on_startup:
         wait_for_backend()
-        check_and_run()
+        _safe_check_and_run()
 
     while True:
         time.sleep(schedule_hours * 3600)
-        check_and_run()
+        _safe_check_and_run()
 
 
 if __name__ == "__main__":
