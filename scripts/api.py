@@ -14,6 +14,50 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
 
+def _bonsai_retry_params():
+    try:
+        attempts = max(1, int(os.getenv("BONSAI_RETRY_ATTEMPTS", "3")))
+    except ValueError:
+        attempts = 3
+    try:
+        wait = max(0, int(os.getenv("BONSAI_RETRY_WAIT", "30")))
+    except ValueError:
+        wait = 30
+    return attempts, wait
+
+
+def _with_bonsai_retry(fn):
+    """
+    Call fn() with retry logic driven by BONSAI_RETRY_ATTEMPTS / BONSAI_RETRY_WAIT.
+    Logs each failed attempt. Raises RuntimeError after all attempts are exhausted.
+    """
+    attempts, wait = _bonsai_retry_params()
+    last_exc = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn()
+        except (ConnectionError, requests.exceptions.RequestException) as exc:
+            last_exc = exc
+            if attempt < attempts:
+                log.warning(
+                    "event=bonsai_connection_failed attempt=%d/%d error=%s retrying_in=%ds",
+                    attempt,
+                    attempts,
+                    exc,
+                    wait,
+                )
+                time.sleep(wait)
+            else:
+                log.error(
+                    "event=bonsai_retry_exhausted attempts=%d error=%s",
+                    attempts,
+                    exc,
+                )
+    raise RuntimeError(
+        f"Bonsai connection failed after {attempts} attempt(s). Last error: {last_exc}"
+    )
+
+
 def normalise_scalar(value, default="Unknown"):
     """
     Normalise API fields that may be returned as either a scalar or list.
@@ -31,7 +75,7 @@ def auth_headers(token):
     }
 
 
-def load_credentials(credentials_file=None):
+def load_credentials(credentials_file=None, require_bonsai=True):
     """
     Load Bonsai and MIMOSA credentials.
     """
@@ -69,16 +113,15 @@ def load_credentials(credentials_file=None):
     mimosa_username = os.getenv("AUTOMATION_MIMOSA_USERNAME")
     mimosa_password = os.getenv("AUTOMATION_MIMOSA_PASSWORD")
 
-    missing = [
-        name
-        for name, val in {
-            "AUTOMATION_BONSAI_USERNAME": bonsai_username,
-            "AUTOMATION_BONSAI_PASSWORD": bonsai_password,
-            "AUTOMATION_MIMOSA_USERNAME": mimosa_username,
-            "AUTOMATION_MIMOSA_PASSWORD": mimosa_password,
-        }.items()
-        if not val
-    ]
+    required = {
+        "AUTOMATION_MIMOSA_USERNAME": mimosa_username,
+        "AUTOMATION_MIMOSA_PASSWORD": mimosa_password,
+    }
+    if require_bonsai:
+        required["AUTOMATION_BONSAI_USERNAME"] = bonsai_username
+        required["AUTOMATION_BONSAI_PASSWORD"] = bonsai_password
+
+    missing = [name for name, val in required.items() if not val]
 
     if missing:
         raise ValueError(
@@ -98,7 +141,8 @@ def get_access_token(credentials):
     """
     Retrieve access token from the Bonsai API.
     """
-    try:
+
+    def _call():
         response = requests.post(
             f"{credentials['bonsai_api_url']}/token",
             headers={
@@ -115,14 +159,7 @@ def get_access_token(credentials):
         response.raise_for_status()
         return response.json().get("access_token")
 
-    except ConnectionError:
-        raise RuntimeError(
-            f"Could not connect to Bonsai at {credentials['bonsai_api_url']}. "
-            "Is the server running?"
-        )
-
-    except requests.HTTPError as e:
-        raise RuntimeError(f"Failed to get access token: {e.response.text}") from e
+    return _with_bonsai_retry(_call)
 
 
 def authenticate_mimosa_user(credentials):
@@ -172,70 +209,33 @@ def authenticate_mimosa_user(credentials):
 def fetch_samples(bonsai_api_url, token):
     """
     Fetch all samples from the Bonsai API and normalise profile fields.
-    Retries up to 3 times on transient failures.
     """
-    max_retries = 3
-    retry_delay = 2
 
-    for attempt in range(max_retries):
-        try:
-            count_response = requests.get(
-                f"{bonsai_api_url}/samples/?limit=1",
-                headers=auth_headers(token),
-                timeout=REQUEST_TIMEOUT,
-            )
-            count_response.raise_for_status()
+    def _call():
+        count_response = requests.get(
+            f"{bonsai_api_url}/samples/?limit=1",
+            headers=auth_headers(token),
+            timeout=REQUEST_TIMEOUT,
+        )
+        count_response.raise_for_status()
 
-            payload = count_response.json()
-            total = payload.get("records_total", 0)
+        total = count_response.json().get("records_total", 0)
+        if total == 0:
+            return []
 
-            if total == 0:
-                return []
+        response = requests.get(
+            f"{bonsai_api_url}/samples/?limit={total}",
+            headers=auth_headers(token),
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
 
-            response = requests.get(
-                f"{bonsai_api_url}/samples/?limit={total}",
-                headers=auth_headers(token),
-                timeout=REQUEST_TIMEOUT,
-            )
-            response.raise_for_status()
+        samples = response.json().get("data", [])
+        for sample in samples:
+            sample["profile"] = normalise_scalar(sample.get("profile"))
+        return samples
 
-            samples = response.json().get("data", [])
-
-            for sample in samples:
-                sample["profile"] = normalise_scalar(sample.get("profile"))
-
-            return samples
-
-        except requests.exceptions.HTTPError as e:
-            if attempt < max_retries - 1:
-                log.warning(
-                    "Bonsai API error (attempt %d/%d): %s %s. Retrying in %ds...",
-                    attempt + 1,
-                    max_retries,
-                    e.response.status_code,
-                    e.response.reason,
-                    retry_delay,
-                )
-                time.sleep(retry_delay)
-            else:
-                raise RuntimeError(
-                    f"Failed to fetch samples after {max_retries} attempts: {e}"
-                ) from e
-
-        except (ConnectionError, requests.exceptions.RequestException) as e:
-            if attempt < max_retries - 1:
-                log.warning(
-                    "Connection error (attempt %d/%d): %s. Retrying in %ds...",
-                    attempt + 1,
-                    max_retries,
-                    e,
-                    retry_delay,
-                )
-                time.sleep(retry_delay)
-            else:
-                raise RuntimeError(
-                    f"Failed to fetch samples after {max_retries} attempts: {e}"
-                ) from e
+    return _with_bonsai_retry(_call)
 
 
 def fetch_sample_details(bonsai_api_url, token, sample_id):
@@ -243,22 +243,22 @@ def fetch_sample_details(bonsai_api_url, token, sample_id):
     Fetch details of a specific sample by ID from the Bonsai API.
     """
 
-    response = requests.get(
-        f"{bonsai_api_url}/samples/{sample_id}",
-        headers=auth_headers(token),
-        timeout=REQUEST_TIMEOUT,
-    )
-    response.raise_for_status()
-
-    data = response.json()
-
-    pipeline = data.get("pipeline")
-    if pipeline:
-        pipeline["analysis_profile"] = normalise_scalar(
-            pipeline.get("analysis_profile")
+    def _call():
+        response = requests.get(
+            f"{bonsai_api_url}/samples/{sample_id}",
+            headers=auth_headers(token),
+            timeout=REQUEST_TIMEOUT,
         )
+        response.raise_for_status()
+        data = response.json()
+        pipeline = data.get("pipeline")
+        if pipeline:
+            pipeline["analysis_profile"] = normalise_scalar(
+                pipeline.get("analysis_profile")
+            )
+        return data
 
-    return data
+    return _with_bonsai_retry(_call)
 
 
 def validate_groups(bonsai_api_url, token, group_ids):
@@ -324,14 +324,15 @@ def fetch_group(bonsai_api_url, token, group_id):
     Fetch a specific group by ID and return its included sample IDs.
     """
 
-    response = requests.get(
-        f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
-        headers=auth_headers(token),
-        timeout=REQUEST_TIMEOUT,
-    )
+    def _call():
+        response = requests.get(
+            f"{bonsai_api_url}/groups/{group_id}?lookup_samples=false",
+            headers=auth_headers(token),
+            timeout=REQUEST_TIMEOUT,
+        )
+        if response.status_code in (404, 500):
+            raise ValueError(f"Group '{group_id}' was not found in Bonsai.")
+        response.raise_for_status()
+        return response.json().get("included_samples", [])
 
-    if response.status_code in (404, 500):
-        raise ValueError(f"Group '{group_id}' was not found in Bonsai.")
-
-    response.raise_for_status()
-    return response.json().get("included_samples", [])
+    return _with_bonsai_retry(_call)
