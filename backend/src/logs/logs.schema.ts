@@ -9,21 +9,31 @@ class UpdateEntry {
   @Prop({ type: MongooseSchema.Types.Mixed }) changes: Record<string, any>;
 }
 
+@Schema({ _id: false })
+class ConflictEntry {
+  @Prop({ required: true }) bonsai_id: string;
+  @Prop({ required: true }) chewbbaca_id: string;
+  @Prop() profile?: string;
+  @Prop({ required: true }) action: string;
+  @Prop() store_action?: string;
+}
+
 @Schema()
 export class Log extends Document {
-  // Per-sample log fields
   @Prop({ index: true }) sample_id?: string;
   @Prop() added_at?: Date;
   @Prop({ type: [UpdateEntry], default: [] }) updates: UpdateEntry[];
 
-  // Shared
   @Prop({ required: true }) profile: string;
 
-  // Batch audit event fields
   @Prop() event?: string;
+  @Prop() triggered_by?: string;
+
   @Prop() deleted_count?: number;
   @Prop({ type: [String] }) deleted_ids?: string[];
-  @Prop() triggered_by?: string;
+
+  @Prop() conflict_count?: number;
+  @Prop({ type: [ConflictEntry] }) conflicts?: ConflictEntry[];
 }
 
 export const LogSchema = SchemaFactory.createForClass(Log);

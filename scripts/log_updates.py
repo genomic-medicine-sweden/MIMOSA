@@ -1,6 +1,29 @@
 import datetime
 
 
+def log_conflict_event(db, conflicts, triggered_by=None):
+    """
+    Record a chewBBACA conflict resolution batch in the logs collection.
+
+    """
+    if not conflicts:
+        return
+
+    profiles = sorted({c.get("profile", "") for c in conflicts if c.get("profile")})
+    profile_str = ", ".join(profiles) if profiles else "unknown"
+
+    db["logs"].insert_one(
+        {
+            "event": "chewbbaca_conflict",
+            "profile": profile_str,
+            "conflict_count": len(conflicts),
+            "conflicts": conflicts,
+            "added_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "triggered_by": triggered_by or "automation",
+        }
+    )
+
+
 def log_batch_deletion(db, sample_ids, profile, deleted_by=None):
     """
     Record a single audit entry when a batch of QC-excluded samples is removed.
