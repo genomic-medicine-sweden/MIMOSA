@@ -44,6 +44,9 @@ const ReportsPage = dynamic(
   () => import("@/components/dashboard/ReportsPage"),
   { ssr: false },
 );
+const ImportPage = dynamic(() => import("@/components/dashboard/ImportPage"), {
+  ssr: false,
+});
 
 export default function DashboardPage() {
   const { viewMode } = useViewMode();
@@ -60,6 +63,7 @@ export default function DashboardPage() {
   if (viewMode === ViewModes.TREE) return <TreePage />;
   if (viewMode === ViewModes.TIMELINE) return <TimelinePage />;
   if (viewMode === ViewModes.REPORTS) return <ReportsPage />;
+  if (viewMode === ViewModes.IMPORT) return <ImportPage />;
 
   return <DashboardOverview data={data} logs={logs} />;
 }
