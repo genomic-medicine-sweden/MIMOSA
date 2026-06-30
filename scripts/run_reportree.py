@@ -17,10 +17,7 @@ def run_reportree(
     save_files=False,
     nomenclature_file=None,
 ):
-    """
-    Run ReporTree.
-
-    """
+    """Run ReporTree via reportree.py (if on PATH) or Docker. Returns the output folder."""
     os.makedirs(output_folder, exist_ok=True)
 
     metadata_basename = os.path.basename(metadata_file)
