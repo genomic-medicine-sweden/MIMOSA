@@ -73,6 +73,11 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
     });
   };
 
+  const sourcesInView = new Set(
+    (filteredData || []).map((d) => d?.properties?.source).filter(Boolean),
+  );
+  const showSourceField = sourcesInView.size > 1;
+
   const rowExpansionTemplate = (rowData) => {
     const properties = rowData?.properties || {};
     const typing = properties.typing || {};
@@ -113,41 +118,63 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
           <strong>Partition:</strong> {properties.Partition || "N/A"}
         </p>
 
-        <p>
-          <strong>Pipeline Version:</strong>{" "}
-          {properties.Pipeline_Version || "N/A"}
-        </p>
-        <p>
-          <strong>Sequencing Platform:</strong>{" "}
-          {properties.Sequencing_Platform || "N/A"}
-        </p>
-        <p>
-          <strong>Date of Analysis:</strong> {properties.Pipeline_Date || "N/A"}
-        </p>
-
-        <p>
-          <strong>QC Status:</strong> {properties.QC_Status || "N/A"}
-        </p>
-
-        {properties.ID && (
+        {showSourceField && properties.source && (
           <p>
-            <a
-              href={`${bonsaiUrl}/sample/${properties.ID}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: "underline", color: "#007ad9" }}
-            >
-              View Sample in Bonsai
-            </a>
+            <strong>Source:</strong> {properties.source}
           </p>
         )}
 
-        <p>
-          <strong>ST:</strong>{" "}
-          {!isNaN(parseInt(typing.ST))
-            ? parseInt(typing.ST)
-            : typing.ST || "N/A"}
-        </p>
+        {properties.source !== "chewbbaca" && (
+          <>
+            {properties.Pipeline_Version && (
+              <p>
+                <strong>Pipeline Version:</strong> {properties.Pipeline_Version}
+              </p>
+            )}
+
+            {properties.Sequencing_Platform && (
+              <p>
+                <strong>Sequencing Platform:</strong>{" "}
+                {properties.Sequencing_Platform}
+              </p>
+            )}
+
+            {properties.Pipeline_Date && (
+              <p>
+                <strong>Date of Analysis:</strong> {properties.Pipeline_Date}
+              </p>
+            )}
+
+            {properties.QC_Status && (
+              <p>
+                <strong>QC Status:</strong> {properties.QC_Status}
+              </p>
+            )}
+
+            {typing.ST && (
+              <p>
+                <strong>ST:</strong>{" "}
+                {!isNaN(parseInt(typing.ST)) ? parseInt(typing.ST) : typing.ST}
+              </p>
+            )}
+
+            {properties.ID && (
+              <p>
+                <a
+                  href={`${bonsaiUrl}/sample/${properties.ID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    textDecoration: "underline",
+                    color: "#007ad9",
+                  }}
+                >
+                  View Sample in Bonsai
+                </a>
+              </p>
+            )}
+          </>
+        )}
 
         {Object.keys(alleles).length > 0 && (
           <table style={{ marginLeft: "1rem" }}>
@@ -172,6 +199,76 @@ const Table = ({ filteredData, similarity, dateRange, logs }) => {
               </tr>
             </tbody>
           </table>
+        )}
+
+        {similarData?.similar?.length > 0 && (
+          <>
+            <h3>Similar Samples</h3>
+            <table style={{ marginTop: "1rem" }}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Similarity</th>
+                  <th>Distance (km)</th>
+                  <th>Hospital Distance (km)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {similarData.similar
+                  .filter(
+                    (similarSample) => similarSample?.ID !== properties.ID,
+                  )
+                  .map((similarSample) => {
+                    const similarPostcode = findPostcodeById(similarSample.ID);
+                    const similarCoordinates =
+                      postcodeData[similarPostcode]?.coordinates || [];
+
+                    const similarHospital = findHospitalById(similarSample.ID);
+                    const similarHospitalPostcode =
+                      HospitalCoordinates[similarHospital]?.PostCode;
+                    const similarHospitalCoordinates =
+                      postcodeData[similarHospitalPostcode]?.coordinates || [];
+
+                    const distance =
+                      mainCoordinates.length === 2 &&
+                      similarCoordinates.length === 2
+                        ? calculateDistance(
+                            mainCoordinates[0],
+                            mainCoordinates[1],
+                            similarCoordinates[0],
+                            similarCoordinates[1],
+                          ).toFixed(2)
+                        : "N/A";
+
+                    const hospitalDistance =
+                      mainHospitalCoordinates.length === 2 &&
+                      similarHospitalCoordinates.length === 2
+                        ? calculateDistance(
+                            mainHospitalCoordinates[0],
+                            mainHospitalCoordinates[1],
+                            similarHospitalCoordinates[0],
+                            similarHospitalCoordinates[1],
+                          ).toFixed(2)
+                        : "N/A";
+
+                    return (
+                      <tr key={similarSample.ID}>
+                        <td style={{ textAlign: "center" }}>
+                          {similarSample.ID}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {parseFloat(similarSample.similarity).toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: "center" }}>{distance}</td>
+                        <td style={{ textAlign: "center" }}>
+                          {hospitalDistance}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </>
         )}
 
         {similarData?.similar?.length > 0 && (

@@ -10,6 +10,7 @@ const SKIP_KEYS = new Set([
   "Pipeline_Date",
   "analysis_profile",
   "alleles",
+  "source",
 ]);
 
 export const isSingleton = (id) =>

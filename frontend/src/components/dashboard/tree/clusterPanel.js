@@ -15,6 +15,7 @@ const SKIP = new Set([
   "Pipeline_Date",
   "analysis_profile",
   "alleles",
+  "source",
 ]);
 
 const PANEL_FIELDS = ["Date", "Hospital", "Postal Town", "County"];
