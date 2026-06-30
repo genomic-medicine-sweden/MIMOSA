@@ -2,6 +2,7 @@
 import os
 import time
 import argparse
+import difflib
 import pandas as pd
 import requests
 from api import (
@@ -63,15 +64,25 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if args.profile is None or "All" in args.profile:
+    if args.profile is None or any(p.lower() == "all" for p in args.profile):
         args.profile = AVAILABLE_PROFILES
     else:
-        invalid = [p for p in args.profile if p not in AVAILABLE_PROFILES]
+        available_lower = {p.lower(): p for p in AVAILABLE_PROFILES}
+        resolved = [available_lower.get(p.lower()) for p in args.profile]
+        invalid = [p for p, r in zip(args.profile, resolved) if r is None]
         if invalid:
-            parser.error(
-                f"Invalid profile(s): {', '.join(invalid)}. "
-                f"Choose from: {', '.join(AVAILABLE_PROFILES)}"
-            )
+            lines = []
+            for p in invalid:
+                close = difflib.get_close_matches(p.lower(), AVAILABLE_PROFILES, n=1)
+                if close:
+                    lines.append(f"Invalid profile '{p}', did you mean '{close[0]}'?")
+                else:
+                    lines.append(
+                        f"Invalid profile '{p}'. "
+                        f"Choose from: {', '.join(AVAILABLE_PROFILES)}"
+                    )
+            parser.error("\n".join(lines))
+        args.profile = [r for r in resolved if r is not None]
 
     return args
 

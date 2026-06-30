@@ -40,6 +40,7 @@ BASE_METADATA_FIELDS = {
     "ST",
     "Time",
     "lims_id",
+    "source",
 }
 
 CGMLST_MISSING_CODES = {

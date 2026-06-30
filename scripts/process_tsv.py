@@ -66,6 +66,7 @@ def process_tsv(
                 "Pipeline_Date": row.get("Pipeline_Date", "").strip(),
                 "Date": row.get("Date", "").strip(),
                 "QC_Status": row.get("QC_Status", "").strip(),
+                "source": row.get("source", "").strip(),
                 "typing": typing,
             }
 
@@ -95,6 +96,10 @@ def process_tsv(
                     "ID": sample_id,
                     "QC_Status": full_meta["QC_Status"],
                 }
+
+                source = full_meta.get("source", "")
+                if source:
+                    properties["source"] = source
 
                 typing = full_meta.get("typing", {})
                 if typing.get("ST") or typing.get("alleles"):
