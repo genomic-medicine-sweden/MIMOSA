@@ -52,6 +52,14 @@
 - Matrix now opens in a full-page view in a new tab
 - Type filter pills in the recent sample activity log card
 - Escherichia coli to available profiles
+- chewBBACA TSV ingestion — pipeline now accepts local TSV files, directories, or CSV manifests via `--chewbbaca` and `--chewbbaca_profile` flags, in addition to or instead of Bonsai
+- Bonsai/chewBBACA conflict resolution — when a sample exists in both sources, the pipeline resolves the conflict and logs the decision
+- chewBBACA import page in the dashboard (admin only) for managing stored allele profiles
+- Trigger endpoint (`POST /trigger`) on the automation container for on-demand pipeline runs
+- Watch directory support in automation — monitors directories for new chewBBACA TSV files and runs the pipeline automatically
+- `source` field on features to distinguish Bonsai and chewBBACA samples
+- SSE keepalive ping to prevent connection timeouts
+- Sphinx documentation
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -83,7 +91,13 @@
 - `formatDate` extracted into a shared utility
 - Request timeouts added to all outgoing HTTP calls in scripts
 - Remaining `print` statements in scripts migrated to structured logging
-
+- Argument parsing extracted from `main.py` into `cli.py`
+- Bonsai retry logic consolidated into a shared `_with_bonsai_retry` helper
+- Supplementary metadata matching now falls back to sample ID when lims_id is unavailable (supports chewBBACA samples)
+- ReporTree is skipped for runs with fewer than 3 samples
+- Request body size limit increased to 50 MB
+- README condensed and now links to full Sphinx documentation
+- Inline READMEs for outbreak rules and pending samples removed in favour of Sphinx docs
 
 ### Fixed
 - Fixed region matching for UK map boundaries
@@ -98,6 +112,8 @@
 - Silent `catch` blocks replaced with `console.error` logging
 - MongoDB client now always closed in a `finally` block
 - Bumped js-cookie to ^3.0.7
+- SSE ping events no longer trigger unnecessary data refetches in the frontend
+- OAuth clients sending standard form fields no longer receive a 400 on login
 
 ## [v0.5.0]
 
