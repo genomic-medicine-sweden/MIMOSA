@@ -8,7 +8,7 @@ import {
   Req,
   Sse,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { Observable, merge, interval } from 'rxjs';
 import { fromEvent } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -52,9 +52,13 @@ export class FeaturesController {
       'Streams a notification whenever a feature is inserted or updated.',
   })
   featureEvents(): Observable<MessageEvent> {
-    return fromEvent(this.eventEmitter, 'features.changed').pipe(
+    const events$ = fromEvent(this.eventEmitter, 'features.changed').pipe(
       map(() => ({ data: { type: 'features.changed' } }) as MessageEvent),
     );
+    const ping$ = interval(30_000).pipe(
+      map(() => ({ data: { type: 'ping' } }) as MessageEvent),
+    );
+    return merge(events$, ping$);
   }
 
   @Get(':sample_id')
