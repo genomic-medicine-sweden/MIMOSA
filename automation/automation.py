@@ -26,12 +26,12 @@ log = logging.getLogger(__name__)
 _pipeline_lock = threading.Lock()
 
 
-def _safe_check_and_run():
+def _safe_check_and_run(profiles_override=None):
     if not _pipeline_lock.acquire(blocking=False):
         log.info("event=trigger_skipped reason=already_running")
         return False
     try:
-        check_and_run()
+        check_and_run(profiles_override=profiles_override)
     finally:
         _pipeline_lock.release()
     return True
@@ -40,9 +40,37 @@ def _safe_check_and_run():
 class _TriggerHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/trigger":
-            threading.Thread(target=_safe_check_and_run, daemon=True).start()
-            body = json.dumps({"triggered": True}).encode()
-            self.send_response(202)
+            profiles_override = None
+            content_length = int(self.headers.get("Content-Length", 0) or 0)
+            if content_length > 0:
+                try:
+                    data = json.loads(self.rfile.read(content_length))
+                    if isinstance(data.get("profiles"), list):
+                        profiles_override = [
+                            p for p in data["profiles"] if isinstance(p, str) and p
+                        ] or None
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+
+            lock_free = _pipeline_lock.acquire(blocking=False)
+            if lock_free:
+                _pipeline_lock.release()
+                threading.Thread(
+                    target=_safe_check_and_run,
+                    args=(profiles_override,),
+                    daemon=True,
+                ).start()
+                resp = {"triggered": True}
+                if profiles_override:
+                    resp["profiles"] = profiles_override
+                body = json.dumps(resp).encode()
+                self.send_response(202)
+            else:
+                log.info("event=trigger_skipped reason=already_running")
+                body = json.dumps(
+                    {"triggered": False, "reason": "pipeline_already_running"}
+                ).encode()
+                self.send_response(409)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -88,12 +116,50 @@ def _bonsai_enabled():
     return os.getenv("AUTOMATION_BONSAI_ENABLED", "true").lower() != "false"
 
 
-def build_pipeline_argv(new_tsv_paths=None, profile_override=None):
+def _resolve_profiles(profile_override=None, profiles_override=None):
+    if profiles_override:
+        return list(profiles_override)
     if profile_override:
-        profiles = [profile_override]
-    else:
-        raw_profiles = os.getenv("AUTOMATION_PROFILES", "")
-        profiles = [p.strip() for p in raw_profiles.split(",") if p.strip()]
+        return [profile_override]
+    raw = os.getenv("AUTOMATION_PROFILES", "")
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+def _warn_unconfigured_profiles(configured_profiles):
+    """Log a warning if allele_profiles exist for profiles not in the run list."""
+    try:
+        from pymongo import MongoClient
+
+        mongo_uri = os.getenv("MONGO_URI")
+        db_name = os.getenv("MONGO_DB_NAME")
+        if not mongo_uri or not db_name:
+            return
+        configured = set(configured_profiles)
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
+        try:
+            db = client[db_name]
+            for doc in db["allele_profiles"].aggregate(
+                [{"$group": {"_id": "$analysis_profile", "count": {"$sum": 1}}}]
+            ):
+                profile = doc.get("_id")
+                count = doc.get("count", 0)
+                if profile and profile not in configured:
+                    log.warning(
+                        "event=pending_samples_not_in_run profile=%s count=%d "
+                        "hint=add_to_AUTOMATION_PROFILES_or_pass_profiles_to_trigger",
+                        profile,
+                        count,
+                    )
+        finally:
+            client.close()
+    except Exception as exc:
+        log.debug("event=unconfigured_profile_check_failed reason=%s", exc)
+
+
+def build_pipeline_argv(
+    new_tsv_paths=None, profile_override=None, profiles_override=None
+):
+    profiles = _resolve_profiles(profile_override, profiles_override)
 
     argv = ["automation"]
 
@@ -148,9 +214,12 @@ def _send_failure_alert(error_message):
         log.warning(f'event=alert_send_failed message="{alert_err}"')
 
 
-def check_and_run(new_tsv_paths=None, profile_override=None):
+def check_and_run(new_tsv_paths=None, profile_override=None, profiles_override=None):
+    profiles = _resolve_profiles(profile_override, profiles_override)
+    _warn_unconfigured_profiles(profiles)
+
     try:
-        argv = build_pipeline_argv(new_tsv_paths, profile_override)
+        argv = build_pipeline_argv(new_tsv_paths, profile_override, profiles_override)
     except ValueError as e:
         log.error(f'event=config_error message="{e}"')
         return

@@ -1,14 +1,26 @@
 import {
+  Body,
+  ConflictException,
   Controller,
   Post,
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags, ApiOAuth2, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOAuth2,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+
+class TriggerDto {
+  profiles?: string[];
+}
 
 @ApiTags('pipeline')
 @ApiOAuth2(['admin'])
@@ -22,24 +34,44 @@ export class PipelineController {
   @ApiOperation({
     summary: 'Trigger an immediate pipeline run on the automation container',
   })
+  @ApiBody({
+    type: TriggerDto,
+    required: false,
+    description:
+      'Optional profile override. Omit to use the profiles configured in AUTOMATION_PROFILES.',
+  })
   @ApiResponse({ status: 202, description: 'Pipeline run started' })
+  @ApiResponse({ status: 409, description: 'Pipeline is already running' })
   @ApiResponse({
     status: 503,
     description: 'Automation container not reachable',
   })
-  async trigger() {
+  async trigger(@Body() body?: TriggerDto) {
     const triggerUrl = this.config.get<string>(
       'AUTOMATION_TRIGGER_URL',
       'http://mimosa-automation:8081',
     );
 
+    const profiles =
+      Array.isArray(body?.profiles) && body.profiles.length > 0
+        ? body.profiles
+        : undefined;
+
     let res: Response;
     try {
-      res = await fetch(`${triggerUrl}/trigger`, { method: 'POST' });
+      res = await fetch(`${triggerUrl}/trigger`, {
+        method: 'POST',
+        headers: profiles ? { 'Content-Type': 'application/json' } : {},
+        body: profiles ? JSON.stringify({ profiles }) : undefined,
+      });
     } catch {
       throw new ServiceUnavailableException(
         'Automation container is not reachable.',
       );
+    }
+
+    if (res.status === 409) {
+      throw new ConflictException('Pipeline is already running.');
     }
 
     if (!res.ok) {
