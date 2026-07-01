@@ -52,7 +52,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
-      persistAuthorization: true,
+      persistAuthorization: false,
       oauth2RedirectUrl: `${publicApiBase}/docs/oauth2-redirect.html`,
       initOAuth: {
         scopes: [],
