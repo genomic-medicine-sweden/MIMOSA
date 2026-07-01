@@ -79,6 +79,20 @@ const LogsPage = () => {
         },
       ];
     }
+    if (log.event === "deletion") {
+      return [
+        {
+          ...log,
+          update: null,
+          type: "Deletion",
+          sample_id: log.deleted_ids?.[0] || "",
+          changed_by: log.triggered_by || "",
+          date: log.added_at || "",
+          changed_field: "manual deletion",
+          change_detail: "",
+        },
+      ];
+    }
     return log.updates.length > 0
       ? log.updates.map((update) => {
           const changes = update?.changes || {};
@@ -102,7 +116,7 @@ const LogsPage = () => {
             ...log,
             update: null,
             type: "Added",
-            changed_by: "",
+            changed_by: log.added_by || "",
             date: log.added_at || "",
             changed_field: "",
             change_detail: "",
