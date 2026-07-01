@@ -80,19 +80,32 @@ export class ChewbbacaService {
           })
           .toArray();
         if (!stored.length) continue;
+
         const latest = await db
           .collection('clustering')
           .findOne({ analysis_profile: profile }, { sort: { createdAt: -1 } });
-        if (!latest) {
-          allPending.push(...stored);
-        } else {
-          const clustered = new Set(
-            ((latest as any).results ?? []).map((r: any) => r.ID as string),
-          );
-          allPending.push(
-            ...stored.filter((s: any) => !clustered.has(s.sample_id)),
-          );
-        }
+
+        const clustered = new Set(
+          ((latest as any)?.results ?? []).map((r: any) => r.ID as string),
+        );
+
+        const notInClustering = stored.filter(
+          (s: any) => !clustered.has(s.sample_id),
+        );
+        if (!notInClustering.length) continue;
+
+        const notInClusteringIds = notInClustering.map((s: any) => s.sample_id);
+        const alreadyInFeatures = await db
+          .collection('features')
+          .distinct('properties.ID', {
+            'properties.ID': { $in: notInClusteringIds },
+            'properties.analysis_profile': profile,
+          });
+        const analyzedSet = new Set(alreadyInFeatures as string[]);
+
+        allPending.push(
+          ...notInClustering.filter((s: any) => !analyzedSet.has(s.sample_id)),
+        );
       }
     } catch {}
     return allPending.sort(
