@@ -4,12 +4,15 @@ import { Model } from 'mongoose';
 import isEqual from 'lodash.isequal';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Feature } from './features.schema';
+import { AlleleProfile } from '../allele-profiles/allele-profiles.schema';
 import { LogsService } from '../logs/logs.service';
 
 @Injectable()
 export class FeaturesService {
   constructor(
     @InjectModel(Feature.name) private featureModel: Model<Feature>,
+    @InjectModel(AlleleProfile.name)
+    private alleleProfileModel: Model<AlleleProfile>,
     private readonly logsService: LogsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -83,5 +86,36 @@ export class FeaturesService {
     this.eventEmitter.emit('features.changed', { operationType: 'update' });
 
     return updated;
+  }
+
+  async deleteBySampleId(sampleId: string, deletedBy: string): Promise<void> {
+    const feature = await this.featureModel.findOne({
+      'properties.ID': sampleId,
+    });
+
+    if (!feature) {
+      throw new NotFoundException(`Sample '${sampleId}' not found`);
+    }
+
+    const profile = feature.properties?.analysis_profile ?? 'unknown';
+
+    const alleleProfiles = await this.alleleProfileModel
+      .find({ sample_id: sampleId, source: 'chewbbaca' }, { filename: 1 })
+      .lean();
+    const filenames = [
+      ...new Set(alleleProfiles.map((p) => p.filename).filter(Boolean)),
+    ];
+
+    await this.featureModel.deleteOne({ 'properties.ID': sampleId });
+    await this.alleleProfileModel.deleteMany({ sample_id: sampleId });
+
+    if (filenames.length > 0) {
+      await this.alleleProfileModel.db
+        .collection('processed_files')
+        .deleteMany({ filename: { $in: filenames }, profile });
+    }
+
+    await this.logsService.logSampleDeletion(sampleId, profile, deletedBy);
+    this.eventEmitter.emit('features.changed', { operationType: 'delete' });
   }
 }

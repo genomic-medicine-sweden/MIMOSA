@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
+  HttpCode,
   Param,
   Body,
   UseGuards,
@@ -89,5 +91,21 @@ export class FeaturesController {
       updateDto,
       userEmail,
     );
+  }
+
+  @Delete(':sample_id')
+  @HttpCode(204)
+  @ApiParam({ name: 'sample_id', required: true })
+  @ApiOperation({
+    summary: 'Delete a sample',
+    description:
+      'Removes the sample feature and all associated allele profiles. Deletion is logged.',
+  })
+  async deleteFeature(
+    @Param('sample_id') sampleId: string,
+    @Req() req,
+  ): Promise<void> {
+    const userEmail = req.user?.email || 'unknown';
+    await this.featuresService.deleteBySampleId(sampleId, userEmail);
   }
 }

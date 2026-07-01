@@ -42,4 +42,19 @@ export class LogsService {
       throw new Error(`Failed to log update for sample '${sampleId}'`);
     }
   }
+
+  async logSampleDeletion(
+    sampleId: string,
+    profile: string,
+    deletedBy: string,
+  ): Promise<void> {
+    await this.model.create({
+      event: 'deletion',
+      triggered_by: deletedBy,
+      profile,
+      added_at: new Date(),
+      deleted_ids: [sampleId],
+      deleted_count: 1,
+    });
+  }
 }
