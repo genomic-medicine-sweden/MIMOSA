@@ -8,6 +8,10 @@ import { Toast } from "primereact/toast";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { Tooltip } from "primereact/tooltip";
+import { Dialog } from "primereact/dialog";
+import { Button } from "primereact/button";
+import { Checkbox } from "primereact/checkbox";
+import { apiFetch } from "@/utils/apiFetch";
 import {
   handleTextFilterChange,
   handleDropdownFilterChange,
@@ -18,6 +22,7 @@ import {
 } from "./utils/Utils";
 
 import useSampleManagement from "@/hooks/useSampleManagement";
+import useExcludedSamples from "@/hooks/useExcludedSamples";
 import { useMapConfigContext } from "@/components/AppWrapper";
 import FeatureEditDialog from "./samples/FeatureEditDialog";
 import BulkEditDialog from "./samples/BulkEditDialog";
@@ -29,7 +34,8 @@ import { fieldValidators } from "./samples/samplesValidation";
 
 export default function SamplesPage() {
   const toastRef = useRef(null);
-  const { samples, updateSample } = useSampleManagement();
+  const { samples, updateSample, deleteSample } = useSampleManagement();
+  const { createExcludedSample } = useExcludedSamples();
   const {
     postcodePrefix = "",
     postcodeLength = 0,
@@ -42,6 +48,14 @@ export default function SamplesPage() {
     useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingEditData, setPendingEditData] = useState(null);
+
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState(null);
+  const [addToExcluded, setAddToExcluded] = useState(false);
+
+  const openDeleteConfirm = (rowData) => {
+    setConfirmDeleteRow(rowData);
+    setAddToExcluded(rowData.properties.source === "bonsai");
+  };
 
   const [bulkUpdates, setBulkUpdates] = useState([]);
   const [bulkErrors, setBulkErrors] = useState([]);
@@ -244,6 +258,67 @@ export default function SamplesPage() {
       setEditingOriginalRow(null);
       setOriginalPropertiesSnapshot(null);
       setPendingEditData(null);
+    }
+  };
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+
+  const handleDelete = async () => {
+    const row = confirmDeleteRow;
+    const sampleId = row.properties.ID;
+    const shouldExclude = addToExcluded;
+    setConfirmDeleteRow(null);
+    setAddToExcluded(false);
+    try {
+      await deleteSample(sampleId);
+      if (shouldExclude) {
+        await createExcludedSample({
+          sample_id: sampleId,
+          profile: row.properties.analysis_profile,
+        });
+      }
+      toastRef.current.show({
+        severity: "success",
+        summary: "Sample deleted",
+        detail: sampleId,
+        life: 8000,
+        content: () => (
+          <div className="flex flex-column gap-2 w-full">
+            <span className="font-semibold">Sample deleted</span>
+            <span className="text-sm">{sampleId}</span>
+            <Button
+              label="Re-run pipeline"
+              icon="pi pi-play"
+              size="small"
+              className="p-button-outlined p-button-sm mt-1"
+              onClick={async () => {
+                try {
+                  const res = await apiFetch(
+                    `${apiBase}/api/pipeline/trigger`,
+                    {
+                      method: "POST",
+                    },
+                  );
+                  if (!res || !res.ok) throw new Error();
+                  toast.success(
+                    toastRef,
+                    "Pipeline triggered",
+                    "Re-run started",
+                  );
+                } catch {
+                  toast.error(
+                    toastRef,
+                    "Pipeline trigger failed",
+                    "Could not reach the automation container",
+                  );
+                }
+              }}
+            />
+          </div>
+        ),
+      });
+    } catch {
+      toast.error(toastRef, "Delete failed", `Could not delete ${sampleId}`);
     }
   };
 
@@ -777,6 +852,16 @@ export default function SamplesPage() {
           }}
           style={{ width: "10rem", textAlign: "center" }}
         />
+        <Column
+          body={(rowData) => (
+            <Button
+              icon="pi pi-trash"
+              className="p-button-text p-button-danger p-button-sm"
+              onClick={() => openDeleteConfirm(rowData)}
+            />
+          )}
+          style={{ width: "3rem", textAlign: "center" }}
+        />
         <Column rowEditor bodyStyle={{ textAlign: "center" }} />
       </DataTable>
 
@@ -799,6 +884,59 @@ export default function SamplesPage() {
         errors={bulkErrors}
         onAcceptSuggestion={handleAcceptSuggestion}
       />
+
+      <Dialog
+        visible={!!confirmDeleteRow}
+        onHide={() => {
+          setConfirmDeleteRow(null);
+          setAddToExcluded(false);
+        }}
+        header="Delete sample"
+        style={{ width: "28rem" }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              label="Cancel"
+              className="p-button-text"
+              onClick={() => {
+                setConfirmDeleteRow(null);
+                setAddToExcluded(false);
+              }}
+            />
+            <Button
+              label="Delete"
+              className="p-button-danger"
+              onClick={handleDelete}
+            />
+          </div>
+        }
+      >
+        {confirmDeleteRow && (
+          <div className="flex flex-column gap-3">
+            <p>
+              Delete sample <strong>{confirmDeleteRow.properties.ID}</strong>?
+              This action cannot be undone.
+            </p>
+            {confirmDeleteRow.properties.source === "bonsai" && (
+              <p className="text-sm text-orange-700">
+                This sample was fetched from Bonsai. It will be re-imported on
+                the next pipeline run unless added to the exclusion list.
+              </p>
+            )}
+            <div className="flex align-items-center gap-2">
+              <Checkbox
+                inputId="addToExcluded"
+                checked={addToExcluded}
+                onChange={(e) => setAddToExcluded(e.checked)}
+              />
+              <label htmlFor="addToExcluded" className="text-sm cursor-pointer">
+                Also add to excluded list (prevents re-import on future pipeline
+                runs)
+              </label>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }
