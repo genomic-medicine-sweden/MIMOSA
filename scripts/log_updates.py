@@ -57,6 +57,7 @@ def log_sample_event(
             "sample_id": sample_id,
             "profile": profile,
             "added_at": now,
+            "added_by": actor,
             "updates": [],
         }
         collection.insert_one(doc)

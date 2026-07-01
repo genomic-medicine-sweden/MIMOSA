@@ -20,7 +20,14 @@ from api import (
     get_current_user,
     send_pipeline_alert,
 )
-from upload import upload_similarity, delete_features
+from upload import (
+    upload_similarity,
+    delete_features,
+    fetch_excluded_sample_ids,
+    fetch_excluded_group_ids,
+    save_excluded_samples_to_db,
+    save_excluded_groups_to_db,
+)
 from process_similarity import process_similarity
 from MIMOSA import mimosa
 
@@ -322,7 +329,9 @@ def _store_cleanup_from_env():
 
 
 def _resolve_store_cleanup(sample_id, is_interactive):
-    """Return True if the local MongoDB copy should be deleted after Bonsai wins."""
+    """
+    Return True if the local MongoDB copy should be deleted after Bonsai wins.
+    """
     forced = _store_cleanup_from_env()
     if forced is not None:
         return forced == "delete"
@@ -370,7 +379,7 @@ def _run_chewbbaca_import(chewbbaca_inputs, mode, credentials, token, is_interac
         ]
 
         _use_bonsai_ids = set(conflict_result.get("use_bonsai", []))
-        _store_cleanup_actions = {}
+        _store_cleanup_actions = {}  # chewbbaca_id -> "deleted" | "kept" | None
         if _use_bonsai_ids:
             _ap_client, _ap_collection = get_allele_profile_collection()
             try:
@@ -567,6 +576,79 @@ def main():
             raise SystemExit(f"Error: {e}\nPlease check the group IDs and try again.")
 
     upload_token = authenticate_mimosa_user(credentials)
+
+    db_excluded_samples = fetch_excluded_sample_ids(target_profiles)
+    db_excluded_groups = fetch_excluded_group_ids()
+    excluded_samples = excluded_samples | db_excluded_samples
+    excluded_groups = excluded_groups | db_excluded_groups
+    if db_excluded_samples:
+        log.info(f"event=db_excluded_samples count={len(db_excluded_samples)}")
+    if db_excluded_groups:
+        log.info(f"event=db_excluded_groups count={len(db_excluded_groups)}")
+
+    if is_interactive:
+        cli_samples = parse_exclusions(args.exclude_samples)
+        new_sample_exclusions = cli_samples - db_excluded_samples
+        if new_sample_exclusions:
+            print(
+                f"\n{len(new_sample_exclusions)} sample(s) via --exclude-samples are not yet saved to the DB:"
+            )
+            for sid in sorted(new_sample_exclusions):
+                print(f"  {sid}")
+            answer = (
+                input("Save to excluded_samples DB for future runs? [y/N] ")
+                .strip()
+                .lower()
+            )
+            if answer in ("y", "yes"):
+                save_excluded_samples_to_db(new_sample_exclusions)
+
+        cli_groups = parse_exclusions(args.exclude_groups)
+        new_group_exclusions = cli_groups - db_excluded_groups
+        if new_group_exclusions:
+            print(
+                f"\n{len(new_group_exclusions)} group(s) via --exclude-groups are not yet saved to the DB:"
+            )
+            for gid in sorted(new_group_exclusions):
+                print(f"  {gid}")
+            answer = (
+                input("Save to excluded_groups DB for future runs? [y/N] ")
+                .strip()
+                .lower()
+            )
+            if answer in ("y", "yes"):
+                save_excluded_groups_to_db(new_group_exclusions)
+
+    if args.delete_samples:
+        ids_to_delete = list(args.delete_samples)
+        profile = target_profiles[0] if len(target_profiles) == 1 else "unknown"
+
+        print(f"Samples to delete ({len(ids_to_delete)}):")
+        for sid in ids_to_delete:
+            print(f"  {sid}")
+
+        proceed = True
+        if is_interactive:
+            answer = (
+                input(f"\nDelete {len(ids_to_delete)} sample(s) from MIMOSA? [y/N] ")
+                .strip()
+                .lower()
+            )
+            proceed = answer in ("y", "yes")
+
+        if proceed:
+            delete_features(ids_to_delete, profile=profile, upload_token=upload_token)
+            if is_interactive:
+                answer = (
+                    input("Re-run pipeline to update clustering? [y/N] ")
+                    .strip()
+                    .lower()
+                )
+                if answer not in ("y", "yes"):
+                    return
+            # non-interactive: fall through and re-run
+        else:
+            return
 
     base_dir = (
         args.output if args.save_files else tempfile.mkdtemp(prefix="mimosa_tmp_")

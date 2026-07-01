@@ -103,6 +103,14 @@ def parse_args():
         metavar="ID_OR_FILE",
         help="Group IDs to exclude, or path to a file with one ID per line.",
     )
+    parser.add_argument(
+        "--delete-samples",
+        required=False,
+        nargs="+",
+        default=None,
+        metavar="SAMPLE_ID",
+        help="Delete the specified sample IDs from MIMOSA (features + allele profiles), then optionally re-run the pipeline.",
+    )
 
     args = parser.parse_args()
 
