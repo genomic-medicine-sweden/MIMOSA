@@ -567,6 +567,10 @@ def main():
         finally:
             ap_client.close()
         if not chewbbaca_profiles_for_pipeline:
+            log.info(
+                "event=no_samples_found reason=no_allele_profiles profiles=%s",
+                target_profiles,
+            )
             return
 
     if args.bonsai and args.groups:
