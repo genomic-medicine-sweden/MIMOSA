@@ -17,6 +17,7 @@ export const ViewModes = {
   REPORTS: "reports",
   LOGS: "logs",
   IMPORT: "import",
+  EXCLUDED_LIST: "excludedList",
 };
 
 export function ViewModeProvider({ children }) {
