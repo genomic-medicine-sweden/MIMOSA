@@ -43,6 +43,18 @@ export class LogsService {
     }
   }
 
+  async logPipelineTrigger(
+    profiles: string[],
+    triggeredBy: string,
+  ): Promise<void> {
+    await this.model.create({
+      event: 'pipeline_trigger',
+      triggered_by: triggeredBy,
+      profile: profiles.join(', ') || 'all',
+      added_at: new Date(),
+    });
+  }
+
   async logSampleDeletion(
     sampleId: string,
     profile: string,

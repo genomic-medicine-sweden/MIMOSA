@@ -3,10 +3,12 @@ import {
   ConflictException,
   Controller,
   Post,
+  Req,
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 import {
   ApiTags,
   ApiOAuth2,
@@ -17,8 +19,12 @@ import {
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { LogsService } from '../logs/logs.service';
 
 class TriggerDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   profiles?: string[];
 }
 
@@ -28,7 +34,10 @@ class TriggerDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class PipelineController {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly logsService: LogsService,
+  ) {}
 
   @Post('trigger')
   @ApiOperation({
@@ -46,7 +55,7 @@ export class PipelineController {
     status: 503,
     description: 'Automation container not reachable',
   })
-  async trigger(@Body() body?: TriggerDto) {
+  async trigger(@Body() body?: TriggerDto, @Req() req?: any) {
     const triggerUrl = this.config.get<string>(
       'AUTOMATION_TRIGGER_URL',
       'http://mimosa-automation:8081',
@@ -77,6 +86,9 @@ export class PipelineController {
     if (!res.ok) {
       throw new ServiceUnavailableException('Automation trigger failed.');
     }
+
+    const userEmail = req?.user?.email || 'unknown';
+    await this.logsService.logPipelineTrigger(profiles ?? [], userEmail);
 
     return res.json();
   }
