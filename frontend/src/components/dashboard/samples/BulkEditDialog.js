@@ -159,11 +159,19 @@ export default function BulkEditDialog({
           <div key={u.sampleId} style={{ marginBottom: "0.75rem" }}>
             <strong>{u.sampleId}</strong>
             <ul style={{ marginLeft: "1.25rem", listStyle: "disc" }}>
-              {Object.entries(u.changes).map(([k, v]) => (
-                <li key={k}>
-                  {k}: {u.original[k] ?? "—"} → {v}
-                </li>
-              ))}
+              {Object.entries(u.changes).map(([k, v]) => {
+                const fmtVal = (val) => {
+                  if (val == null) return "—";
+                  if (k === "manualCoordinates" && typeof val === "object")
+                    return `${val.lat}, ${val.lng}`;
+                  return String(val);
+                };
+                return (
+                  <li key={k}>
+                    {k}: {fmtVal(u.original[k])} → {fmtVal(v)}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}

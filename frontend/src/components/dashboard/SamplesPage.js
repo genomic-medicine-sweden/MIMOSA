@@ -427,9 +427,25 @@ export default function SamplesPage() {
 
       const hasLatCol = row.Latitude !== undefined;
       const hasLngCol = row.Longitude !== undefined;
-      if (hasLatCol || hasLngCol) {
-        const rawLat = hasLatCol ? String(row.Latitude).replace(",", ".") : "";
-        const rawLng = hasLngCol ? String(row.Longitude).replace(",", ".") : "";
+      if (hasLatCol && !hasLngCol) {
+        errors.push({
+          row: row.__row,
+          sampleId,
+          field: "Longitude",
+          message: "Longitude required when Latitude is provided",
+          originalValue: "",
+        });
+      } else if (hasLngCol && !hasLatCol) {
+        errors.push({
+          row: row.__row,
+          sampleId,
+          field: "Latitude",
+          message: "Latitude required when Longitude is provided",
+          originalValue: "",
+        });
+      } else if (hasLatCol && hasLngCol) {
+        const rawLat = String(row.Latitude).replace(",", ".");
+        const rawLng = String(row.Longitude).replace(",", ".");
         const latErr = fieldValidators.lat(rawLat);
         const lngErr = fieldValidators.lng(rawLng);
 

@@ -75,9 +75,15 @@ function validateRow(row, { hasHospitalData }) {
     }
   }
 
-  if (row.lat !== "" && row.lat != null && isNaN(Number(row.lat)))
+  const hasLat = row.lat !== "" && row.lat != null;
+  const hasLng = row.lng !== "" && row.lng != null;
+  if (hasLat && !hasLng)
+    errors.push("Longitude required when Latitude is provided");
+  if (hasLng && !hasLat)
+    errors.push("Latitude required when Longitude is provided");
+  if (hasLat && isNaN(Number(row.lat)))
     errors.push("Latitude must be a number");
-  if (row.lng !== "" && row.lng != null && isNaN(Number(row.lng)))
+  if (hasLng && isNaN(Number(row.lng)))
     errors.push("Longitude must be a number");
 
   return { errors, warnings, hospitalCorrected };
