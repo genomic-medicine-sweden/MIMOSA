@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 
-from constants import get_reportree_params
+from config import get_reportree_params
 
 log = logging.getLogger(__name__)
 

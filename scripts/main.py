@@ -41,7 +41,8 @@ from mimosa_state import (
     set_profile_mode,
 )
 from mimosa_runner import run_stage
-from constants import AVAILABLE_PROFILES, ALLOWED_QC_STATUSES
+from constants import AVAILABLE_PROFILES
+from config import ALLOWED_QC_STATUSES
 from chewbbaca.source import collect_chewbbaca_inputs
 from chewbbaca.allele_profiles import (
     DuplicateAlleleProfileError,

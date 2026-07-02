@@ -3,9 +3,8 @@ import csv
 import os
 from pathlib import Path
 
+from constants import CHEWBBACA_FILENAME_SUFFIXES
 from .tsv import infer_sample_id, parse_chewbbaca_tsv
-
-CHEWBBACA_SAMPLE_SUFFIXES = ("_chewbbaca",)
 
 
 def _sample_ids(samples):
@@ -17,7 +16,7 @@ def _candidate_ids(sample_id, path=None, include_path=True):
     sample_id = str(sample_id).strip()
     if sample_id:
         candidates.append(sample_id)
-        for suffix in CHEWBBACA_SAMPLE_SUFFIXES:
+        for suffix in CHEWBBACA_FILENAME_SUFFIXES:
             if sample_id.endswith(suffix):
                 candidates.append(sample_id[: -len(suffix)])
 

@@ -1,0 +1,21 @@
+# User-configurable settings for MIMOSA.
+
+# QC filtering (applies to Bonsai samples only — ChewBBACA imports are always included)
+# Empty list = no filtering, all samples included (default).
+# Add status strings to restrict.
+# Example: allowed_qc_statuses: ["passed"]
+allowed_qc_statuses: []
+
+# ReporTree clustering defaults (applied to all profiles unless overridden below)
+reportree_defaults:
+  threshold: 9      
+  method: MSTreeV2
+  analysis: grapetree
+
+# Per-profile ReporTree overrides. Only list keys that differ from the defaults above.
+# Example:
+# reportree_profile_params:
+#   klebsiella_pneumoniae:
+#     threshold: 7
+reportree_profile_params: {}
+

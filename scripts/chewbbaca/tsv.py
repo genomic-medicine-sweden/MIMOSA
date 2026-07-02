@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from constants import CGMLST_MISSING_CODES
+from constants import CGMLST_MISSING_CODES, CHEWBBACA_FILENAME_SUFFIXES
 
 SAMPLE_COLUMNS = {"file", "filename", "sample", "sample_id", "isolate", "id"}
 LOCUS_COLUMNS = {"locus", "gene", "gene_id", "locus_id", "schema", "name"}
@@ -45,11 +45,7 @@ def hash_file(path):
 
 def infer_sample_id(path):
     stem = Path(path).stem
-    for suffix in (
-        "_chewbbaca",
-        "_results_alleles",
-        "_alleles",
-    ):
+    for suffix in CHEWBBACA_FILENAME_SUFFIXES:
         if stem.endswith(suffix):
             return stem[: -len(suffix)]
     return stem
