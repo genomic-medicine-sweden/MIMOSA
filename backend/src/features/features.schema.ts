@@ -16,6 +16,7 @@ export class Feature extends Document {
     Date?: string;
     ID?: string;
     QC_Status?: string;
+    source?: string;
     typing?: {
       ST?: string;
       alleles?: Record<string, string>;

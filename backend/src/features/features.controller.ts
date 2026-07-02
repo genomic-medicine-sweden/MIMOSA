@@ -2,13 +2,15 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
+  HttpCode,
   Param,
   Body,
   UseGuards,
   Req,
   Sse,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { Observable, merge, interval } from 'rxjs';
 import { fromEvent } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -52,9 +54,13 @@ export class FeaturesController {
       'Streams a notification whenever a feature is inserted or updated.',
   })
   featureEvents(): Observable<MessageEvent> {
-    return fromEvent(this.eventEmitter, 'features.changed').pipe(
+    const events$ = fromEvent(this.eventEmitter, 'features.changed').pipe(
       map(() => ({ data: { type: 'features.changed' } }) as MessageEvent),
     );
+    const ping$ = interval(30_000).pipe(
+      map(() => ({ data: { type: 'ping' } }) as MessageEvent),
+    );
+    return merge(events$, ping$);
   }
 
   @Get(':sample_id')
@@ -85,5 +91,36 @@ export class FeaturesController {
       updateDto,
       userEmail,
     );
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Delete multiple samples',
+    description:
+      'Removes multiple sample features and all associated allele profiles in one batched operation. Deletions are logged.',
+  })
+  async deleteManyFeatures(
+    @Body() body: { sampleIds: string[] },
+    @Req() req,
+  ): Promise<void> {
+    const userEmail = req.user?.email || 'unknown';
+    await this.featuresService.deleteManyBySampleIds(body.sampleIds, userEmail);
+  }
+
+  @Delete(':sample_id')
+  @HttpCode(204)
+  @ApiParam({ name: 'sample_id', required: true })
+  @ApiOperation({
+    summary: 'Delete a sample',
+    description:
+      'Removes the sample feature and all associated allele profiles. Deletion is logged.',
+  })
+  async deleteFeature(
+    @Param('sample_id') sampleId: string,
+    @Req() req,
+  ): Promise<void> {
+    const userEmail = req.user?.email || 'unknown';
+    await this.featuresService.deleteBySampleId(sampleId, userEmail);
   }
 }

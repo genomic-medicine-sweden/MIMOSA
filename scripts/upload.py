@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import sys
 import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -18,6 +19,10 @@ if not mongo_uri:
 db_name = os.getenv("MONGO_DB_NAME")
 mimosa_domain = os.getenv("DOMAIN")
 backend_port = os.getenv("BACKEND_PORT")
+
+
+def _resolve_actor(email):
+    return "automation" if not sys.stdin.isatty() else email
 
 
 def validate_upload_token(token):
@@ -42,6 +47,7 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
     if not upload_token:
         raise RuntimeError("upload_token is required for authenticated upload.")
     uploader_email = validate_upload_token(upload_token)
+    log_actor = _resolve_actor(uploader_email)
 
     try:
         with open(data_file_path, "r", encoding="utf-8") as file:
@@ -177,7 +183,7 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                                     sample_id,
                                     new_props.get("analysis_profile"),
                                     changes_dict=diff_dict,
-                                    changed_by=uploader_email,
+                                    changed_by=log_actor,
                                 )
             else:
                 collection.insert_one(item)
@@ -187,7 +193,7 @@ def upload_features(data_file_path, overwrite=False, show_log=False, upload_toke
                     sample_id,
                     new_props.get("analysis_profile"),
                     is_insert=True,
-                    changed_by=uploader_email,
+                    changed_by=log_actor,
                 )
 
     try:
@@ -261,10 +267,14 @@ def upload_distance(data_file_path, upload_token=None):
 
 
 def delete_features(sample_ids, profile, upload_token=None):
-    """Remove QC-excluded samples from the features collection."""
+    """
+    Remove samples from features and their chewBBACA allele profiles.
+    Used for both QC-excluded samples and explicit admin deletions.
+    """
     if not upload_token:
         raise RuntimeError("upload_token is required for authenticated upload.")
     uploader_email = validate_upload_token(upload_token)
+    log_actor = _resolve_actor(uploader_email)
 
     if not sample_ids:
         return
@@ -274,19 +284,140 @@ def delete_features(sample_ids, profile, upload_token=None):
     collection = db["features"]
 
     try:
+        filenames = {
+            doc["filename"]
+            for doc in db["allele_profiles"].find(
+                {"sample_id": {"$in": list(sample_ids)}, "source": "chewbbaca"},
+                {"filename": 1},
+            )
+            if doc.get("filename")
+        }
+
         result = collection.delete_many(
             {
                 "properties.ID": {"$in": list(sample_ids)},
                 "properties.analysis_profile": profile,
             }
         )
+        db["allele_profiles"].delete_many(
+            {"sample_id": {"$in": list(sample_ids)}, "source": "chewbbaca"}
+        )
+
+        if filenames:
+            db["processed_files"].delete_many(
+                {"filename": {"$in": list(filenames)}, "profile": profile}
+            )
+
         if result.deleted_count:
             print(
                 f"[{profile}] Removed {result.deleted_count} QC-excluded sample(s) from features."
             )
-            log_batch_deletion(db, sample_ids, profile, deleted_by=uploader_email)
+            log_batch_deletion(db, sample_ids, profile, deleted_by=log_actor)
     except Exception as err:
         print(f"[{profile}] Error deleting features: {err}")
+    finally:
+        client.close()
+
+
+def save_excluded_samples_to_db(sample_ids, added_by="cli"):
+    """
+    Upsert sample IDs into excluded_samples, looking up each sample's profile from features.
+    """
+    from datetime import datetime, timezone
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    try:
+        saved = 0
+        for sid in sample_ids:
+            feature = db["features"].find_one(
+                {"properties.ID": sid}, {"properties.analysis_profile": 1}
+            )
+            if not feature:
+                continue
+            profile = (feature.get("properties") or {}).get(
+                "analysis_profile", "unknown"
+            )
+            db["excluded_samples"].update_one(
+                {"sample_id": sid, "profile": profile},
+                {
+                    "$setOnInsert": {
+                        "sample_id": sid,
+                        "profile": profile,
+                        "added_at": datetime.now(timezone.utc),
+                        "added_by": added_by,
+                    }
+                },
+                upsert=True,
+            )
+            saved += 1
+        if saved:
+            print(f"Saved {saved} sample(s) to excluded_samples DB.")
+    finally:
+        client.close()
+
+
+def save_excluded_groups_to_db(group_ids, added_by="cli"):
+    """
+    Upsert group IDs into excluded_groups.
+    """
+    from datetime import datetime, timezone
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    try:
+        for gid in group_ids:
+            db["excluded_groups"].update_one(
+                {"group_id": gid},
+                {
+                    "$setOnInsert": {
+                        "group_id": gid,
+                        "added_at": datetime.now(timezone.utc),
+                        "added_by": added_by,
+                    }
+                },
+                upsert=True,
+            )
+        print(f"Saved {len(group_ids)} group(s) to excluded_groups DB.")
+    finally:
+        client.close()
+
+
+def fetch_excluded_sample_ids(profiles):
+    """
+    Return set of sample_ids excluded for any of the given profiles.
+    """
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    try:
+        if profiles:
+            query = {
+                "$or": [
+                    {"profile": {"$in": list(profiles)}},
+                    {"profile": {"$exists": False}},
+                    {"profile": None},
+                ]
+            }
+        else:
+            query = {}
+        return {
+            doc["sample_id"]
+            for doc in db["excluded_samples"].find(query, {"sample_id": 1})
+        }
+    finally:
+        client.close()
+
+
+def fetch_excluded_group_ids():
+    """
+    Return set of group_ids in the excluded_groups collection.
+    """
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+    try:
+        return {
+            doc["group_id"] for doc in db["excluded_groups"].find({}, {"group_id": 1})
+        }
     finally:
         client.close()
 

@@ -9,7 +9,7 @@ import useMapConfig from "@/hooks/useMapConfig";
 import { initCoordinates } from "@/utils/coordinates";
 
 export default function DashboardLayout({ children }) {
-  const { mapConfig } = useMapConfig();
+  const { mapConfig, loading, error } = useMapConfig();
 
   useEffect(() => {
     if (!mapConfig) return;
@@ -20,6 +20,26 @@ export default function DashboardLayout({ children }) {
       mapConfig.postcodeLength,
     );
   }, [mapConfig]);
+
+  if (loading) {
+    return (
+      <div className="flex align-items-center justify-content-center h-screen">
+        <p>Loading…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex align-items-center justify-content-center h-screen">
+        <p style={{ color: "#c0392b", maxWidth: 520, textAlign: "center" }}>
+          <strong>Could not load map configuration.</strong>
+          <br />
+          {error}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <MapConfigContext.Provider value={mapConfig}>

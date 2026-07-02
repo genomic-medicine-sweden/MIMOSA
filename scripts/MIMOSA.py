@@ -24,7 +24,7 @@ from upload import (
 )
 from mimosa_runner import run_stage
 from mimosa_state import Status
-from constants import get_reportree_params
+from config import get_reportree_params
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
@@ -32,11 +32,9 @@ load_dotenv(env_path)
 
 def _synthesize_singletons(profile, profile_dir, threshold):
     """
-    If ReporTree produced no partition column (all samples identical at this threshold),
-    synthesize singleton assignments
-
-    Existing singleton labels are preserved from the previous clustering
-    so labels stay stable across runs. New samples get the next available number.
+    If the partition column is absent from the ReporTree output (e.g., fewer than required number of samples),
+    synthesize singleton assignments. Existing labels are preserved from the previous
+    clustering run; new samples get the next available number.
     """
     import pandas as pd
     import tempfile
@@ -127,8 +125,6 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
     """
     Fetch the latest clustering document for this profile.
     Only writes nomenclature entries for samples in the current run.
-    Without this filter, ReporTree sees absent samples' cluster names as "reserved"
-    and generates sub-cluster names (e.g. cluster_1.1) for surviving subsets.
     """
     mongo_uri = os.getenv("MONGO_URI")
     db_name = os.getenv("MONGO_DB_NAME")
@@ -164,7 +160,8 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
         if is_interactive:
             answer = (
                 input(
-                    f"[{profile}] Proceed without preserving cluster names? (yes/no): "
+                    f"[{profile}] Clustering threshold changed — existing cluster names "
+                    "cannot be preserved. Proceed anyway? [y/N] "
                 )
                 .strip()
                 .lower()
@@ -207,6 +204,7 @@ def mimosa(
     state,
     run_clustering=True,
     is_interactive=False,
+    chewbbaca_profiles=None,
 ):
     os.makedirs(profile_dir, exist_ok=True)
     sample_count = len(sample_ids)
@@ -216,7 +214,7 @@ def mimosa(
         profile,
         "prepare_metadata",
         process_samples_by_profile,
-        bonsai_api_url=credentials["bonsai_api_url"],
+        bonsai_api_url=credentials["bonsai_api_url"] if credentials else None,
         token=token,
         output_folder=profile_dir,
         target_profiles=[profile],
@@ -224,6 +222,7 @@ def mimosa(
         count=sample_count,
         sample_ids=sample_ids,
         run_clustering=run_clustering,
+        chewbbaca_profiles=chewbbaca_profiles,
     )
 
     if not metadata_files:
@@ -323,25 +322,31 @@ def mimosa(
         state[profile]["upload_distance"]["status"] = Status.SKIPPED
         return False
 
-    nomenclature_file = _get_nomenclature_file(
-        profile, profile_dir, is_interactive, sample_ids=set(sample_ids)
-    )
-
-    run_stage(
-        state,
-        profile,
-        "run_reportree",
-        run_reportree,
-        reportree_metadata_file,
-        cgmlst_file,
-        profile_dir,
-        profile,
-        save_files=True,
-        count=sample_count,
-        nomenclature_file=nomenclature_file,
-    )
-
     params = get_reportree_params(profile)
+
+    if sample_count < 3:
+        import shutil as _shutil
+
+        _shutil.copy2(reportree_metadata_file, metadata_partitions_tsv)
+        state[profile]["run_reportree"]["status"] = Status.SKIPPED
+    else:
+        nomenclature_file = _get_nomenclature_file(
+            profile, profile_dir, is_interactive, sample_ids=set(sample_ids)
+        )
+        run_stage(
+            state,
+            profile,
+            "run_reportree",
+            run_reportree,
+            reportree_metadata_file,
+            cgmlst_file,
+            profile_dir,
+            profile,
+            save_files=True,
+            count=sample_count,
+            nomenclature_file=nomenclature_file,
+        )
+
     try:
         _synthesize_singletons(profile, profile_dir, params["threshold"])
     except Exception:

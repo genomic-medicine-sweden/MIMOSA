@@ -33,48 +33,66 @@ def process_samples_by_profile(
     user_selected_profiles=None,
     sample_ids=None,
     run_clustering=True,
+    chewbbaca_profiles=None,
 ):
     os.makedirs(output_folder, exist_ok=True)
 
-    samples = fetch_samples(bonsai_api_url, token)
-    profiles = {}
+    chewbbaca_sample_ids = {doc["sample_id"] for doc in (chewbbaca_profiles or [])}
 
-    for sample in samples:
-        profile = sample.get("profile")
-        sample_id = sample.get("sample_id")
+    bonsai_profile_map = {}
+    if bonsai_api_url and token:
+        bonsai_samples = fetch_samples(bonsai_api_url, token)
+        for sample in bonsai_samples:
+            profile = sample.get("profile")
+            sid = sample.get("sample_id")
+            if not sid or not profile:
+                continue
+            if sid in chewbbaca_sample_ids:
+                continue
+            if target_profiles is None or profile in target_profiles:
+                if sample_ids is None or sid in sample_ids:
+                    bonsai_profile_map.setdefault(profile, []).append(sid)
 
-        if not sample_id or not profile:
-            continue
+    chewbbaca_profile_map = {}
+    if chewbbaca_profiles:
+        for doc in chewbbaca_profiles:
+            profile = doc.get("analysis_profile")
+            sid = doc.get("sample_id")
+            if not profile or not sid:
+                continue
+            if target_profiles is None or profile in target_profiles:
+                if sample_ids is None or sid in sample_ids:
+                    chewbbaca_profile_map.setdefault(profile, []).append(doc)
 
-        if target_profiles is None or profile in target_profiles:
-            if sample_ids is None or sample_id in sample_ids:
-                profiles.setdefault(profile, []).append(sample_id)
-
-    if not profiles:
+    all_profiles = set(bonsai_profile_map) | set(chewbbaca_profile_map)
+    if not all_profiles:
         print("No samples match the specified profiles. Exiting.", flush=True)
         return None, None
 
     metadata_files = []
     cgmlst_files = []
 
-    for profile, sample_ids in profiles.items():
+    for profile in sorted(all_profiles):
+        bonsai_ids = bonsai_profile_map.get(profile, [])
+        chewbbaca_docs = chewbbaca_profile_map.get(profile, [])
+        total = len(bonsai_ids) + len(chewbbaca_docs)
 
         if run_clustering:
             print(
-                f"\nProcessing profile: {profile} with {len(sample_ids)} samples",
+                f"\nProcessing profile: {profile} with {total} samples",
                 flush=True,
             )
         else:
             print(
-                f"\nChecking for metadata updates for {profile} with {len(sample_ids)} samples",
+                f"\nChecking for metadata updates for {profile} with {total} samples",
                 flush=True,
             )
 
         metadata_rows = []
         cgmlst_frames = []
 
-        for sample_id in sample_ids:
-            sample_data = fetch_sample_details(bonsai_api_url, token, sample_id)
+        for sid in bonsai_ids:
+            sample_data = fetch_sample_details(bonsai_api_url, token, sid)
 
             qc_status = normalise_missing(
                 sample_data.get("qc_status", {}).get("status")
@@ -89,9 +107,7 @@ def process_samples_by_profile(
                 time_part = None
 
             pipeline = sample_data.get("pipeline", {})
-
             pipeline_version = pipeline.get("version")
-
             pipeline_date_full = pipeline.get("date")
 
             if pipeline_date_full and "T" in pipeline_date_full:
@@ -102,7 +118,7 @@ def process_samples_by_profile(
             analysis_profile = pipeline.get("analysis_profile")
 
             metadata_row = {
-                "sample": sample_id,
+                "sample": sid,
                 "lims_id": normalise_missing(sample_data.get("lims_id")),
                 "Date": normalise_missing(date_part),
                 "Time": normalise_missing(time_part),
@@ -113,6 +129,7 @@ def process_samples_by_profile(
                 "Sequencing_Platform": normalise_missing(
                     sample_data.get("sequencing", {}).get("platform")
                 ),
+                "source": "bonsai",
             }
 
             if (analysis_profile or "").lower() in set(AVAILABLE_PROFILES):
@@ -142,13 +159,35 @@ def process_samples_by_profile(
             )
 
             if cgmlst:
-                allele_row = {"sample": sample_id}
+                allele_row = {"sample": sid}
                 allele_row.update(cgmlst.get("result", {}).get("alleles", {}))
                 cgmlst_frames.append(pd.DataFrame([allele_row]))
             else:
-                print(f"No cgMLST data found for sample {sample_id}", flush=True)
+                print(f"No cgMLST data found for sample {sid}", flush=True)
 
             metadata_rows.append(metadata_row)
+
+        for doc in chewbbaca_docs:
+            sid = doc["sample_id"]
+            alleles = doc.get("alleles", {})
+
+            metadata_row = {
+                "sample": sid,
+                "lims_id": None,
+                "Date": None,
+                "Time": None,
+                "Pipeline_Version": None,
+                "Pipeline_Date": None,
+                "Profile": profile,
+                "QC_Status": None,
+                "Sequencing_Platform": None,
+                "source": "chewbbaca",
+            }
+            metadata_rows.append(metadata_row)
+
+            allele_row = {"sample": sid}
+            allele_row.update(alleles)
+            cgmlst_frames.append(pd.DataFrame([allele_row]))
 
         metadata_df = pd.DataFrame(metadata_rows)
 

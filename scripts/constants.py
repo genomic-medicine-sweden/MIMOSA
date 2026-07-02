@@ -5,26 +5,6 @@ AVAILABLE_PROFILES = [
 ]
 
 
-REPORTREE_DEFAULTS = {
-    "threshold": 9,
-    "method": "MSTreeV2",
-    "analysis": "grapetree",
-}
-
-# Only list profiles that need to deviate from REPORTREE_DEFAULTS.
-# Example:
-# REPORTREE_PROFILE_PARAMS = {
-#     "klebsiella_pneumoniae": {
-#         "threshold": 7,
-#     },
-# }
-
-# QC-status filtering
-ALLOWED_QC_STATUSES = {"passed"}
-
-
-# ---------------------------------------------------------------------------
-
 REQUEST_TIMEOUT = 30
 
 BASE_METADATA_FIELDS = {
@@ -40,7 +20,12 @@ BASE_METADATA_FIELDS = {
     "ST",
     "Time",
     "lims_id",
+    "source",
+    "Latitude",
+    "Longitude",
 }
+
+CHEWBBACA_FILENAME_SUFFIXES = ("_chewbbaca", "_results_alleles", "_alleles")
 
 CGMLST_MISSING_CODES = {
     "ASM",
@@ -56,11 +41,3 @@ CGMLST_MISSING_CODES = {
     "PAMA",
     "ALM",
 }
-
-
-REPORTREE_PROFILE_PARAMS = {}
-
-
-def get_reportree_params(profile):
-    overrides = REPORTREE_PROFILE_PARAMS.get(profile, {})
-    return {**REPORTREE_DEFAULTS, **overrides}

@@ -9,6 +9,7 @@ const SKIP_PROPERTIES = new Set([
   "analysis_profile",
   "ID",
   "alleles",
+  "source",
 ]);
 
 const isGrayValue = (v) =>

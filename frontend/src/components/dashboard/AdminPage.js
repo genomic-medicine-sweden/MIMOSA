@@ -302,7 +302,8 @@ export default function AdminPage() {
     }
 
     try {
-      await createUser(newUser);
+      const { confirmPassword, ...userToCreate } = newUser;
+      await createUser(userToCreate);
       setNewUser({
         firstName: "",
         lastName: "",

@@ -50,9 +50,9 @@ export default function SettingsPage() {
   });
   const [showInfo, setShowInfo] = useState(false);
   const [activeProfiles, setActiveProfiles] = useState([]);
-  const [allHospitals, setAllHospitals] = useState([]);
-
-  const allHospitals = Object.keys(hospitalCoordinates ?? {}).sort();
+  const [allHospitals, setAllHospitals] = useState(
+    Object.keys(hospitalCoordinates ?? {}).sort(),
+  );
 
   const toast = useRef(null);
   const rules = useOutbreakRules();

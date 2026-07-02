@@ -63,6 +63,7 @@ _STATUS_ORDER = {
 
 
 GLOBAL_PROFILE = "similarity"
+CHEWBBACA_IMPORT_PROFILE = "chewbbaca_import"
 
 
 def init_pipeline_state(profiles, mode="full"):
@@ -140,8 +141,20 @@ def render_pipeline_state(state):
 
     print("MIMOSA\n")
 
+    if CHEWBBACA_IMPORT_PROFILE in state:
+        import_stage = state[CHEWBBACA_IMPORT_PROFILE]["chewbbaca_import"]
+        count = import_stage.get("count", 0)
+        label = f"chewBBACA import ({count} samples)" if count else "chewBBACA import"
+        print(f"{label:<{LABEL_WIDTH}}{import_stage['status'].value}")
+        print()
+
     for profile, stages in state.items():
-        if profile in (GLOBAL_PROFILE, "_mode", "_profile_modes"):
+        if profile in (
+            GLOBAL_PROFILE,
+            CHEWBBACA_IMPORT_PROFILE,
+            "_mode",
+            "_profile_modes",
+        ):
             continue
 
         mode = profile_modes.get(profile, global_mode)
@@ -223,7 +236,12 @@ def render_runtime_summary(state):
     total_run_time = 0.0
 
     for profile, stages in state.items():
-        if profile in (GLOBAL_PROFILE, "_mode", "_profile_modes"):
+        if profile in (
+            GLOBAL_PROFILE,
+            CHEWBBACA_IMPORT_PROFILE,
+            "_mode",
+            "_profile_modes",
+        ):
             continue
 
         duration = _sum_duration(stages.values())

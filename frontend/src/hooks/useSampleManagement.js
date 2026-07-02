@@ -50,10 +50,20 @@ export default function useSampleManagement() {
     return updated;
   };
 
+  const deleteSample = async (sampleId) => {
+    const res = await apiFetch(
+      `${apiBase}/api/features/${encodeURIComponent(sampleId)}`,
+      { method: "DELETE" },
+    );
+    if (!res || !res.ok) throw new Error("Failed to delete sample");
+    await fetchSamples();
+  };
+
   return {
     samples,
     loading,
     fetchSamples,
     updateSample,
+    deleteSample,
   };
 }

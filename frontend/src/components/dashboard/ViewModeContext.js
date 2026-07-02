@@ -15,6 +15,9 @@ export const ViewModes = {
   TREE: "tree",
   TIMELINE: "timeline",
   REPORTS: "reports",
+  LOGS: "logs",
+  IMPORT: "import",
+  EXCLUDED_LIST: "excludedList",
 };
 
 export function ViewModeProvider({ children }) {

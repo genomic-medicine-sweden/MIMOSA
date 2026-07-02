@@ -9,6 +9,7 @@ RUN npm install
 COPY backend/ .
 
 COPY geodata /app/geodata
+COPY scripts/constants.py /app/scripts/constants.py
 
 RUN npm run build
 

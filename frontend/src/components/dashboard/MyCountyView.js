@@ -90,7 +90,7 @@ export default function MyCountyView({ data }) {
           setFilteredData={setFilteredData}
           hospitalView={hospitalView}
           toggleHospitalView={() => {}}
-          selectedCounty={selectedCounty}
+          selectedCounty={[selectedCounty]}
           countyFilter={countyFilter}
           setCountyFilter={setCountyFilter}
           dateRange={null}

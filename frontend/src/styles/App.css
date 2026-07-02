@@ -77,8 +77,3 @@
   margin-top: 0;
   padding: 10px;
 }
-
-.leaflet-interactive {
-  shape-rendering: geometricPrecision;
-  image-rendering: pixelated;
-}

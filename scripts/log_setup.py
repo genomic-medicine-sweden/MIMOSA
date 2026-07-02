@@ -34,8 +34,12 @@ def configure_logging():
         file_handler = logging.FileHandler(log_path, encoding="utf-8")
         file_handler.setFormatter(fmt)
         root.addHandler(file_handler)
-    except (PermissionError, OSError):
-        pass
+    except (PermissionError, OSError) as exc:
+        print(
+            f"WARNING: cannot write to log file {log_path}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
 
     if not sys.stdin.isatty():
         stream_handler = logging.StreamHandler()

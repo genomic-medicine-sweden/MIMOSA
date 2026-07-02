@@ -110,7 +110,11 @@ export default function useAppData() {
       withCredentials: true,
     });
 
-    es.onmessage = () => {
+    es.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg?.type === "ping") return;
+      } catch (_) {}
       setHasNewData(true);
       setDataVersion((v) => v + 1);
       fetchData();

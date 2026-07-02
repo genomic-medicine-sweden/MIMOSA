@@ -101,11 +101,20 @@ const hospitals = tryLoadJs(`${country}-hospital-coordinates.js`);
 const postcodes = tryLoadJs(`${country}-postcode-coordinates.js`);
 
 if (hospitals === null || postcodes === null) {
+  const missing = [
+    hospitals === null ? `geodata/${country}-hospital-coordinates.js` : null,
+    postcodes === null ? `geodata/${country}-postcode-coordinates.js` : null,
+  ].filter(Boolean);
+  const missingKind = [
+    hospitals === null ? 'hospital' : null,
+    postcodes === null ? 'postcode' : null,
+  ]
+    .filter(Boolean)
+    .join('/');
   console.warn(
-    `[map-config] No coordinate files found for activeMap "${country}". ` +
-      `Sample markers will not be visible. ` +
-      `Add geodata/${country}-hospital-coordinates.js and ` +
-      `geodata/${country}-postcode-coordinates.js to enable marker plotting.`,
+    `[map-config] Missing coordinate file(s) for activeMap "${country}": ${missing.join(', ')}. ` +
+      `Sample markers using ${missingKind} coordinates will not be visible until added.` +
+      `(samples with manual latitude/longitude coordinates will still be visible).`,
   );
 }
 
@@ -118,6 +127,7 @@ const coordinatesProvider = {
       hospitalCoordinates: hospitals ?? {},
       boundariesData: boundaries,
       postcodePrefix: mapConfig.postcodePrefix,
+      regionNameKey: mapConfig.regionNameKey,
     };
   },
 };

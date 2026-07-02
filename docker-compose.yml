@@ -103,6 +103,7 @@ services:
     volumes:
       - ./volumes/automation_tmp:/tmp/mimosa_automation
       - ./.mimosa-automation.log:/app/.mimosa-automation.log
+      - ./automation/watch-dirs.json:/watch-dirs.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

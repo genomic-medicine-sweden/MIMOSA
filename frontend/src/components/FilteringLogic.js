@@ -68,7 +68,7 @@ const FilteringLogic = ({
     setPostalTownFilter([]);
     setCluster_IDFilter([]);
     setDateRange(null);
-    if (!(selectedCounty && selectedCounty !== "All")) {
+    if (selectedCounty.includes("All")) {
       setCountyFilter([]);
     }
   }, [analysisProfileFilter]);
@@ -83,8 +83,8 @@ const FilteringLogic = ({
   }, [data]);
 
   useEffect(() => {
-    if (selectedCounty && selectedCounty !== "All") {
-      setCountyFilter([selectedCounty]);
+    if (!selectedCounty.includes("All")) {
+      setCountyFilter(selectedCounty);
     } else {
       setCountyFilter([]);
     }
@@ -248,7 +248,7 @@ const FilteringLogic = ({
     setCluster_IDFilter([]);
     setDateRange(null);
 
-    if (!(selectedCounty && selectedCounty !== "All")) {
+    if (selectedCounty.includes("All")) {
       setCountyFilter([]);
     }
   };
@@ -364,7 +364,7 @@ const FilteringLogic = ({
                 filter={true}
                 filterPlaceholder="Search"
                 maxSelectedLabels={2}
-                disabled={selectedCounty && selectedCounty !== "All"}
+                disabled={!selectedCounty.includes("All")}
               />
               <label htmlFor="ms-countyFilter"> County</label>
             </FloatLabel>

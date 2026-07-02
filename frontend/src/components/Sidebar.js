@@ -3,6 +3,7 @@ import { Sidebar } from "primereact/sidebar";
 import { Button } from "primereact/button";
 import { Fieldset } from "primereact/fieldset";
 import { BsGithub } from "react-icons/bs";
+import { SiReadthedocs } from "react-icons/si";
 import ReactMarkdown from "react-markdown";
 import "@/styles/Sidebar.css";
 
@@ -124,24 +125,42 @@ const SidebarComponent = () => {
             </div>
           </Fieldset>
         </div>
-
         <div
           className="fixed-area"
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
+            gap: "12px",
           }}
         >
-          <a
-            className="navbar-brand"
-            href="https://github.com/genomic-medicine-sweden/MIMOSA"
-            target="_blank"
-            rel="noopener noreferrer"
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+            }}
           >
-            <BsGithub size={30} style={{ color: "black" }} />
-          </a>
+            <a
+              className="navbar-brand"
+              href="https://github.com/genomic-medicine-sweden/MIMOSA"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <BsGithub size={30} style={{ color: "black" }} />
+            </a>
+
+            <a
+              className="navbar-brand"
+              href="https://mimosa.readthedocs.io"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <SiReadthedocs size={25} style={{ color: "black" }} />
+            </a>
+          </div>
+
           <a
             href="https://doi.org/10.5281/zenodo.18770176"
             target="_blank"

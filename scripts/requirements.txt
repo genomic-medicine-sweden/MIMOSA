@@ -1,4 +1,5 @@
 pymongo
 python-dotenv
 pandas
+pyyaml
 requests

@@ -15,6 +15,11 @@ import { OutbreaksModule } from './outbreaks/outbreaks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MapConfigModule } from './map-config/map-config.module';
 import { PendingSamplesModule } from './pending-samples/pending-samples.module';
+import { AlleleProfilesModule } from './allele-profiles/allele-profiles.module';
+import { ChewbbacaModule } from './chewbbaca/chewbbaca.module';
+import { PipelineModule } from './pipeline/pipeline.module';
+import { ExcludedSamplesModule } from './excluded-samples/excluded-samples.module';
+import { ExcludedGroupsModule } from './excluded-groups/excluded-groups.module';
 
 @Module({
   imports: [
@@ -40,6 +45,11 @@ import { PendingSamplesModule } from './pending-samples/pending-samples.module';
     NotificationsModule,
     MapConfigModule,
     PendingSamplesModule,
+    AlleleProfilesModule,
+    ChewbbacaModule,
+    PipelineModule,
+    ExcludedSamplesModule,
+    ExcludedGroupsModule,
   ],
 })
 export class AppModule {}

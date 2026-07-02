@@ -111,6 +111,24 @@ export default function SidebarMenu() {
             onClick={() => setViewMode(ViewModes.PENDING_SAMPLES)}
           />
         )}
+        {role === "admin" && (
+          <Button
+            label="Excluded List"
+            icon="pi pi-ban"
+            className="w-full justify-start"
+            text
+            onClick={() => setViewMode(ViewModes.EXCLUDED_LIST)}
+          />
+        )}
+        {role === "admin" && (
+          <Button
+            label="Import"
+            icon="pi pi-upload"
+            className="w-full justify-start"
+            text
+            onClick={() => setViewMode(ViewModes.IMPORT)}
+          />
+        )}
         <Button
           label="Settings"
           icon="pi pi-cog"
