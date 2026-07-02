@@ -24,7 +24,7 @@ from upload import (
 )
 from mimosa_runner import run_stage
 from mimosa_state import Status
-from constants import get_reportree_params
+from config import get_reportree_params
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
