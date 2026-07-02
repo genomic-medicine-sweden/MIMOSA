@@ -5,8 +5,8 @@
 project = "MIMOSA"
 author = "Olivia Andersson"
 #copyright =
-release = "0.5.0"
-version = "MIMOSA"
+version = "0.6"
+release = "0.6.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -32,12 +32,12 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_rtd_theme"
 
-html_static_path = ['../frontend/public']
+html_static_path = ["_static"]
 
-html_logo = "../frontend/public/MIMOSA_Logo.svg"
+html_logo = "_static/MIMOSA_Logo.svg"
+
 html_theme_options = {
     "logo_only": True,
-    "display_version": True,
     "style_nav_header_background": "#ffffff",
 }
 
