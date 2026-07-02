@@ -34,7 +34,8 @@ import { fieldValidators } from "./samples/samplesValidation";
 
 export default function SamplesPage() {
   const toastRef = useRef(null);
-  const { samples, updateSample, deleteSample } = useSampleManagement();
+  const { samples, updateSample, deleteSample, fetchSamples } =
+    useSampleManagement();
   const { createExcludedSample } = useExcludedSamples();
   const {
     postcodePrefix = "",
@@ -52,9 +53,56 @@ export default function SamplesPage() {
   const [confirmDeleteRow, setConfirmDeleteRow] = useState(null);
   const [addToExcluded, setAddToExcluded] = useState(false);
 
+  const [selectedSamples, setSelectedSamples] = useState([]);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkAddToExcluded, setBulkAddToExcluded] = useState(false);
+
   const openDeleteConfirm = (rowData) => {
     setConfirmDeleteRow(rowData);
     setAddToExcluded(rowData.properties.source === "bonsai");
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedSamples.length) return;
+    setBulkDeleting(true);
+    try {
+      const sampleIds = selectedSamples.map((s) => s.properties.ID);
+      const res = await apiFetch(`${apiBase}/api/features`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sampleIds }),
+      });
+      if (res?.ok) {
+        if (bulkAddToExcluded) {
+          await Promise.all(
+            selectedSamples.map((s) =>
+              createExcludedSample({
+                sample_id: s.properties.ID,
+                profile: s.properties.analysis_profile,
+              }),
+            ),
+          );
+        }
+        setSelectedSamples([]);
+        setDeleteMode(false);
+        setConfirmBulkDelete(false);
+        setBulkAddToExcluded(false);
+        await fetchSamples();
+        toast.success(
+          toastRef,
+          "Samples deleted",
+          `${sampleIds.length} sample${sampleIds.length !== 1 ? "s" : ""} deleted`,
+        );
+      } else {
+        toast.error(toastRef, "Delete failed", "Could not delete samples");
+      }
+    } catch {
+      toast.error(toastRef, "Delete failed", "Could not delete samples");
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const [bulkUpdates, setBulkUpdates] = useState([]);
@@ -632,7 +680,7 @@ export default function SamplesPage() {
         appendTo={() => document.body}
       />
 
-      <div className="w-full flex mb-2">
+      <div className="w-full flex items-center mb-2">
         <button
           onClick={resetAllFilters}
           className="ml-auto flex items-center gap-2 text-sm text-blue-800 hover:text-blue-600 bg-white border-none px-3 py-1 rounded"
@@ -640,6 +688,40 @@ export default function SamplesPage() {
           <span>Reset All Filters</span>
           <i className="pi pi-filter-slash"></i>
         </button>
+        {deleteMode ? (
+          <div className="flex items-center gap-1 pl-2">
+            {selectedSamples.length > 0 && (
+              <Button
+                label={`Delete ${selectedSamples.length}`}
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                onClick={() => setConfirmBulkDelete(true)}
+                disabled={bulkDeleting}
+              />
+            )}
+            <Button
+              icon="pi pi-times"
+              size="small"
+              className="p-button-text p-button-sm"
+              tooltip="Cancel"
+              tooltipOptions={{ position: "top" }}
+              onClick={() => {
+                setDeleteMode(false);
+                setSelectedSamples([]);
+              }}
+            />
+          </div>
+        ) : (
+          <Button
+            icon="pi pi-trash"
+            className="p-button-text p-button-sm p-button-danger"
+            onClick={() => setDeleteMode(true)}
+            tooltip="Select samples to delete"
+            tooltipOptions={{ position: "top" }}
+            style={{ opacity: 0.5 }}
+          />
+        )}
       </div>
 
       <style>{`
@@ -654,6 +736,8 @@ export default function SamplesPage() {
         value={tableSamples}
         editMode="row"
         dataKey="properties.ID"
+        selection={selectedSamples}
+        onSelectionChange={(e) => setSelectedSamples(e.value)}
         onRowEditInit={onRowEditInit}
         onRowEditCancel={onRowEditCancel}
         onRowEditComplete={onRowEditComplete}
@@ -852,6 +936,9 @@ export default function SamplesPage() {
           }}
           style={{ width: "10rem", textAlign: "center" }}
         />
+        {deleteMode && (
+          <Column selectionMode="multiple" style={{ width: "3rem" }} />
+        )}
         <Column
           body={(rowData) => (
             <Button
@@ -886,6 +973,62 @@ export default function SamplesPage() {
       />
 
       <Dialog
+        visible={confirmBulkDelete}
+        onHide={() => {
+          setConfirmBulkDelete(false);
+          setBulkAddToExcluded(false);
+        }}
+        header="Delete samples"
+        style={{ width: "30rem" }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              label="Cancel"
+              className="p-button-text"
+              onClick={() => {
+                setConfirmBulkDelete(false);
+                setBulkAddToExcluded(false);
+              }}
+            />
+            <Button
+              label={`Delete ${selectedSamples.length} sample${selectedSamples.length !== 1 ? "s" : ""}`}
+              className="p-button-danger"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            />
+          </div>
+        }
+      >
+        <div className="flex flex-column gap-3">
+          <p>
+            Delete <strong>{selectedSamples.length}</strong> sample
+            {selectedSamples.length !== 1 ? "s" : ""}? This cannot be undone.
+          </p>
+          {selectedSamples.some((s) => s.properties.source) && (
+            <p className="text-sm text-orange-700">
+              Samples sourced from Bonsai or a watched directory will reappear
+              on the next pipeline run. Tick the box below to exclude them from
+              future runs.
+            </p>
+          )}
+          <div className="flex align-items-center gap-2">
+            <Checkbox
+              inputId="bulkAddToExcluded"
+              checked={bulkAddToExcluded}
+              onChange={(e) => setBulkAddToExcluded(e.checked)}
+            />
+            <label
+              htmlFor="bulkAddToExcluded"
+              className="text-sm cursor-pointer"
+            >
+              Also add to excluded list (prevents re-import on future pipeline
+              runs)
+            </label>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
         visible={!!confirmDeleteRow}
         onHide={() => {
           setConfirmDeleteRow(null);
@@ -917,10 +1060,11 @@ export default function SamplesPage() {
               Delete sample <strong>{confirmDeleteRow.properties.ID}</strong>?
               This action cannot be undone.
             </p>
-            {confirmDeleteRow.properties.source === "bonsai" && (
+            {confirmDeleteRow.properties.source && (
               <p className="text-sm text-orange-700">
-                This sample was fetched from Bonsai. It will be re-imported on
-                the next pipeline run unless added to the exclusion list.
+                Samples sourced from Bonsai or a watched directory will reappear
+                on the next pipeline run. Tick the box below to exclude it from
+                future runs.
               </p>
             )}
             <div className="flex align-items-center gap-2">

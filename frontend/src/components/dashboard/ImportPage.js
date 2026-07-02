@@ -11,6 +11,7 @@ import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { Toast } from "primereact/toast";
 import { apiFetch } from "@/utils/apiFetch";
 import { formatDate } from "@/utils/date";
 import { parseTSV, isTsvFile, collectDroppedFiles } from "@/utils/chewbbaca";
@@ -44,6 +45,7 @@ function ActionChip({ action, label, active, onClick }) {
 }
 
 export default function ImportPage() {
+  const toastRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [parsedFiles, setParsedFiles] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
@@ -96,6 +98,9 @@ export default function ImportPage() {
   const [editingName, setEditingName] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedPending, setSelectedPending] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [triggeringPipeline, setTriggeringPipeline] = useState(false);
 
   const allSamples = useMemo(
     () =>
@@ -277,14 +282,82 @@ export default function ImportPage() {
       const apiBase = process.env.NEXT_PUBLIC_API_URL;
       const res = await apiFetch(
         `${apiBase}/api/chewbbaca/allele-profiles/${id}`,
-        {
-          method: "DELETE",
-        },
+        { method: "DELETE" },
       );
-      if (res?.ok)
+      if (res?.ok) {
+        setSelectedPending([]);
         await Promise.all([fetchStored(profile), fetchPendingSamples()]);
+      }
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleTriggerPipeline = async () => {
+    setTriggeringPipeline(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
+      const profiles = [
+        ...new Set(
+          pendingSamples.map((s) => s.analysis_profile).filter(Boolean),
+        ),
+      ];
+      const res = await apiFetch(`${apiBase}/api/pipeline/trigger`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profiles }),
+      });
+      if (res?.ok) {
+        toastRef.current?.show({
+          severity: "success",
+          summary: "Pipeline started",
+          detail: `Running for: ${profiles.join(", ")}`,
+          life: 5000,
+        });
+        await fetchPendingSamples();
+      } else if (res?.status === 409) {
+        toastRef.current?.show({
+          severity: "warn",
+          summary: "Already running",
+          detail: "Pipeline is already in progress.",
+          life: 4000,
+        });
+      } else {
+        toastRef.current?.show({
+          severity: "error",
+          summary: "Trigger failed",
+          detail: "Could not reach the automation container.",
+          life: 4000,
+        });
+      }
+    } catch {
+      toastRef.current?.show({
+        severity: "error",
+        summary: "Trigger failed",
+        detail: "Could not reach the automation container.",
+        life: 4000,
+      });
+    } finally {
+      setTriggeringPipeline(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedPending.length) return;
+    setBulkDeleting(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
+      const res = await apiFetch(`${apiBase}/api/chewbbaca/allele-profiles`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedPending.map((r) => r._id) }),
+      });
+      if (res?.ok) {
+        setSelectedPending([]);
+        await Promise.all([fetchStored(profile), fetchPendingSamples()]);
+      }
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -320,6 +393,7 @@ export default function ImportPage() {
 
   return (
     <div className="p-4" style={{ maxWidth: "900px" }}>
+      <Toast ref={toastRef} position="bottom-right" />
       <h2 className="text-xl font-bold" style={{ marginBottom: "4px" }}>
         Import chewBBACA Data
       </h2>
@@ -737,20 +811,47 @@ export default function ImportPage() {
               </span>
             )}
           </h3>
-          {pendingSamples.length > 0 && (
-            <input
-              value={pendingSearch}
-              onChange={(e) => setPendingSearch(e.target.value)}
-              placeholder="Search by sample ID…"
-              style={{
-                padding: "4px 10px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                fontSize: "13px",
-                width: "220px",
-              }}
-            />
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {selectedPending.length > 0 && (
+              <Button
+                label={
+                  bulkDeleting
+                    ? "Deleting…"
+                    : `Delete (${selectedPending.length})`
+                }
+                icon={bulkDeleting ? "pi pi-spin pi-spinner" : "pi pi-trash"}
+                severity="danger"
+                size="small"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              />
+            )}
+            {pendingSamples.length > 0 && (
+              <Button
+                label={triggeringPipeline ? "Starting…" : "Run pipeline"}
+                icon={
+                  triggeringPipeline ? "pi pi-spin pi-spinner" : "pi pi-play"
+                }
+                size="small"
+                onClick={handleTriggerPipeline}
+                disabled={triggeringPipeline}
+              />
+            )}
+            {pendingSamples.length > 0 && (
+              <input
+                value={pendingSearch}
+                onChange={(e) => setPendingSearch(e.target.value)}
+                placeholder="Search by sample ID…"
+                style={{
+                  padding: "4px 10px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  width: "220px",
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {pendingSamples.length === 0 ? (
@@ -760,12 +861,15 @@ export default function ImportPage() {
         ) : (
           <DataTable
             value={filteredPending}
+            selection={selectedPending}
+            onSelectionChange={(e) => setSelectedPending(e.value)}
             paginator
             rows={20}
             scrollable
             scrollHeight="400px"
             size="small"
           >
+            <Column selectionMode="multiple" style={{ width: "3rem" }} />
             <Column
               header="Sample ID"
               body={(row) =>

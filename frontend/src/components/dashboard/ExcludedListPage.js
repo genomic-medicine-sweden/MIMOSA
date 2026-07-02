@@ -13,39 +13,39 @@ import { Tag } from "primereact/tag";
 import useExcludedSamples from "@/hooks/useExcludedSamples";
 import useExcludedGroups from "@/hooks/useExcludedGroups";
 import useAppData from "@/hooks/useAppData";
-import useAnalysisProfiles from "@/hooks/useAnalysisProfiles";
 import { apiFetch } from "@/utils/apiFetch";
 import { formatDate } from "@/utils/date";
 
 export default function ExcludedListPage() {
   const toast = useRef(null);
   const { data } = useAppData();
-  const profiles = useAnalysisProfiles(data);
-  const profileOptions = profiles.map((p) => ({
-    label: p.replace(/_/g, " "),
-    value: p,
-  }));
 
   const {
     excludedSamples,
     loading: loadingSamples,
     createExcludedSample,
     deleteExcludedSample,
+    refresh: refreshSamples,
   } = useExcludedSamples();
   const {
     excludedGroups,
     loading: loadingGroups,
     createExcludedGroup,
     deleteExcludedGroup,
+    refresh: refreshGroups,
   } = useExcludedGroups();
 
   const [newSampleId, setNewSampleId] = useState("");
-  const [newSampleProfile, setNewSampleProfile] = useState(null);
   const [newGroupId, setNewGroupId] = useState("");
 
   const [confirmSample, setConfirmSample] = useState(null);
   const [confirmGroup, setConfirmGroup] = useState(null);
   const [offerDelete, setOfferDelete] = useState(null);
+
+  const [selectedSamples, setSelectedSamples] = useState([]);
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [confirmBulkSamples, setConfirmBulkSamples] = useState(false);
+  const [confirmBulkGroups, setConfirmBulkGroups] = useState(false);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
 
@@ -54,23 +54,21 @@ export default function ExcludedListPage() {
   };
 
   const handleAddSample = async () => {
-    if (!newSampleId.trim() || !newSampleProfile) return;
+    if (!newSampleId.trim()) return;
     const id = newSampleId.trim();
-    const profile = newSampleProfile;
-    const res = await createExcludedSample({ sample_id: id, profile });
+    const res = await createExcludedSample({ sample_id: id });
     if (res?.ok) {
       setNewSampleId("");
-      setNewSampleProfile(null);
       showToast("success", "Added", `Sample ${id} added to exclusion list.`);
       const existsInFeatures = data.some((s) => s.properties?.ID === id);
       if (existsInFeatures) {
-        setOfferDelete({ sample_id: id, profile });
+        setOfferDelete({ sample_id: id });
       }
     } else if (res?.status === 409) {
       showToast(
         "warn",
         "Already excluded",
-        "This sample is already in the exclusion list for this profile.",
+        "This sample is already in the exclusion list.",
       );
     } else {
       showToast("error", "Error", "Failed to add sample to exclusion list.");
@@ -99,6 +97,7 @@ export default function ExcludedListPage() {
     const res = await deleteExcludedSample(confirmSample._id);
     setConfirmSample(null);
     if (res?.ok) {
+      setSelectedSamples([]);
       showToast(
         "success",
         "Removed",
@@ -106,6 +105,48 @@ export default function ExcludedListPage() {
       );
     } else {
       showToast("error", "Error", "Failed to remove sample.");
+    }
+  };
+
+  const handleBulkDeleteSamples = async () => {
+    const ids = selectedSamples.map((r) => r._id);
+    const res = await apiFetch(`${apiBase}/api/excluded-samples`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    setConfirmBulkSamples(false);
+    if (res?.ok) {
+      setSelectedSamples([]);
+      await refreshSamples();
+      showToast(
+        "success",
+        "Removed",
+        `${ids.length} sample${ids.length !== 1 ? "s" : ""} removed from exclusion list.`,
+      );
+    } else {
+      showToast("error", "Error", "Failed to remove samples.");
+    }
+  };
+
+  const handleBulkDeleteGroups = async () => {
+    const ids = selectedGroups.map((r) => r._id);
+    const res = await apiFetch(`${apiBase}/api/excluded-groups`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    setConfirmBulkGroups(false);
+    if (res?.ok) {
+      setSelectedGroups([]);
+      await refreshGroups();
+      showToast(
+        "success",
+        "Removed",
+        `${ids.length} group${ids.length !== 1 ? "s" : ""} removed from exclusion list.`,
+      );
+    } else {
+      showToast("error", "Error", "Failed to remove groups.");
     }
   };
 
@@ -135,6 +176,7 @@ export default function ExcludedListPage() {
     const res = await deleteExcludedGroup(confirmGroup._id);
     setConfirmGroup(null);
     if (res?.ok) {
+      setSelectedGroups([]);
       showToast(
         "success",
         "Removed",
@@ -190,18 +232,11 @@ export default function ExcludedListPage() {
               style={{ minWidth: "180px" }}
               onKeyDown={(e) => e.key === "Enter" && handleAddSample()}
             />
-            <Dropdown
-              value={newSampleProfile}
-              options={profileOptions}
-              onChange={(e) => setNewSampleProfile(e.value)}
-              placeholder="Profile"
-              style={{ minWidth: "220px" }}
-            />
             <Button
               label="Add"
               icon="pi pi-plus"
               onClick={handleAddSample}
-              disabled={!newSampleId.trim() || !newSampleProfile}
+              disabled={!newSampleId.trim()}
             />
           </div>
           <p className="text-xs text-orange-600 mb-4">
@@ -209,20 +244,29 @@ export default function ExcludedListPage() {
             clustering results until deleted.
           </p>
 
+          {selectedSamples.length > 0 && (
+            <div className="flex justify-end mb-2">
+              <Button
+                label={`Delete selected (${selectedSamples.length})`}
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                onClick={() => setConfirmBulkSamples(true)}
+              />
+            </div>
+          )}
+
           <DataTable
             value={excludedSamples}
             loading={loadingSamples}
             emptyMessage="No excluded samples."
             scrollable
             scrollHeight="420px"
+            selection={selectedSamples}
+            onSelectionChange={(e) => setSelectedSamples(e.value)}
           >
+            <Column selectionMode="multiple" style={{ width: "3rem" }} />
             <Column field="sample_id" header="Sample ID" sortable />
-            <Column
-              field="profile"
-              header="Profile"
-              body={(row) => row.profile?.replace(/_/g, " ")}
-              sortable
-            />
             <Column
               field="added_at"
               header="Added"
@@ -272,13 +316,28 @@ export default function ExcludedListPage() {
             />
           </div>
 
+          {selectedGroups.length > 0 && (
+            <div className="flex justify-end mb-2">
+              <Button
+                label={`Delete selected (${selectedGroups.length})`}
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                onClick={() => setConfirmBulkGroups(true)}
+              />
+            </div>
+          )}
+
           <DataTable
             value={excludedGroups}
             loading={loadingGroups}
             emptyMessage="No excluded groups."
             scrollable
             scrollHeight="420px"
+            selection={selectedGroups}
+            onSelectionChange={(e) => setSelectedGroups(e.value)}
           >
+            <Column selectionMode="multiple" style={{ width: "3rem" }} />
             <Column field="group_id" header="Group ID" sortable />
             <Column
               field="added_at"
@@ -343,6 +402,58 @@ export default function ExcludedListPage() {
           Remove group <strong>{confirmGroup?.group_id}</strong> from the
           exclusion list? Samples in this group will be eligible for import on
           the next pipeline run.
+        </p>
+      </Dialog>
+
+      <Dialog
+        visible={confirmBulkSamples}
+        onHide={() => setConfirmBulkSamples(false)}
+        header="Remove from exclusion list"
+        style={{ width: "360px" }}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button
+              label="Cancel"
+              className="p-button-text"
+              onClick={() => setConfirmBulkSamples(false)}
+            />
+            <Button
+              label={`Remove ${selectedSamples.length} sample${selectedSamples.length !== 1 ? "s" : ""}`}
+              className="p-button-danger"
+              onClick={handleBulkDeleteSamples}
+            />
+          </div>
+        }
+      >
+        <p>
+          Remove <strong>{selectedSamples.length}</strong> sample
+          {selectedSamples.length !== 1 ? "s" : ""} from the exclusion list?
+        </p>
+      </Dialog>
+
+      <Dialog
+        visible={confirmBulkGroups}
+        onHide={() => setConfirmBulkGroups(false)}
+        header="Remove from exclusion list"
+        style={{ width: "360px" }}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button
+              label="Cancel"
+              className="p-button-text"
+              onClick={() => setConfirmBulkGroups(false)}
+            />
+            <Button
+              label={`Remove ${selectedGroups.length} group${selectedGroups.length !== 1 ? "s" : ""}`}
+              className="p-button-danger"
+              onClick={handleBulkDeleteGroups}
+            />
+          </div>
+        }
+      >
+        <p>
+          Remove <strong>{selectedGroups.length}</strong> group
+          {selectedGroups.length !== 1 ? "s" : ""} from the exclusion list?
         </p>
       </Dialog>
 
