@@ -67,6 +67,8 @@ def process_tsv(
                 "Date": row.get("Date", "").strip(),
                 "QC_Status": row.get("QC_Status", "").strip(),
                 "source": row.get("source", "").strip(),
+                "Latitude": row.get("Latitude", "").strip(),
+                "Longitude": row.get("Longitude", "").strip(),
                 "typing": typing,
             }
 
@@ -100,6 +102,24 @@ def process_tsv(
                 source = full_meta.get("source", "")
                 if source:
                     properties["source"] = source
+
+                lat_raw = full_meta.get("Latitude", "")
+                lng_raw = full_meta.get("Longitude", "")
+                if lat_raw and lng_raw:
+                    try:
+                        properties["manualCoordinates"] = {
+                            "lat": float(lat_raw),
+                            "lng": float(lng_raw),
+                        }
+                    except ValueError:
+                        print(
+                            f"  [{sample_id}] Warning: invalid coordinate values — skipped"
+                        )
+                elif lat_raw or lng_raw:
+                    missing = "Longitude" if lat_raw else "Latitude"
+                    print(
+                        f"  [{sample_id}] Warning: {missing} missing — coordinates skipped"
+                    )
 
                 typing = full_meta.get("typing", {})
                 if typing.get("ST") or typing.get("alleles"):

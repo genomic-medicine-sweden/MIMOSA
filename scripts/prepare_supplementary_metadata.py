@@ -129,6 +129,8 @@ def prepare_supplementary(
                 "PostCode": "",
                 "Hospital": "",
                 "Date": "",
+                "Latitude": "",
+                "Longitude": "",
             }
         )
 
