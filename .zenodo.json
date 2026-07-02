@@ -1,0 +1,29 @@
+{
+  "title": "MIMOSA",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Andersson, Olivia",
+      "orcid": "0009-0009-4866-8046"
+    },
+    {
+      "name": "Welander, Jenny",
+      "orcid": "0009-0000-6704-951X"
+    },
+    {
+      "name": "Rydbeck, Halfdan",
+      "orcid": "0000-0003-1606-3842"
+    },
+    {
+      "name": "Lindqvist, Carl Mårten",
+      "orcid": "0000-0003-3887-9519"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Stenmark, Bianca",
+      "orcid": "0000-0003-4637-8626",
+      "type": "Supervisor"
+    }
+  ]
+}
