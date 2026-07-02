@@ -3,6 +3,8 @@ import createPieChartSVG from "@/utils/PieChart";
 
 export const SHAPES = ["circle", "triangle", "square", "diamond"];
 
+export const SHAPE_ICON_SIZE_MULTIPLIER = 2.5;
+
 export const SHAPE_SVG = {
   circle: (s, dashed = false) =>
     `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 2}" fill="none" stroke="#555" stroke-width="2" ${dashed ? 'stroke-dasharray="3,4" stroke-linecap="round"' : ""}/>`,
@@ -31,7 +33,7 @@ export function getShape(
 }
 
 export function createShapeIcon(shape, color, size) {
-  const s = size * 2.5;
+  const s = size * SHAPE_ICON_SIZE_MULTIPLIER;
 
   const filledSVG = {
     circle: `<circle cx="${s / 2}" cy="${s / 2}" r="${s / 2 - 2}" fill="${color}" stroke="black" stroke-width="1"/>`,

@@ -30,6 +30,7 @@ const App = ({
     hospitalCoordinates = {},
     boundariesData,
     postcodePrefix = "",
+    defaultCounties,
   } = useMapConfigContext();
 
   const countryData = useMemo(() => {
@@ -80,10 +81,12 @@ const App = ({
   const [filteredData, setFilteredData] = useState(data);
   const [hospitalView, setHospitalView] = useState(true);
   const [mapColor, setMapColor] = useState("green");
-  const [markerSize, setMarkerSize] = useState(6);
+  const [markerSize, setMarkerSize] = useState(4);
   const [activeTab, setActiveTab] = useState(null);
   const [infoContent, setInfoContent] = useState("");
-  const [selectedCounty, setSelectedCounty] = useState("All");
+  const [selectedCounty, setSelectedCounty] = useState(
+    defaultCounties?.length ? defaultCounties : ["All"],
+  );
   const [countyFilter, setCountyFilter] = useState([]);
   const [visualisedData, setVisualisedData] = useState([]);
   const [analysisProfile, setAnalysisProfile] = useState(null);
@@ -162,18 +165,19 @@ const App = ({
     setInfoContent(content);
   };
 
-  const handleCountySelect = (county) => {
-    setSelectedCounty(county);
+  const handleCountySelect = (counties) => {
+    setSelectedCounty(counties);
 
-    const countyData = infoRef.current?.countyCounts?.[county] || {
-      total: 0,
-      Cluster_ID: {},
-    };
-
-    const content =
-      county === "All" ? "" : generateInfoContent(county, countyData);
-
-    setInfoContent(content);
+    if (counties.length === 1 && !counties.includes("All")) {
+      const name = counties[0];
+      const countyData = infoRef.current?.countyCounts?.[name] || {
+        total: 0,
+        Cluster_ID: {},
+      };
+      setInfoContent(generateInfoContent(name, countyData));
+    } else {
+      setInfoContent("");
+    }
   };
 
   const { outbreaks } = useOutbreaks(analysisProfile, dataVersion);
@@ -226,6 +230,7 @@ const App = ({
           selectedCounty={selectedCounty}
           setSelectedCounty={setSelectedCounty}
           onCountySelect={handleCountySelect}
+          defaultCounties={defaultCounties}
           outbreaks={outbreaks}
           shapeByPlatform={shapeByPlatform}
           setShapeByPlatform={setShapeByPlatform}
@@ -245,7 +250,7 @@ const App = ({
           mapColor={mapColor}
           markerSize={markerSize}
           onInfoUpdate={handleInfoUpdate}
-          selectedCounties={selectedCounty ? [selectedCounty] : []}
+          selectedCounties={selectedCounty}
           infoRef={infoRef}
           countyFilter={countyFilter}
           shapeByPlatform={shapeByPlatform}

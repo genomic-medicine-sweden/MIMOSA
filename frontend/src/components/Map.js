@@ -16,6 +16,7 @@ import {
   createPieClusterIcon,
   createMarker,
   buildPopupContent,
+  SHAPE_ICON_SIZE_MULTIPLIER,
 } from "@/utils/markerUtils";
 
 const Map = ({
@@ -43,7 +44,7 @@ const Map = ({
 
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
-  const markersRef = useRef({});
+  const markerClusterGroupRef = useRef(null);
   const selectedMarkerRef = useRef(null);
   const geojsonLayerRef = useRef(null);
   const currentZoomRef = useRef(null);
@@ -78,10 +79,23 @@ const Map = ({
   );
 
   const clearAndAddMarkers = useCallback(() => {
-    Object.values(markersRef.current).forEach((markerCluster) => {
-      markerCluster.clearLayers();
+    if (markerClusterGroupRef.current) {
+      mapInstance.current.removeLayer(markerClusterGroupRef.current);
+    }
+
+    const circleFootprintRadius = markerSize;
+    const iconFootprintRadius = (markerSize * SHAPE_ICON_SIZE_MULTIPLIER) / 2;
+    const maxFootprintRadius = shapeByPlatform
+      ? Math.max(circleFootprintRadius, iconFootprintRadius)
+      : circleFootprintRadius;
+
+    markerClusterGroupRef.current = L.markerClusterGroup({
+      maxClusterRadius: Math.ceil(maxFootprintRadius * 2),
+      iconCreateFunction: (cluster) =>
+        createPieClusterIcon(cluster, markerSize, shapeByPlatform),
     });
-    markersRef.current = {};
+    mapInstance.current.addLayer(markerClusterGroupRef.current);
+
     const countyCounts = {};
 
     if (!Array.isArray(filteredData) || filteredData.length === 0) return;
@@ -228,18 +242,6 @@ const Map = ({
         platform,
       );
 
-      const naturalKey = hospitalView ? Hospital : PostCode;
-      const clusterKey =
-        naturalKey || `coords_${coordinates[0]},${coordinates[1]}`;
-
-      if (!markersRef.current[clusterKey]) {
-        markersRef.current[clusterKey] = L.markerClusterGroup({
-          iconCreateFunction: (cluster) =>
-            createPieClusterIcon(cluster, markerSize, shapeByPlatform),
-        });
-        mapInstance.current.addLayer(markersRef.current[clusterKey]);
-      }
-
       const popupContent = buildPopupContent({
         ID,
         Cluster_ID,
@@ -261,7 +263,7 @@ const Map = ({
         marker.bindPopup(popupContent).openPopup();
       });
 
-      markersRef.current[clusterKey].addLayer(marker);
+      markerClusterGroupRef.current.addLayer(marker);
     });
 
     if (infoRef.current) {
@@ -289,6 +291,7 @@ const Map = ({
     }
 
     geojsonLayerRef.current = L.geoJSON(boundariesData, {
+      renderer: L.canvas({ padding: 0.2 }),
       style: (feature) => {
         const countyName = feature.properties[regionNameKey];
         const shouldHighlight = !(
@@ -396,8 +399,6 @@ const Map = ({
           map.setMinZoom(fittedZoom);
         }, 100);
 
-        L.svg({ padding: 0.2 }).addTo(map);
-
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution:
             'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
@@ -459,9 +460,7 @@ const Map = ({
     return () => {
       cancelled = true;
       cleanupFn();
-      Object.values(markersRef.current).forEach((markerCluster) =>
-        markerCluster.clearLayers(),
-      );
+      markerClusterGroupRef.current?.clearLayers();
     };
   }, [
     clearAndAddMarkers,
@@ -493,21 +492,14 @@ const Map = ({
       mapInstance.current.fitBounds(geoBounds, { padding: [20, 20] });
     }
 
-    if (selectedCounties[0] !== "All") {
-      const countyName = selectedCounties[0];
-      const feature = boundariesData.features.find(
-        (f) => f.properties[regionNameKey] === countyName,
+    if (!selectedCounties.includes("All")) {
+      const features = boundariesData.features.filter((f) =>
+        selectedCounties.includes(f.properties[regionNameKey]),
       );
-
-      if (feature) {
-        const featureBounds = L.geoJSON(feature).getBounds();
-        mapInstance.current.fitBounds(featureBounds);
-
-        const countyData = infoRef.current?.countyCounts?.[countyName] || {
-          total: 0,
-          Cluster_ID: {},
-        };
-        onInfoUpdate(generateInfoContent(countyName, countyData));
+      if (features.length > 0) {
+        mapInstance.current.fitBounds(
+          L.geoJSON({ type: "FeatureCollection", features }).getBounds(),
+        );
       }
     }
 

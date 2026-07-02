@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "@/styles/SidePanel.css";
 import { SelectButton } from "primereact/selectbutton";
 import { Dropdown } from "primereact/dropdown";
+import { MultiSelect } from "primereact/multiselect";
 import { Slider } from "primereact/slider";
 import { InputSwitch } from "primereact/inputswitch";
 import { Checkbox } from "primereact/checkbox";
@@ -24,6 +25,7 @@ const SidePanel = ({
   selectedCounty,
   setSelectedCounty,
   onCountySelect,
+  defaultCounties,
   outbreaks,
   shapeByPlatform,
   setShapeByPlatform,
@@ -185,15 +187,27 @@ const SidePanel = ({
             />
 
             <p>County</p>
-            <Dropdown
-              value={selectedCounty}
-              options={counties}
+            <MultiSelect
+              value={selectedCounty?.includes("All") ? [] : selectedCounty}
+              options={
+                defaultCounties?.length
+                  ? counties.filter((c) => defaultCounties.includes(c.value))
+                  : counties.filter((c) => c.value !== "All")
+              }
               onChange={(e) => {
-                setSelectedCounty(e.value);
-                onCountySelect(e.value);
+                const fallback = defaultCounties?.length
+                  ? defaultCounties
+                  : ["All"];
+                const next = e.value?.length ? e.value : fallback;
+                setSelectedCounty(next);
+                onCountySelect(next);
               }}
-              placeholder="Select a County"
+              placeholder={
+                defaultCounties?.length ? "Select counties" : "All counties"
+              }
               className="county-dropdown"
+              filter
+              maxSelectedLabels={2}
             />
 
             <p>Differentiate by Sequencing Platform</p>
