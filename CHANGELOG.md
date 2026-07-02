@@ -1,4 +1,4 @@
-## [unreleased]
+## [v0.6.0]
 
 ### Added
 - Map toggle in Map Settings to differentiate markers by sequencing platform
@@ -60,6 +60,25 @@
 - `source` field on features to distinguish Bonsai and chewBBACA samples
 - SSE keepalive ping to prevent connection timeouts
 - Sphinx documentation
+- Excluded List page (admin only) for managing excluded sample IDs and Bonsai group IDs
+- Sample deletion from the Samples page, with option to add the sample to the exclusion list to prevent re-import
+- `DELETE /api/features/:sample_id` endpoint, removing the feature and any associated chewBBACA allele profiles
+- Database-backed exclusion list — pipeline runs now read excluded samples and groups from the database in addition to CLI flags
+- `--delete-samples` CLI flag to delete samples directly from the pipeline script
+- Interactive prompt to persist `--exclude-samples`/`--exclude-groups` CLI exclusions to the database
+- Pipeline trigger endpoint now accepts an optional profile list to restrict the run to specific profiles
+- Automation container warns at startup if allele profiles exist for profiles not in the run list
+- Bulk sample deletion from the Samples page with optional exclusion list integration
+- Bulk delete for excluded samples, excluded groups, and allele profiles
+- Pipeline trigger button on the Import page
+- `manage_exclusions.py` CLI script for managing excluded samples and groups from the command line
+- chewBBACA test script and test dataset
+- Docker entrypoint script to fix log file ownership before dropping to the non-root user
+- `settings.yaml` for user-configurable ReporTree parameters and QC filtering, replacing hardcoded constants
+- Latitude and Longitude support in supplementary metadata and TSV processing
+- Multi-county selection on the map with optional default county configuration via environment variable
+- ReadTheDocs link in the sidebar
+- Loading and error states in the dashboard layout while map config is fetching
 
 ### Changed
 - Refactored Map.js — extracted marker logic into utils/markerUtils.js and zoom/bounds logic into utils/mapUtils.js
@@ -98,6 +117,16 @@
 - Request body size limit increased to 50 MB
 - README condensed and now links to full Sphinx documentation
 - Inline READMEs for outbreak rules and pending samples removed in favour of Sphinx docs
+- Sample deletion is now logged in the audit trail alongside edits and QC deletions
+- Pipeline trigger returns 409 when a run is already in progress instead of starting a second one
+- Pending chewBBACA samples now excludes samples already present in features
+- Swagger persistAuthorization disabled
+- Log file write failures now print a warning to stderr instead of silently failing
+- Bumped nodemailer to >=9.0.1
+- Active map and region name key now configurable via `ACTIVE_MAP` and `COUNTY` environment variables, with a fallback for unknown map keys
+- Marker cluster refactored to a single group, improving rendering performance
+- Singleton clusters grouped under a single entry in the county info panel
+- `confirmPassword` stripped before sending user creation request
 
 ### Fixed
 - Fixed region matching for UK map boundaries
@@ -114,6 +143,8 @@
 - Bumped js-cookie to ^3.0.7
 - SSE ping events no longer trigger unnecessary data refetches in the frontend
 - OAuth clients sending standard form fields no longer receive a 400 on login
+- Coordinate pair validation now catches missing Latitude or Longitude independently
+- `selectedCounty` type mismatch in MyCountyView
 
 ## [v0.5.0]
 
