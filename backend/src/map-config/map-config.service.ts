@@ -8,6 +8,7 @@ export type CoordinatesPayload = {
   hospitalCoordinates: Record<string, any>;
   boundariesData: Record<string, any>;
   postcodePrefix: string;
+  regionNameKey: string;
 };
 
 @Injectable()

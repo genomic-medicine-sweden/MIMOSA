@@ -19,6 +19,7 @@ export class LocationResolver {
   private readonly postcodeCoordinates: Record<string, any>;
   private readonly postcodePrefix: string;
   private readonly boundariesData: Record<string, any>;
+  private readonly regionNameKey: string;
 
   private readonly unknownHospitals = new Set<string>();
   private readonly unknownPostcodes = new Set<string>();
@@ -29,6 +30,7 @@ export class LocationResolver {
     this.postcodeCoordinates = coords.postcodeCoordinates;
     this.postcodePrefix = coords.postcodePrefix ?? '';
     this.boundariesData = coords.boundariesData;
+    this.regionNameKey = coords.regionNameKey ?? 'name';
   }
 
   private pointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
@@ -65,7 +67,7 @@ export class LocationResolver {
     if (Array.isArray(features)) {
       for (const feature of features) {
         const geom = feature.geometry;
-        const name = feature.properties?.name;
+        const name = feature.properties?.[this.regionNameKey];
         if (!name || !geom) continue;
 
         if (geom.type === 'Polygon') {

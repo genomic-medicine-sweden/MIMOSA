@@ -1,4 +1,4 @@
-const ACTIVE_MAP = 'sweden' as const;
+const ACTIVE_MAP = process.env.ACTIVE_MAP ?? 'sweden';
 
 type MapConfig = {
   activeMap: string;
@@ -7,6 +7,7 @@ type MapConfig = {
   regionNameKey: string;
   postcodePrefix: string;
   postcodeLength: number;
+  defaultCounties?: string[];
   boundariesFile?: string;
   boundariesApi?: {
     countryCode: string;
@@ -54,19 +55,32 @@ const configs: Record<string, MapConfig> = {
   },
 };
 
-if (!(ACTIVE_MAP in configs)) {
-  throw new Error(
-    `[map-config] ACTIVE_MAP "${ACTIVE_MAP}" has no entry in configs. ` +
-      `Available: ${Object.keys(configs).join(', ')}`,
-  );
+function resolveConfig(mapKey: string): MapConfig {
+  const defaultCounties = process.env.COUNTY
+    ? process.env.COUNTY.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+
+  const base =
+    mapKey.toLowerCase() in configs
+      ? configs[mapKey.toLowerCase()]
+      : {
+          activeMap: mapKey,
+          bounds: [
+            [-90, -180],
+            [90, 180],
+          ] as [[number, number], [number, number]],
+          center: [20, 0] as [number, number],
+          regionNameKey: 'shapeName',
+          postcodePrefix: '',
+          postcodeLength: 7,
+          boundariesApi: { countryCode: mapKey.toUpperCase(), level: 'ADM1' },
+        };
+
+  return defaultCounties ? { ...base, defaultCounties } : base;
 }
 
-const activeConfig = configs[ACTIVE_MAP];
-if (!activeConfig.boundariesFile && !activeConfig.boundariesApi) {
-  throw new Error(
-    `[map-config] "${ACTIVE_MAP}" has no boundaries source configured. ` +
-      `Set boundariesFile and/or boundariesApi in the config.`,
-  );
-}
+const activeConfig = resolveConfig(ACTIVE_MAP);
 
 export default activeConfig;

@@ -118,6 +118,7 @@ const coordinatesProvider = {
       hospitalCoordinates: hospitals ?? {},
       boundariesData: boundaries,
       postcodePrefix: mapConfig.postcodePrefix,
+      regionNameKey: mapConfig.regionNameKey,
     };
   },
 };

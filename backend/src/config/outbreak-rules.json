@@ -5,13 +5,5 @@
     "alertVisibilityDays": 14,
     "alertMinGrowthForRefresh": 2
   },
-  "profiles": {
-    "staphylococcus_aureus": {
-      "detectionThreshold": 2,
-      "requireCountyResolution": true,
-      "alertVisibilityDays": 14,
-      "alertMinGrowthForRefresh": 2 
-    }
-  }
+  "profiles": {}
 }
-
