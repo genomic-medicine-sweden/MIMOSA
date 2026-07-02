@@ -390,7 +390,16 @@ def fetch_excluded_sample_ids(profiles):
     client = MongoClient(mongo_uri)
     db = client[db_name]
     try:
-        query = {"profile": {"$in": list(profiles)}} if profiles else {}
+        if profiles:
+            query = {
+                "$or": [
+                    {"profile": {"$in": list(profiles)}},
+                    {"profile": {"$exists": False}},
+                    {"profile": None},
+                ]
+            }
+        else:
+            query = {}
         return {
             doc["sample_id"]
             for doc in db["excluded_samples"].find(query, {"sample_id": 1})
