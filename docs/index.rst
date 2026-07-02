@@ -21,6 +21,7 @@ MIMOSA has been tested with Bonsai v2.1.0. Other Bonsai versions may also work.
    automation
    pipeline
    import
+   testing
    user-management
    notifications
 
@@ -31,6 +32,7 @@ MIMOSA has been tested with Bonsai v2.1.0. Other Bonsai versions may also work.
 
    samples
    pending-samples
+   exclusion-list
    notification-preferences
 
 .. toctree::
@@ -39,3 +41,4 @@ MIMOSA has been tested with Bonsai v2.1.0. Other Bonsai versions may also work.
    :maxdepth: 2
 
    citations
+

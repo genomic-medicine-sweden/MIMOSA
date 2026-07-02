@@ -122,8 +122,11 @@ The CSV must contain a ``sample`` column (matching the sample ID from Bonsai or 
 
 .. code-block:: text
 
-   sample,lims_id,PostCode,Hospital,Date
-   SAMPLE_001,lims_001,71131,Örebro Universitetssjukhus,2025-03-05
+   sample,lims_id,PostCode,Hospital,Date,Latitude,Longitude
+   SAMPLE_001,lims_001,71131,Örebro Universitetssjukhus,2025-03-05,,
+   SAMPLE_002,lims_002,,,,52.2053,0.1218
+
+Supported metadata columns: ``PostCode``, ``Hospital``, ``Date``, ``Latitude``, ``Longitude``.  All are optional — include only the columns you have data for.  If ``Latitude`` is provided, ``Longitude`` must also be provided (and vice versa); samples with only one coordinate are skipped with a warning.  Samples with valid coordinates are plotted on the map even when no postcode or hospital is available.
 
 To prepare the file, generate a template with sample IDs pre-populated from Bonsai:
 
@@ -134,7 +137,7 @@ To prepare the file, generate a template with sample IDs pre-populated from Bons
      --output ./metadata_templates/ \
      --profile staphylococcus_aureus
 
-The template contains ``sample`` and ``lims_id`` columns filled in from Bonsai.  Fill in the remaining fields (``PostCode``, ``Hospital``, ``Date``) manually before passing the file to the pipeline.
+The template contains ``sample`` and ``lims_id`` columns filled in from Bonsai, plus empty columns for ``PostCode``, ``Hospital``, ``Date``, ``Latitude``, and ``Longitude``.  Fill in the relevant fields manually before passing the file to the pipeline.
 
 Supplementary metadata can also be added or corrected after import via the **Samples** page in the dashboard (see :doc:`/pending-samples` for pre-registering metadata before samples arrive).
 
@@ -170,9 +173,9 @@ All commands are run from the repository root.
    * - ``--run-similarity``
      - Run similarity analysis after clustering.
    * - ``--exclude-samples ID [...]``
-     - Sample IDs to exclude.  A single value may be a file path with one ID per line.
+     - Sample IDs to exclude for this run.  A single value may be a file path with one ID per line.  In interactive mode you will be offered the option to persist new exclusions to the database.  See :doc:`exclusion-list`.
    * - ``--exclude-groups ID [...]``
-     - Group IDs to exclude (file path also accepted).
+     - Group IDs to exclude for this run (file path also accepted).  Same persistence prompt as ``--exclude-samples``.
    * - ``--output DIR``
      - Directory to save intermediate files.  Requires ``--save_files``.
    * - ``--save_files``
@@ -214,3 +217,4 @@ Force re-clustering for all profiles:
 .. code-block:: bash
 
    python scripts/main.py --credentials credentials.json --re-cluster
+

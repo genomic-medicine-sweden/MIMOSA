@@ -18,6 +18,11 @@ Editing metadata
 
 To register metadata before a sample arrives, use :doc:`pending-samples`.
 
+Deleting samples
+----------------
+
+Click the trash icon on a sample row to delete it.  A confirmation dialog appears with a checkbox **Also add to excluded list** (pre-checked for Bonsai samples).  If checked, the sample is added to the :doc:`exclusion-list` at the same time so it is not re-imported on the next pipeline run.
+
 .. _why-metadata-matters:
 
 Why metadata matters

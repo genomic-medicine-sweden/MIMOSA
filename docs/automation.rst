@@ -25,7 +25,7 @@ Configuration (``.env.automation``)
    * - ``AUTOMATION_MIMOSA_PASSWORD``
      - Service-account password for the MIMOSA backend.
    * - ``AUTOMATION_PROFILES``
-     - Comma-separated list of profiles to process.  Leave empty to process all profiles.
+     - Comma-separated list of profiles to process.  Leave empty to process all profiles.  The automation container warns at the start of every run if the database contains allele profiles for a species not listed here (see `Unconfigured profile warning`_ below).
    * - ``AUTOMATION_GROUPS``
      - Comma-separated Bonsai group IDs to restrict processing.  Leave empty for all groups.
    * - ``AUTOMATION_UPDATE_ONLY``
@@ -44,6 +44,24 @@ Configuration (``.env.automation``)
      - Path inside the container to the watch config JSON file.  Leave unset to disable directory watching.
    * - ``CHEWBBACA_WATCH_INTERVAL``
      - How often to scan watched directories, in hours.  Decimals are accepted (e.g. ``0.5`` = every 30 minutes).  Default: ``24``.
+
+Exclusion list
+--------------
+
+The automation container reads the database-backed exclusion list on every run.  Sample IDs and Bonsai group IDs added via the **Excluded List** page in the dashboard or via ``manage_exclusions.py`` are automatically respected — no restart or environment variable change is required.  See :doc:`exclusion-list` for details.
+
+API trigger
+-----------
+
+Admins can trigger an immediate run from the web interface or via ``POST /api/pipeline/trigger``.  An optional JSON body ``{"profiles": ["staphylococcus_aureus"]}`` overrides ``AUTOMATION_PROFILES`` for that run only — useful for processing pending samples for a species without a permanent config change.  Returns ``202`` on success or ``409`` if a run is already in progress.
+
+.. _Unconfigured profile warning:
+
+If the database contains allele profiles for a species not in the current run's profile list, a warning is logged at the start of each run:
+
+.. code-block:: text
+
+   WARNING event=pending_samples_not_in_run profile=staphylococcus_aureus count=19 hint=add_to_AUTOMATION_PROFILES_or_pass_profiles_to_trigger
 
 Scheduled runs
 --------------
@@ -141,7 +159,6 @@ Then restart the service:
 
 Logs
 ----
-
 Container logs are written to stdout and to ``.mimosa-automation.log`` at the repository root.  Key log events:
 
 .. list-table::
@@ -156,6 +173,10 @@ Container logs are written to stdout and to ``.mimosa-automation.log`` at the re
      - HTTP trigger server is ready to accept requests.
    * - ``event=trigger_skipped reason=already_running``
      - A run was requested while one was already in progress.
+   * - ``event=no_samples_found``
+     - No allele profiles exist in the database for the configured profiles; nothing to process.
+   * - ``event=pending_samples_not_in_run profile=… count=N``
+     - The database contains N samples for a species that is not in the current run's profile list.  See `Unconfigured profile warning`_.
    * - ``event=pipeline_exit_error exit_code=N``
      - The pipeline process exited with a non-zero code.
    * - ``event=pipeline_retry``
