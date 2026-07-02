@@ -88,6 +88,64 @@ export class FeaturesService {
     return updated;
   }
 
+  async deleteManyBySampleIds(
+    sampleIds: string[],
+    deletedBy: string,
+  ): Promise<void> {
+    const features = (await this.featureModel
+      .find({ 'properties.ID': { $in: sampleIds } })
+      .lean()) as any[];
+
+    if (!features.length) return;
+
+    const foundIds = features
+      .map((f) => f.properties?.ID as string)
+      .filter(Boolean);
+
+    const profileBySampleId = new Map<string, string>(
+      features.map((f) => [
+        f.properties?.ID,
+        f.properties?.analysis_profile ?? 'unknown',
+      ]),
+    );
+
+    const alleleProfiles = (await this.alleleProfileModel
+      .find(
+        { sample_id: { $in: foundIds }, source: 'chewbbaca' },
+        { filename: 1, sample_id: 1 },
+      )
+      .lean()) as any[];
+
+    const filenamesByProfile = new Map<string, Set<string>>();
+    for (const ap of alleleProfiles) {
+      if (!ap.filename) continue;
+      const profile = profileBySampleId.get(ap.sample_id) ?? 'unknown';
+      if (!filenamesByProfile.has(profile))
+        filenamesByProfile.set(profile, new Set());
+      filenamesByProfile.get(profile)!.add(ap.filename);
+    }
+
+    await this.featureModel.deleteMany({
+      'properties.ID': { $in: foundIds },
+    });
+    await this.alleleProfileModel.deleteMany({
+      sample_id: { $in: foundIds },
+    });
+
+    for (const [profile, filenames] of filenamesByProfile) {
+      await this.alleleProfileModel.db
+        .collection('processed_files')
+        .deleteMany({ filename: { $in: [...filenames] }, profile });
+    }
+
+    for (const sampleId of foundIds) {
+      const profile = profileBySampleId.get(sampleId) ?? 'unknown';
+      await this.logsService.logSampleDeletion(sampleId, profile, deletedBy);
+    }
+
+    this.eventEmitter.emit('features.changed', { operationType: 'delete' });
+  }
+
   async deleteBySampleId(sampleId: string, deletedBy: string): Promise<void> {
     const feature = await this.featureModel.findOne({
       'properties.ID': sampleId,

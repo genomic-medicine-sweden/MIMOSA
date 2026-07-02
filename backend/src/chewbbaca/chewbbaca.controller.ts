@@ -44,6 +44,11 @@ export class ChewbbacaController {
     return this.service.updateSampleId(id, dto);
   }
 
+  @Delete('allele-profiles')
+  deleteAlleleProfiles(@Body() body: { ids: string[] }) {
+    return this.service.deleteAlleleProfiles(body.ids);
+  }
+
   @Delete('allele-profiles/:id')
   deleteAlleleProfile(@Param('id') id: string) {
     return this.service.deleteAlleleProfile(id);

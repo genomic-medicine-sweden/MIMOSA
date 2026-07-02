@@ -30,6 +30,11 @@ export class ExcludedSamplesController {
     return this.service.create(dto, req.user?.email ?? 'unknown');
   }
 
+  @Delete()
+  deleteMany(@Body() body: { ids: string[] }) {
+    return this.service.deleteMany(body.ids);
+  }
+
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.service.delete(id);

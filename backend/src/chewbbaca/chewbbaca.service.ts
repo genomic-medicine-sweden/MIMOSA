@@ -39,6 +39,10 @@ export class ChewbbacaService {
       .exec();
   }
 
+  async deleteAlleleProfiles(ids: string[]) {
+    await this.model.deleteMany({ _id: { $in: ids } });
+  }
+
   async deleteAlleleProfile(id: string) {
     await this.model.findByIdAndDelete(id);
   }

@@ -93,6 +93,21 @@ export class FeaturesController {
     );
   }
 
+  @Delete()
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Delete multiple samples',
+    description:
+      'Removes multiple sample features and all associated allele profiles in one batched operation. Deletions are logged.',
+  })
+  async deleteManyFeatures(
+    @Body() body: { sampleIds: string[] },
+    @Req() req,
+  ): Promise<void> {
+    const userEmail = req.user?.email || 'unknown';
+    await this.featuresService.deleteManyBySampleIds(body.sampleIds, userEmail);
+  }
+
   @Delete(':sample_id')
   @HttpCode(204)
   @ApiParam({ name: 'sample_id', required: true })

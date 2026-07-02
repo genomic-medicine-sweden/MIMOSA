@@ -28,11 +28,15 @@ export class ExcludedSamplesService {
     } catch (err: any) {
       if (err.code === 11000) {
         throw new ConflictException(
-          `Sample '${dto.sample_id}' is already excluded for profile '${dto.profile}'.`,
+          `Sample '${dto.sample_id}' is already in the exclusion list.`,
         );
       }
       throw err;
     }
+  }
+
+  async deleteMany(ids: string[]): Promise<void> {
+    await this.model.deleteMany({ _id: { $in: ids } }).exec();
   }
 
   async delete(id: string): Promise<void> {

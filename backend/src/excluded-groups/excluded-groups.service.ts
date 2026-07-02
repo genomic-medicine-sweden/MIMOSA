@@ -35,6 +35,10 @@ export class ExcludedGroupsService {
     }
   }
 
+  async deleteMany(ids: string[]): Promise<void> {
+    await this.model.deleteMany({ _id: { $in: ids } }).exec();
+  }
+
   async delete(id: string): Promise<void> {
     await this.model.findByIdAndDelete(id).exec();
   }
