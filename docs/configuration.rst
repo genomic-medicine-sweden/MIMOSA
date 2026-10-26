@@ -1,12 +1,17 @@
 Configuration
 =============
 
+
 ReporTree parameters (``settings.yaml``)
 -----------------------------------------
 
-The default clustering parameters used by
-`ReporTree <https://github.com/insapathogenomics/ReporTree>`_ are set in
-``settings.yaml``:
+Clustering parameters used by
+`ReporTree <https://github.com/insapathogenomics/ReporTree>`_ are configured
+in ``settings.yaml``. MIMOSA supports GrapeTree-based clustering (MSTreeV2)
+and hierarchical clustering (single-linkage or complete-linkage).
+
+The default configuration uses GrapeTree with MSTreeV2 and an allelic
+distance threshold of 9:
 
 .. code-block:: yaml
 
@@ -15,12 +20,29 @@ The default clustering parameters used by
      method: MSTreeV2
      analysis: grapetree
 
-``threshold`` specifies the allelic distance threshold used by ReporTree to
-define clusters.
+The parameters are:
 
-To use different parameters for a specific organism, add an entry to
-``reportree_profile_params``.  Only the fields that should differ from the
-defaults need to be listed:
+``analysis``
+   Clustering analysis (``grapetree`` or ``HC``).
+
+``method``
+   Clustering method (``MSTreeV2`` for GrapeTree; ``single`` or
+   ``complete`` for hierarchical clustering).
+
+``threshold``
+   Allelic distance threshold used to define clusters.
+
+When changing the clustering analysis, both ``analysis`` and ``method``
+must be specified to ensure a compatible combination.
+
+Per-profile overrides
+^^^^^^^^^^^^^^^^^^^^^
+
+Different clustering parameters can be specified for individual analysis
+profiles using ``reportree_profile_params``. Only parameters that differ
+from the defaults need to be provided.
+
+For example, to use a threshold of 7 for *Klebsiella pneumoniae*:
 
 .. code-block:: yaml
 
@@ -28,8 +50,22 @@ defaults need to be listed:
      klebsiella_pneumoniae:
        threshold: 7
 
-In the example above, *Klebsiella pneumoniae* uses a stricter threshold of
-7 while all other profiles continue to use 9.
+In this example, *Klebsiella pneumoniae* uses a threshold of 7 while
+all other profiles continue to use the default threshold of 9.
+
+To use single-linkage hierarchical clustering for *Staphylococcus aureus*:
+
+.. code-block:: yaml
+
+   reportree_profile_params:
+     staphylococcus_aureus:
+       analysis: HC
+       method: single
+       threshold: 9
+
+For complete-linkage clustering, set ``method: complete`` instead.
+
+All profiles without an override continue to use the default configuration.
 
 QC filtering (``settings.yaml``)
 ---------------------------------
