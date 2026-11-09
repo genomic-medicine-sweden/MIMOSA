@@ -1,3 +1,14 @@
+## [unreleased]
+
+### Added
+
+### Changed
+- Refined ReporTree clustering configuration and output handling for GrapeTree and hierarchical clustering.
+
+### Fixed
+
+
+
 ## [v0.6.0]
 
 ### Added

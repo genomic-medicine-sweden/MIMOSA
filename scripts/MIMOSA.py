@@ -30,6 +30,26 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
 
+def get_partition_name(profile):
+    """
+    Return the ReporTree partition column for a configured profile.
+    """
+    params = get_reportree_params(profile)
+    threshold = params["threshold"]
+    analysis = params["analysis"].lower()
+
+    if analysis == "hc":
+        method = params["method"].lower()
+        if method not in ("single", "complete"):
+            raise ValueError(f"Unsupported HC method: {method}")
+        return f"{method}-{threshold}x1.0"
+
+    if analysis == "grapetree":
+        return f"MST-{threshold}x1.0"
+
+    raise ValueError(f"Unsupported analysis: {params['analysis']}")
+
+
 def _synthesize_singletons(profile, profile_dir, threshold):
     """
     If the partition column is absent from the ReporTree output (e.g., fewer than required number of samples),
@@ -47,7 +67,7 @@ def _synthesize_singletons(profile, profile_dir, threshold):
         profile_dir, f"{profile}_clusterComposition.tsv"
     )
 
-    partition_col = f"MST-{threshold}x1.0"
+    partition_col = get_partition_name(profile)
 
     df = pd.read_csv(metadata_partitions_tsv, sep="\t")
 
@@ -141,7 +161,7 @@ def _get_nomenclature_file(profile, profile_dir, is_interactive, sample_ids=None
         return None
 
     params = get_reportree_params(profile)
-    expected_partition = f"MST-{params['threshold']}x1.0"
+    expected_partition = get_partition_name(profile)
 
     results = clustering_doc.get("results", [])
     stored_partition = results[0]["Partition"] if results else None
@@ -368,10 +388,12 @@ def mimosa(
         f"{profile}_dist_hamming.tsv",
     )
 
-    nwk_path = os.path.join(
-        profile_dir,
-        f"{profile}.nwk",
-    )
+    if params["analysis"].lower() == "hc":
+        nwk_filename = f"{profile}_{params['method'].lower()}_HC.nwk"
+    else:
+        nwk_filename = f"{profile}.nwk"
+
+    nwk_path = os.path.join(profile_dir, nwk_filename)
 
     distance_json_path = os.path.join(
         profile_dir,
